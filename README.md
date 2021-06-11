@@ -13,3 +13,4 @@ Spec:
 - Minting support to allow adding a new minter to support swapping a share token into a yield bearing sharing token controlled by the oracle module
   e.g. swapping veth2 to a yield bearing eth2 validator share derivative token 
 - Support for stable coins
+- Address blocklist; currently deploying a new eth2 validator takes effort. one can assume exiting one would also take effort. a blocklist would prevent a malicious address from forcing continous entries and exits e.g. an address adding and exiting 1000s of eth every epoch. some parameters should be set to prevent user concers such as a final exit allowance
