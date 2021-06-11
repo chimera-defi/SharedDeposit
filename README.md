@@ -10,4 +10,6 @@ Spec:
 - Auto buy SGT from generated fees and send to master chef type contracts for rewards boost
 - Require the user to have some SGT for solo staking or withdrawing VETH2 into ETH at a discounted market rate
 - Allow the contract to be deployed via a factory allowing others to reuse the scaffolding to create their own ETH2 staking solutions i.e. staking server providers such as certus one 
-
+- Minting support to allow adding a new minter to support swapping a share token into a yield bearing sharing token controlled by the oracle module
+  e.g. swapping veth2 to a yield bearing eth2 validator share derivative token 
+- Support for stable coins
