@@ -1,8 +1,12 @@
 require("@nomiclabs/hardhat-waffle");
-require('@openzeppelin/hardhat-upgrades');
+require("@openzeppelin/hardhat-upgrades");
 require("@nomiclabs/hardhat-etherscan");
 
-let secrets = require('./secrets.js');
+require("hardhat-deploy");
+require("hardhat-deploy-ethers");
+require("hardhat-gas-reporter");
+
+let secrets = require("./secrets.js");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -28,30 +32,35 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 500000
-          }
-        }
+            runs: 500000,
+          },
+        },
       },
       {
         version: "0.7.5",
         settings: {
           optimizer: {
             enabled: true,
-            runs: 500000
-          }
-        }
-      }
-    ]
+            runs: 500000,
+          },
+        },
+      },
+    ],
   },
   networks: {
     goerli: {
       url: secrets.INFURA_GOERLI,
-      accounts: [`0x${secrets.GOERLI_PRIVATE_KEY}`]
-    }
+      accounts: [`0x${secrets.GOERLI_PRIVATE_KEY}`],
+    },
+  },
+  gasReporter: {
+    currency: "USD",
+    gasPrice: 5,
+    enabled: !!process.env.REPORT_GAS,
   },
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
-    apiKey: secrets.ETHERSCAN_API
-  }
-}
+    apiKey: secrets.ETHERSCAN_API,
+  },
+};

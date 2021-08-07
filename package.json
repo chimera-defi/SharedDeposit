@@ -7,10 +7,31 @@
     "@openzeppelin/hardhat-upgrades": "^1.7.0",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.3.0",
-    "ethers": "^5.1.4",
-    "hardhat": "^2.2.1"
+    "ethers": "^5.3.0",
+    "hardhat": "^2.2.1",
+    "hardhat-deploy": "^0.7.10",
+    "hardhat-deploy-ethers": "^0.3.0-beta.7",
+    "hardhat-gas-reporter": "^1.0.4",
+    "prettier": "^2.3.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.13",
+    "solhint": "^3.3.6",
+    "solhint-plugin-prettier": "^0.0.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.1.0"
+    "@openzeppelin/contracts-upgradeable": "^4.1.0",
+    "@openzeppelin/contracts": "^4.1.0"
+  },
+  "scripts": {
+    "clean": "hardhat clean",
+    "commit": "git-cz",
+    "compile": "hardhat compile",
+    "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/**/*.ts\"",
+    "deploy": "hardhat deploy:Greeter",
+    "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:check",
+    "lint:sol": "solhint --config ./.solhint.json --max-warnings 0 \"contracts/**/*.sol\"",
+    "lint:ts": "eslint --config ./.eslintrc.yaml --ignore-path ./.eslintignore --ext .js,.ts .",
+    "prettier": "prettier --config ./.prettierrc.yaml --write \"**/*.{js,json,md,sol,ts}\"",
+    "prettier:check": "prettier --check --config ./.prettierrc.yaml \"**/*.{js,json,md,sol,ts}\"",
+    "test": "hardhat test"
   }
 }
