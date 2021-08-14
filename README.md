@@ -1,9 +1,8 @@
 # SharedDeposit
 
+- Following env best practices from https://github.com/paulrberg/solidity-template
+- Pre-run checks:
 
-
-- Following env best practices from https://github.com/paulrberg/solidity-template  
-- Pre-run checks:   
 ```
 npm run-script prettier
 npm run-script lint:sol
@@ -11,10 +10,13 @@ npx hardhat compile
 ```
 
 # SharedDeposit V2
+
 Spec:
+
 - TODO
 
 # SharedDeposit V3
+
 Spec:
 
 - Use CLI options to set ETH1 exit as this upgradeable contract - contract needs to be upgradeable
