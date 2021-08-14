@@ -26,7 +26,7 @@ contract PriceOracle is OwnershipRolesTemplate, PriceOracleUpgradeable {
     }
 
     // Set the virtual price in the oracle
-    function setCostPerShare(uint256 _costPerShare) external canSetPrice {
+    function setCostPerShare(uint256 _costPerShare) external canSetPrice whenNotPaused {
         _setCostPerShare(_costPerShare);
     }
 }

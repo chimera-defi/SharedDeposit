@@ -19,11 +19,6 @@ contract TokenManager is OwnershipRolesTemplate, MintableBurnableTokenManagerUpg
     event RecievedControlOfMinterRights(address indexed _from, uint256 amount);
     event TokenMinterRightsTransfer(address indexed _to);
 
-    modifier onlyIfMinterTransferAllowed() {
-        require(!minterTransferPetrified, "Minter transfer is petrified");
-        _;
-    }
-
     modifier onlyMinter() {
         require(hasRole(MINTER_ROLE, _msgSender()), "OwnershipRolesTemplate :: onlyMinter");
         _;
@@ -58,11 +53,8 @@ contract TokenManager is OwnershipRolesTemplate, MintableBurnableTokenManagerUpg
         minterTransferPetrified = true;
     }
 
-    function transferTokenMinterRights(address payable minter_)
-        external
-        onlyAdminOrGovernance
-        onlyIfMinterTransferAllowed
-    {
+    function transferTokenMinterRights(address payable minter_) external onlyAdminOrGovernance {
+        require(!minterTransferPetrified, "Minter transfer is petrified");
         require(minter_ != address(0), "Minter cannot be zero address");
         mintableBurnableToken.setMinter(minter_);
         emit TokenMinterRightsTransfer(minter_);

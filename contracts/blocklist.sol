@@ -25,11 +25,11 @@ contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
         _setupRole(BLOCKLIST_OWNER, _msgSender());
     }
 
-    function populateBlocklist(address[] calldata _addresses) external onlyBlockListers {
+    function populateBlocklist(address[] calldata _addresses) external onlyBlockListers whenNotPaused {
         _populateBlocklist(_addresses);
     }
 
-    function setBlockListed(address _user, bool _isBlocked) external onlyBlockListers {
+    function setBlockListed(address _user, bool _isBlocked) external onlyBlockListers whenNotPaused {
         _setBlocklisted(_user, _isBlocked);
     }
 
