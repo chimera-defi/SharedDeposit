@@ -7,14 +7,14 @@ import {OwnershipRolesTemplate} from "./util/OwnershipRolesTemplate.sol";
 import {BlocklistBase} from "./util/BlocklistBase.sol";
 
 contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
-    bytes32 public constant BLOCKLIST_OWNER = keccak256("ORACLE_ROLE");
+    bytes32 public constant BLOCKLIST_OWNER = keccak256("BLOCKLIST_OWNER");
 
     modifier onlyBlockListers() {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
                 hasRole(GOVERNANCE_ROLE, _msgSender()) ||
                 hasRole(BLOCKLIST_OWNER, _msgSender()),
-            "Blocklist: only block list owners can change the list"
+            "Blocklist: no auth"
         );
         _;
     }
