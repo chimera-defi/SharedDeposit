@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-interface IERC20MintableBurnable {
+interface IvETH2 {
     function setMinter(address minter_) external;
 
     /**
@@ -80,4 +80,6 @@ interface IERC20MintableBurnable {
         address dst,
         uint256 rawAmount
     ) external returns (bool);
+
+    function totalSupply() external view returns (uint256);
 }

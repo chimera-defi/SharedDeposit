@@ -1,26 +1,25 @@
-
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.4;
+pragma solidity 0.8.7;
 pragma experimental ABIEncoderV2;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import {PriceOraceUpgradeable} from "./PriceOracleUpgradeable.sol";
 
-contract VaultWithSharesAndCapUpgradeable is Initializable, PriceOraceUpgradeable {
+contract VaultWithSharesAndCapUpgradeable is Initializable {
     using SafeMathUpgradeable for uint256;
     uint256 public curShares; //initialized to 0
     uint256 public maxShares;
     // Its hard to exactly hit the max deposit amount with small shares. this allows a small bit of overflow room
     // Tokens in the buffer cannot be withdrawn by an admin, only by burning the underlying token via a user withdraw
     uint256 public buffer;
+    uint256 public costPerShare;
 
-    function __VaultWithSharesAndCapUpgradeable_init() internal initializer {
-        __VaultWithSharesAndCapUpgradeable_init_unchained();
+    function __VaultWithSharesAndCapUpgradeable_init(uint256 _sharePrice) internal initializer {
+        __VaultWithSharesAndCapUpgradeable_init_unchained(_sharePrice);
     }
 
-    function __VaultWithSharesAndCapUpgradeable_init_unchained() internal initializer {
-        __PriceOraceUpgradeable_init_unchained();
+    function __VaultWithSharesAndCapUpgradeable_init_unchained(uint256 _sharePrice) internal initializer {
+        costPerShare = _sharePrice;
     }
 
     function getSharesGivenAmount(uint256 amount) public view returns (uint256) {
@@ -31,51 +30,39 @@ contract VaultWithSharesAndCapUpgradeable is Initializable, PriceOraceUpgradeabl
         return shares.mul(costPerShare).div(1e18);
     }
 
-    function setCap(uint256 amount) internal {
-        require(amount > 0,
-        "Cap cannot be 0");
+    function _setCap(uint256 amount) internal {
+        require(amount > 0, "VaultWithSharesAndCap: Cap must be >0");
         maxShares = amount;
     }
 
-    function setBuffer(uint256 amount) internal {
-        require(amount > 0,
-        "Buffer cannot be 0");
+    function _setBuffer(uint256 amount) internal {
+        require(amount > 0, "VaultWithSharesAndCap: Buffer must be >0");
         buffer = amount;
     }
 
-    function incrementShares(uint256 amount) underCap(amount) internal {
-        setCurrentShares(curShares.add(amount));
+    function _incrementShares(uint256 amount) internal {
+        uint256 newSharesTotal = curShares.add(amount);
+        // Check that we are under the cap
+        require(newSharesTotal <= buffer.add(maxShares), "VaultWithSharesAndCap:: Amount too large; Exceeds Cap");
+        curShares = newSharesTotal;
     }
 
-    function decrementShares(uint256 amount) aboveZero(amount) internal {
-        setCurrentShares(curShares.sub(amount));
+    function _decrementShares(uint256 amount) internal {
+        uint256 newSharesTotal = curShares.sub(amount);
+        // check we are above 0
+        require(newSharesTotal >= 0, "VaultWithSharesAndCap: overflow to -ve");
+        curShares = newSharesTotal;
     }
 
-    function setCurrentShares(uint256 amount) internal {
-        curShares = amount;
-    }
-
-    modifier underCap(uint256 amount) {
-        require(curShares.add(amount) <= buffer.add(maxShares), 
-        "VaultWithSharesAndCapUpgradeable:: Amount too large; Exceeds Cap");
-        _;
-    }
-
-    modifier aboveZero(uint256 amount) {
-        require(curShares.sub(amount) > 0,
-        "VaultWithSharesAndCapUpgradeable:: newShareTotal cannot be negative");
-        _;
-    }
-
-    function depositAndAccountShares(uint256 amount) internal returns (uint256) {
+    function _depositAndAccountShares(uint256 amount) internal returns (uint256) {
         uint256 newShares = getSharesGivenAmount(amount);
-        incrementShares(newShares);
+        _incrementShares(newShares);
         return newShares;
     }
 
-    function withdrawAndAccountShares(uint256 amount) internal returns (uint256) {
+    function _withdrawAndAccountShares(uint256 amount) internal returns (uint256) {
         uint256 newShares = getAmountGivenShares(amount);
-        decrementShares(newShares);
+        _decrementShares(amount);
         return newShares;
     }
 

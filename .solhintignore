@@ -1,0 +1,11 @@
+# folders
+.yarn/
+build/
+dist/
+node_modules/
+
+# files
+contracts/interfaces/*
+other_contracts/*
+contracts/vEth2.sol
+contracts/masterChefGeneric_Iron.sol
