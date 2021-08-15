@@ -11,3 +11,4 @@ typechain/
 # files
 coverage.json
 other_contracts/sharedDeposit_1.1.0.sol
+other_contracts/*
