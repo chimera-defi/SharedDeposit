@@ -11,6 +11,8 @@ import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/mat
 import {VaultWithSharesAndCapUpgradeable} from "./VaultWithSharesAndCapUpgradeable.sol";
 import {WithdrawQueueUpgradeable} from "./WithdrawQueueUpgradeable.sol";
 
+// import {PriceOracleUpgradeable} from "./PriceOracleUpgradeable.sol";
+
 contract VaultWithAdminFeeUpgradeable is
     UpgradeableSafeContractBase,
     VaultWithSharesAndCapUpgradeable,
@@ -185,8 +187,8 @@ contract VaultWithAdminFeeUpgradeable is
     ) public onlyAdmin {
         _setCap(_cap);
         _setBuffer(_buffer);
-        _setCurrentShares(_currentShares);
-        _setCostPerShare(_costPerShare);
+        curShares = _currentShares;
+        costPerShare = _costPerShare;
         setAdminFee(_adminFee);
         disableWithdrawRefund = _withdrawRefundBool;
         _setTokenAddress(_tokenAddress);

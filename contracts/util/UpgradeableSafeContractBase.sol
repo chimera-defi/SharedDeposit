@@ -35,13 +35,13 @@ contract UpgradeableSafeContractBase is
     ///
     /// This is used to prevent contracts from interacting.
     modifier noContractAllowed() {
-        require(!address(_msgSender()).isContract() && _msgSender() == tx.origin, "Sorry we do not accept contracts!");
+        require(!address(_msgSender()).isContract() && _msgSender() == tx.origin, "USafeContractBase: No contracts! 1");
         uint256 size;
         address addr = _msgSender();
         assembly {
             size := extcodesize(addr)
         }
-        require(size == 0, "only humans allowed! (code present at caller address)");
+        require(size == 0, "SafeContractBase: No contracts! 2");
         _;
     }
 

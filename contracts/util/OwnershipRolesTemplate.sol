@@ -14,23 +14,8 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
     modifier onlyAdminOrGovernance() {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || hasRole(GOVERNANCE_ROLE, _msgSender()),
-            "OwnershipRolesTemplate :: onlyAdminOrGovernance"
+            "OwnershipRolesTemplate: access denied"
         );
-        _;
-    }
-
-    modifier onlyPauser() {
-        require(
-            hasRole(PAUSER_ROLE, _msgSender()) ||
-                hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
-                hasRole(GOVERNANCE_ROLE, _msgSender()),
-            "OwnershipRolesTemplate :: onlyPauser"
-        );
-        _;
-    }
-
-    modifier onlyBeneficiary() {
-        require(hasRole(BENEFICIARY_ROLE, _msgSender()), "OwnershipRolesTemplate :: onlyBeneficiary");
         _;
     }
 
@@ -51,19 +36,17 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
     }
 
     function togglePause() external onlyAdminOrGovernance {
+        require(
+            hasRole(PAUSER_ROLE, _msgSender()) ||
+                hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
+                hasRole(GOVERNANCE_ROLE, _msgSender()),
+            "OwnershipRolesTemplate: access denied"
+        );
         if (paused()) {
             _unpause();
         } else {
             _pause();
         }
-    }
-
-    function renounceOwnership() public onlyAdminOrGovernance {
-        // Revoke current admin rights except as
-        // Benefactor
-        // and sentinel with permission to pause contract
-        renounceRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        renounceRole(GOVERNANCE_ROLE, _msgSender());
     }
 
     //  Initializers

@@ -27,13 +27,13 @@ contract WithdrawQueueUpgradeable is Initializable {
         uint256 _epochLength
     ) internal view returns (bool withdrawalAllowed) {
         UserEntry memory userEntry = userEntries[sender];
-        require(amountToWithdraw >= balanceOfSelf, "WithdrawQueueUpgradeable:: Not enough funds");
-        require(userEntry.amount >= amountToWithdraw, "WithdrawQueueUpgradeable:: Amount mismatch! Not enough staked.");
+        require(amountToWithdraw >= balanceOfSelf, "WithdrawQueue: Not enough funds");
+        require(userEntry.amount >= amountToWithdraw, "WithdrawQueue: Amount mismatch!");
 
         uint256 requestDate = userEntry.timestamp;
-        uint256 timestamp = _now();
+        uint256 timestamp = block.timestamp;
         uint256 lockEnd = requestDate.add(_epochLength);
-        require(timestamp >= lockEnd, "WithdrawQueueUpgradeable:: Too soon!");
+        require(timestamp >= lockEnd, "WithdrawQueue: Too soon!");
         return true;
     }
 
@@ -48,7 +48,7 @@ contract WithdrawQueueUpgradeable is Initializable {
 
     // should be admin only or used in a constructor upstream
     function _setEpochLength(uint256 _value) internal {
-        require(_value <= 30 days, "shouldn't be greater than 30 days");
+        require(_value <= 30 days, "WithdrawQueue: epoch > 30");
         if (epochLength != _value) {
             epochLength = _value;
         }
@@ -58,17 +58,6 @@ contract WithdrawQueueUpgradeable is Initializable {
         if (userEntries[sender].amount >= 0) {
             amount = userEntries[sender].amount.add(amount);
         }
-        userEntries[sender] = UserEntry(amount, _now());
-    }
-
-    /**
-     * From Xdai easy staking deployed at
-     * https://etherscan.io/address/0xecdaa01647290e1e9fdc8a26628a33561ba02949#code
-     * @return Returns current timestamp.
-     */
-    function _now() internal view returns (uint256) {
-        // Note that the timestamp can have a 900-second error:
-        // https://github.com/ethereum/wiki/blob/c02254611f218f43cbb07517ca8e5d00fd6d6d75/Block-Protocol-2.0.md
-        return block.timestamp; // solium-disable-line security/no-block-members
+        userEntries[sender] = UserEntry(amount, block.timestamp);
     }
 }

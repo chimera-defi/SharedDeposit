@@ -39,12 +39,12 @@ contract Eth2DepositHelperUpgradeable is Initializable {
             pubkeys.length == withdrawalCredentials.length &&
                 pubkeys.length == signatures.length &&
                 pubkeys.length == depositDataRoots.length,
-            "DepositHelper::_batchDeposit: All fn param array's must be same length"
+            "DepositHelper::_batchDeposit: fn param length mismatch"
         );
         require(pubkeys.length > 0, "DepositHelper::_batchDeposit: Need >0 pubkeys");
         require(
             address(this).balance >= depositAmount.mul(pubkeys.length),
-            "DepositHelper::_batchDeposit: Ether deposited must be >= 32 * (`pubkeys[]`.length)"
+            "DepositHelper::_batchDeposit: Not enough eth"
         );
 
         uint256 deposited;
@@ -68,15 +68,11 @@ contract Eth2DepositHelperUpgradeable is Initializable {
         bytes calldata signature,
         bytes32 depositDataRoot
     ) internal {
-        require(address(this).balance >= depositAmount, "Eth2Staker:_depositToEth2: Not enough balance"); //need at least 32 ETH
+        require(address(this).balance >= depositAmount, "Eth2Staker:_depositToEth2: Not enough eth"); //need at least 32 ETH
 
         validatorsCreated = validatorsCreated.add(1);
 
         depositContract.deposit{value: depositAmount}(pubkey, withdrawalCredential, signature, depositDataRoot);
-    }
-
-    function _setValidatorsCreated(uint256 count) internal {
-        validatorsCreated = count;
     }
 
     uint256[50] private ______gap;

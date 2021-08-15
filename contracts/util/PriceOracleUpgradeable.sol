@@ -22,7 +22,7 @@ contract PriceOracleUpgradeable is Initializable {
     }
 
     function _setCostPerShare(uint256 amount) internal {
-        require(amount > 0, "Cost per share cannot be 0");
+        require(amount > 0, "PriceOralce: need costPerShare>0");
         lastCostPerShare = costPerShare;
         costPerShare = amount;
         emit SharePriceChanged(lastCostPerShare, costPerShare);

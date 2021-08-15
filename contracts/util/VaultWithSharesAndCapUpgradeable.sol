@@ -4,22 +4,22 @@ pragma experimental ABIEncoderV2;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import {PriceOracleUpgradeable} from "./PriceOracleUpgradeable.sol";
 
-contract VaultWithSharesAndCapUpgradeable is Initializable, PriceOracleUpgradeable {
+contract VaultWithSharesAndCapUpgradeable is Initializable {
     using SafeMathUpgradeable for uint256;
     uint256 public curShares; //initialized to 0
     uint256 public maxShares;
     // Its hard to exactly hit the max deposit amount with small shares. this allows a small bit of overflow room
     // Tokens in the buffer cannot be withdrawn by an admin, only by burning the underlying token via a user withdraw
     uint256 public buffer;
+    uint256 public costPerShare;
 
     function __VaultWithSharesAndCapUpgradeable_init(uint256 _sharePrice) internal initializer {
         __VaultWithSharesAndCapUpgradeable_init_unchained(_sharePrice);
     }
 
     function __VaultWithSharesAndCapUpgradeable_init_unchained(uint256 _sharePrice) internal initializer {
-        __PriceOracleUpgradeable_init_unchained(_sharePrice);
+        costPerShare = _sharePrice;
     }
 
     function getSharesGivenAmount(uint256 amount) public view returns (uint256) {
@@ -31,40 +31,27 @@ contract VaultWithSharesAndCapUpgradeable is Initializable, PriceOracleUpgradeab
     }
 
     function _setCap(uint256 amount) internal {
-        require(amount > 0, "Cap cannot be 0");
+        require(amount > 0, "VaultWithSharesAndCap: Cap must be >0");
         maxShares = amount;
     }
 
     function _setBuffer(uint256 amount) internal {
-        require(amount > 0, "Buffer cannot be 0");
+        require(amount > 0, "VaultWithSharesAndCap: Buffer must be >0");
         buffer = amount;
     }
 
-    function _setCurrentShares(uint256 amount) internal {
-        curShares = amount;
+    function _incrementShares(uint256 amount) internal {
+        uint256 newSharesTotal = curShares.add(amount);
+        // Check that we are under the cap
+        require(newSharesTotal <= buffer.add(maxShares), "VaultWithSharesAndCap:: Amount too large; Exceeds Cap");
+        curShares = newSharesTotal;
     }
 
-    function _incrementShares(uint256 amount) internal underCap(amount) {
-        _setCurrentShares(curShares.add(amount));
-    }
-
-    function _decrementShares(uint256 amount) internal aboveOrEqualToZero(amount) {
-        _setCurrentShares(curShares.sub(amount));
-    }
-
-    modifier underCap(uint256 amount) {
-        if (maxShares > 0) {
-            require(
-                curShares.add(amount) <= buffer.add(maxShares),
-                "VaultWithSharesAndCapUpgradeable:: Amount too large; Exceeds Cap"
-            );
-        }
-        _;
-    }
-
-    modifier aboveOrEqualToZero(uint256 amount) {
-        require(curShares.sub(amount) >= 0, "VaultWithSharesAndCapUpgradeable:: newShareTotal cant be -ve");
-        _;
+    function _decrementShares(uint256 amount) internal {
+        uint256 newSharesTotal = curShares.sub(amount);
+        // check we are above 0
+        require(newSharesTotal >= 0, "VaultWithSharesAndCap: overflow to -ve");
+        curShares = newSharesTotal;
     }
 
     function _depositAndAccountShares(uint256 amount) internal returns (uint256) {
