@@ -86,6 +86,11 @@ module.exports = {
     // Obtain one at https://etherscan.io/
     apiKey: secrets.ETHERSCAN_API,
   },
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false,
+  },
 };
 
 // imported from https://github.com/boringcrypto/dictator-dao/blob/main/hardhat.config.js
