@@ -1,7 +1,5 @@
-
-
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.4;
+pragma solidity 0.8.7;
 pragma experimental ABIEncoderV2;
 
 import {VaultWithAdminFeeUpgradeable} from "./util/VaultWithAdminFeeUpgradeable.sol";
@@ -10,11 +8,11 @@ import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/mat
 import {IERC20MintableBurnable} from "./interfaces/IERC20MintableBurnable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
-
 contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgradeable {
     using SafeMathUpgradeable for uint256;
 
     /* ========== STATE VARIABLES ========== */
+
     function initialize(
         uint256 currentShares,
         uint256 adminFee,
@@ -25,6 +23,7 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
         uint256 cap = uint256(32).mul(1000).mul(1e18);
         uint256 buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
         uint256 costPerShare = uint256(1e18);
+        uint256 _epochLength = 1 weeks;
         __SharedDeposit_init(
             cap,
             buffer,
@@ -32,9 +31,11 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
             costPerShare,
             adminFee,
             withdrawRefundDisabled,
-            _BETHTokenAddress
+            _BETHTokenAddress,
+            _epochLength
         );
     }
+
     function __SharedDeposit_init(
         uint256 cap,
         uint256 buffer,
@@ -42,7 +43,8 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
         uint256 costPerShare,
         uint256 adminFee,
         bool withdrawRefundDisabled,
-        address _BETHTokenAddress
+        address _BETHTokenAddress,
+        uint256 _epochLength
     ) internal initializer {
         __SharedDeposit_init_unchained(
             cap,
@@ -51,9 +53,11 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
             costPerShare,
             adminFee,
             withdrawRefundDisabled,
-            _BETHTokenAddress
+            _BETHTokenAddress,
+            _epochLength
         );
     }
+
     function __SharedDeposit_init_unchained(
         uint256 cap,
         uint256 buffer,
@@ -61,7 +65,8 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
         uint256 costPerShare,
         uint256 adminFee,
         bool withdrawRefundDisabled,
-        address _BETHTokenAddress
+        address _BETHTokenAddress,
+        uint256 _epochLength
     ) internal initializer {
         __VaultWithAdminFeeUpgradeable_init_unchained(
             cap,
@@ -70,52 +75,40 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
             costPerShare,
             adminFee,
             withdrawRefundDisabled,
-            _BETHTokenAddress
+            _BETHTokenAddress,
+            _epochLength
         );
+        __DepositHelper_init_unchained(mainnetDepositContractAddress);
     }
+
     function deposit() external payable nonReentrant whenNotPaused noContractAllowed {
         uint256 newShares = super._deposit(msg.value);
-
         super._mint(_msgSender(), newShares);
     }
 
-
     // TODO
-    // function stakeForWithdraw(uint256 amount) 
+    // function stakeForWithdraw(uint256 amount)
     //     external
     //     nonReentrant
     //     whenNotPaused
     //     noContractAllowed
     // {
-        // create an iterable mapping of users bal and timestamps and ensure only <= the locked amt can be withdrawn
+    // create an iterable mapping of users bal and timestamps and ensure only <= the locked amt can be withdrawn
     // }
 
-
-
-    function withdraw(uint256 amount)
-        external
-        nonReentrant
-        whenNotPaused
-        noContractAllowed
-    {
-        require(
-            MintableBurnableToken.balanceOf(_msgSender()) >= amount,
-            "Eth2Staker: Sender balance not enough"
-        );
-
+    function withdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
+        require(mintableBurnableToken.balanceOf(_msgSender()) >= amount, "Eth2Staker: Sender balance not enough");
         uint256 valToReturn = super._withdrawEth(amount);
-
         super._burn(_msgSender(), amount);
-
         address payable sender = payable(_msgSender());
         AddressUpgradeable.sendValue(sender, valToReturn);
     }
 
     function setValidatorsCreated(uint256 count) external onlyAdmin {
-        super._setValidatorsCreated(count);
+        validatorsCreated = count;
     }
 
-    // This needs to be called once per validator    
+    // This needs to be called once per validator
     function depositToEth2(
         bytes calldata pubkey,
         bytes calldata withdrawal_credentials,
@@ -138,23 +131,18 @@ contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgrade
         bytes[] calldata signatures,
         bytes32[] calldata deposit_data_roots
     ) external onlyAdmin nonReentrant {
-        super._batchDeposit(
-            pubkeys,
-            withdrawal_credentials,
-            signatures,
-            deposit_data_roots
-        );
+        super._batchDeposit(pubkeys, withdrawal_credentials, signatures, deposit_data_roots);
     }
 
-    function deductExitFee(uint256 amount) public view returns(uint256) {
+    function deductExitFee(uint256 amount) public view returns (uint256) {
         // Look at saddle and pick a higher number backstopped by a min
-        uint min = 10000; // 1%
-        uint max = 100000; // 10% - fetch from saddle
-        uint pick = max;
+        uint256 min = 10000; // 1%
+        uint256 max = 100000; // 10% - fetch from saddle
+        uint256 pick = max;
         if (pick < min) {
             pick = min;
         }
-        uint fee = super.getFeeGivenAmountAndAdminPrct(amount, pick);
+        uint256 fee = super.getFeeGivenAmountAndAdminPrct(amount, pick);
         return fee;
     }
 }
