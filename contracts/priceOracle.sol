@@ -14,7 +14,7 @@ contract PriceOracle is OwnershipRolesTemplate, PriceOracleUpgradeable {
             hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
                 hasRole(GOVERNANCE_ROLE, _msgSender()) ||
                 hasRole(ORACLE_ROLE, _msgSender()),
-            "PriceOracle :: canSetPrice : missing required role"
+            "PriceOracle: no auth"
         );
         _;
     }
