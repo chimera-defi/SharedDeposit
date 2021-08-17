@@ -9,13 +9,17 @@ import {PriceOracleUpgradeable} from "./util/PriceOracleUpgradeable.sol";
 contract PriceOracle is OwnershipRolesTemplate, PriceOracleUpgradeable {
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
 
-    modifier canSetPrice() {
+    function _checkCanSetPrice() private view {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
                 hasRole(GOVERNANCE_ROLE, _msgSender()) ||
                 hasRole(ORACLE_ROLE, _msgSender()),
             "PriceOracle: no auth"
         );
+    }
+
+    modifier canSetPrice() {
+        _checkCanSetPrice();
         _;
     }
 

@@ -42,6 +42,7 @@ contract BlocklistBase is Initializable {
         if (_addresses.length == 0) {
             return;
         }
+
         for (uint256 i = 0; i < _addresses.length; i++) {
             _setBlocklisted(_addresses[i], true);
         }

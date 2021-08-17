@@ -11,11 +11,21 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
     bytes32 public constant BENEFICIARY_ROLE = keccak256("BENEFICIARY_ROLE");
 
     // ====== Modifiers for syntactic sugar =======
+    function _checkOnlyAdminOrGovernance() private view {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || hasRole(GOVERNANCE_ROLE, _msgSender()), "ORT: no auth");
+    }
+
+    function _checkOnlyBenefactor() private view {
+        require(hasRole(BENEFICIARY_ROLE, _msgSender()), "ORT: no auth");
+    }
+
+    modifier onlyBenefactor() {
+        _checkOnlyBenefactor();
+        _;
+    }
+
     modifier onlyAdminOrGovernance() {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || hasRole(GOVERNANCE_ROLE, _msgSender()),
-            "OwnershipRolesTemplate: access denied"
-        );
+        _checkOnlyAdminOrGovernance();
         _;
     }
 
