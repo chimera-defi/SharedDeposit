@@ -116,16 +116,12 @@ contract SharedDepositV2 is
         require(depositsEnabled, "Eth2Staker: Deposits disabled");
         // input is whole, not / 1e18 , i.e. in 1 = 1 eth send when from etherscan
         uint256 value = msg.value;
-        ContractRegistry memory _contractRegistry = contractRegistry;
+        ITokenManager _tm = contractRegistry.tokenManager;
+        ITokenUtilityModule _tum = contractRegistry.tokenUtilityModule;
 
         uint256 myAdminFee = value.mul(adminFee).div(costPerValidator);
-        if (address(_contractRegistry.tokenUtilityModule) != address(0)) {
-            myAdminFee = _contractRegistry.tokenUtilityModule.getAdminFee(
-                _msgSender(),
-                address(this),
-                value,
-                myAdminFee
-            );
+        if (address(_tum) != address(0)) {
+            myAdminFee = _tum.getAdminFee(_msgSender(), address(this), value, myAdminFee);
         }
         uint256 valMinusAdmin = value.sub(myAdminFee);
         uint256 newShareTotal = curValidatorShares.add(valMinusAdmin);
@@ -134,7 +130,7 @@ contract SharedDepositV2 is
         _incrementShares(valMinusAdmin);
         curValidatorShares = newShareTotal;
         adminFeeTotal = adminFeeTotal.add(myAdminFee);
-        _contractRegistry.tokenManager.mint(msg.sender, valMinusAdmin);
+        _tm.mint(msg.sender, valMinusAdmin);
     }
 
     function stakeForWithdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
@@ -151,15 +147,11 @@ contract SharedDepositV2 is
     function withdrawETHRewardsWithQueue() external nonReentrant whenNotPaused noContractAllowed {
         uint256 amount = userEntries[_msgSender()].amount;
         uint256 _epochLength = epochLength;
-        ContractRegistry memory _contractRegistry = contractRegistry;
+        ITokenManager _tm = contractRegistry.tokenManager;
+        ITokenUtilityModule _tum = contractRegistry.tokenUtilityModule;
 
-        if (address(_contractRegistry.tokenUtilityModule) != address(0)) {
-            _epochLength = _contractRegistry.tokenUtilityModule.getEpochLength(
-                _msgSender(),
-                address(this),
-                amount,
-                epochLength
-            );
+        if (address(_tum) != address(0)) {
+            _epochLength = _tum.getEpochLength(_msgSender(), address(this), amount, epochLength);
         }
         uint256 amountToReturn = getAmountGivenShares(amount);
         require(
@@ -171,10 +163,10 @@ contract SharedDepositV2 is
             "Eth2Staker:withdrawETHRewardsWithQueue:Contract balance too low"
         );
 
-        BETHToken.approve(address(_contractRegistry.tokenManager), amount);
+        BETHToken.approve(address(_tm), amount);
         userEntries[_msgSender()].amount = 0;
         delete userEntries[_msgSender()];
-        _contractRegistry.tokenManager.burn(address(this), amount);
+        _tm.burn(address(this), amount);
 
         _withdrawEthRewards(amountToReturn, amount);
     }
@@ -184,17 +176,13 @@ contract SharedDepositV2 is
     function withdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
         require(BETHToken.balanceOf(_msgSender()) >= amount, "Eth2Staker: Sender balance not enough");
         uint256 amountToReturn = getAmountGivenShares(amount);
-        ContractRegistry memory _contractRegistry = contractRegistry;
+        ITokenUtilityModule _tum = contractRegistry.tokenUtilityModule;
+        ITokenManager _tm = contractRegistry.tokenManager;
 
         require(address(this).balance.sub(amountToReturn) >= 0, "Eth2Staker:withdraw:Contract balance too low");
-        _contractRegistry.tokenManager.burn(_msgSender(), amount);
-        if (address(_contractRegistry.tokenUtilityModule) != address(0)) {
-            amountToReturn = _contractRegistry.tokenUtilityModule.getWithdrawalTotal(
-                _msgSender(),
-                address(this),
-                amount,
-                amountToReturn
-            );
+        _tm.burn(_msgSender(), amount);
+        if (address(_tum) != address(0)) {
+            amountToReturn = _tum.getWithdrawalTotal(_msgSender(), address(this), amount, amountToReturn);
         }
         _withdrawEthRewards(amountToReturn, amount);
     }
@@ -384,14 +372,14 @@ contract SharedDepositV2 is
     function _withdrawEthRewards(uint256 amountToReturn, uint256 sharesUnderlying) internal {
         _decrementShares(sharesUnderlying);
         sharesBurnt = sharesBurnt.add(sharesUnderlying);
-        ContractRegistry memory _contractRegistry;
+        IBlocklist _bl = contractRegistry.blocklist;
 
         emit Withdraw(_msgSender(), amountToReturn);
         // Re-route any eth from blocklisted addresses to
         // multisig for community redistribution to prevent
         // rugpullers and malicious actors from profiting any more
         // from protocol
-        if (_contractRegistry.blocklist.inBlockList(_msgSender())) {
+        if (_bl.inBlockList(_msgSender())) {
             address payable sender;
             sender = payable(getRoleMember(GOVERNANCE_ROLE, 0));
             AddressUpgradeable.sendValue(sender, amountToReturn);

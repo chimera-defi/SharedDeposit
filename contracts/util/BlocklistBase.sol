@@ -33,7 +33,6 @@ contract BlocklistBase is Initializable {
      */
     function _setBlocklisted(address _user, bool _isBlocked) internal {
         isBlocklisted[_user] = _isBlocked;
-
         emit BlocklistSet(_user, _isBlocked);
     }
 
