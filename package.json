@@ -2,15 +2,15 @@
   "name": "hardhat-project",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.10",
-    "@nomiclabs/hardhat-etherscan": "^2.1.2",
+    "@nomiclabs/hardhat-etherscan": "^2.1.4",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
-    "@openzeppelin/hardhat-upgrades": "^1.7.0",
+    "@openzeppelin/hardhat-upgrades": "^1.9.0",
     "chai": "^4.3.4",
-    "ethereum-waffle": "^3.3.0",
+    "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.4",
-    "hardhat": "^2.2.1",
+    "hardhat": "^2.6.0",
     "hardhat-contract-sizer": "^2.0.3",
-    "hardhat-deploy": "^0.7.10",
+    "hardhat-deploy": "^0.7.11",
     "hardhat-deploy-ethers": "^0.3.0-beta.10",
     "hardhat-gas-reporter": "^1.0.4",
     "prettier": "^2.3.1",
@@ -20,8 +20,8 @@
     "solhint-plugin-prettier": "^0.0.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.1.0",
-    "@openzeppelin/contracts": "^4.1.0"
+    "@openzeppelin/contracts": "^4.1.0",
+    "@openzeppelin/contracts-upgradeable": "^4.2.0"
   },
   "scripts": {
     "flat": "npx hardhat flat contracts/blocklist.sol --output flats/blocklist_flat2.sol",

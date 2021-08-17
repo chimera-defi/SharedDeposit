@@ -9,13 +9,19 @@ import {BlocklistBase} from "./util/BlocklistBase.sol";
 contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
     bytes32 public constant BLOCKLIST_OWNER = keccak256("BLOCKLIST_OWNER");
 
-    modifier onlyBlockListers() {
+    /// @dev Private method is used instead of inlining into modifier because modifiers are copied into each method,
+    ///     and the use of immutable means the address bytes are copied in every place the modifier is used.
+    function _checkOnlyBlockListers() private view {
         require(
             hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
                 hasRole(GOVERNANCE_ROLE, _msgSender()) ||
                 hasRole(BLOCKLIST_OWNER, _msgSender()),
             "Blocklist: no auth"
         );
+    }
+
+    modifier onlyBlockListers() {
+        _checkOnlyBlockListers();
         _;
     }
 

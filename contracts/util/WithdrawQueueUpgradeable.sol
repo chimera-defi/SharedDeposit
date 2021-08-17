@@ -30,10 +30,8 @@ contract WithdrawQueueUpgradeable is Initializable {
         require(amountToWithdraw >= balanceOfSelf, "WithdrawQueue: Not enough funds");
         require(userEntry.amount >= amountToWithdraw, "WithdrawQueue: Amount mismatch!");
 
-        uint256 requestDate = userEntry.timestamp;
-        uint256 timestamp = block.timestamp;
-        uint256 lockEnd = requestDate.add(_epochLength);
-        require(timestamp >= lockEnd, "WithdrawQueue: Too soon!");
+        uint256 lockEnd = userEntry.timestamp.add(_epochLength);
+        require(block.timestamp >= lockEnd, "WithdrawQueue: Too soon!");
         return true;
     }
 
@@ -49,15 +47,13 @@ contract WithdrawQueueUpgradeable is Initializable {
     // should be admin only or used in a constructor upstream
     function _setEpochLength(uint256 _value) internal {
         require(_value <= 30 days, "WithdrawQueue: epoch > 30");
-        if (epochLength != _value) {
-            epochLength = _value;
-        }
+        epochLength = _value;
     }
 
     function _stakeForWithdrawal(address sender, uint256 amount) internal {
-        if (userEntries[sender].amount >= 0) {
-            amount = userEntries[sender].amount.add(amount);
-        }
-        userEntries[sender] = UserEntry(amount, block.timestamp);
+        UserEntry memory ue = userEntries[sender];
+        ue.amount = ue.amount.add(amount);
+        ue.timestamp = block.timestamp;
+        userEntries[sender] = ue;
     }
 }
