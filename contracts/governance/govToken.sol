@@ -7,7 +7,7 @@ import {ERC20VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/token/E
 
 // import {ERC20CappedUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20CappedUpgradeable.sol";
 
-contract SGTv2 is ERC20VotesUpgradeable {
+contract SGTv2_upgradeable is ERC20VotesUpgradeable {
     /// @notice Address which may mint new tokens
     address public minter;
 
