@@ -15,7 +15,7 @@ const _getOverrides = async () => {
 };
 
 const _verify = async (contract, launchNetwork, cArgs) => {
-  if (!launchNetwork || launchNetwork == 'hardhat') return;
+  if (!launchNetwork || launchNetwork == "hardhat") return;
   await new Promise(resolve => setTimeout(resolve, 50000));
   try {
     await hre.run("verify:verify", {
@@ -52,7 +52,14 @@ const _deployInitializableContract = async (name, launchNetwork = false, initArg
   return Promise.resolve({contract: contract, args: initArgs});
 };
 
+const _getAddress = obj => {
+  return obj == undefined || obj.contract == undefined
+    ? "0x0000000000000000000000000000000000000000"
+    : obj.contract.address;
+};
+
 module.exports = {
   _deployInitializableContract: _deployInitializableContract,
   _deployContract: _deployContract,
+  _getAddress: _getAddress,
 };

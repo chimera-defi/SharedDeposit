@@ -33,6 +33,8 @@
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/**/*.ts\"",
     "deploy_v2_goerli": "npx hardhat run --network goerli deploy/deploy_v2.js",
     "deploy_v2_goerli_showall": "npx hardhat run --network goerli --verbose --show-stack-traces deploy/deploy_v2.js",
+    "deploy_gov": "npx hardhat run deploy/deploy_gov.js",
+    "deploy_gov_goerli": "npx hardhat run --network goerli deploy/deploy_gov.js",
     "deploy": "hardhat deploy:Greeter",
     "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:check",
     "lint:sol": "solhint --config ./.solhint.json --max-warnings 50 \"contracts/**/*.sol\"",
