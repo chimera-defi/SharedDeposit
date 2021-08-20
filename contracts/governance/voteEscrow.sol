@@ -1,19 +1,31 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.4;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 import "../interfaces/IVotingEscrow.sol";
 
-contract VoteEscrow is Ownable, ERC20Votes {
+
+// import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+// import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+// import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+// import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+// import {ERC20VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/token/extensions/ERC20VotesUpgradeable.sol";
+
+contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
+// contract VoteEscrow is OwnableUpgradeable, ERC20VotesUpgradeable, ReentrancyGuardUpgradeable, IVotingEscrow {
     using SafeERC20 for IERC20;
 
+    struct LockedBalance {
+        uint256 amount;
+        uint256 end;
+    }
     // flags
-    uint256 private _unlocked;
-
     uint256 public constant MINDAYS = 7;
     uint256 public constant MAXDAYS = 3 * 365;
 
@@ -26,24 +38,12 @@ contract VoteEscrow is Ownable, ERC20Votes {
     uint256 public minLockedAmount;
     uint256 public earlyWithdrawPenaltyRate;
 
-    uint256 public supply;
-
-    struct LockedBalance {
-        uint256 amount;
-        uint256 end;
-    }
+    uint256 public override supply;
 
     mapping(address => LockedBalance) public locked;
     mapping(address => uint256) public mintedForLock;
 
     /* ========== MODIFIERS ========== */
-
-    modifier lock() {
-        require(_unlocked == 1, "LOCKED");
-        _unlocked = 0;
-        _;
-        _unlocked = 1;
-    }
 
     constructor(
         string memory _name,
@@ -54,7 +54,6 @@ contract VoteEscrow is Ownable, ERC20Votes {
         lockedToken = _lockedToken;
         minLockedAmount = _minLockedAmount;
         earlyWithdrawPenaltyRate = 30000; // 30%
-        _unlocked = 1;
     }
 
     /* ========== PUBLIC FUNCTIONS ========== */
@@ -67,10 +66,10 @@ contract VoteEscrow is Ownable, ERC20Votes {
         return locked[_addr].end;
     }
 
-    function voting_power_unlock_time(uint256 _value, uint256 _unlock_time) public view returns (uint256) {
+    function voting_power_unlock_time(uint256 _value, uint256 _unlockTime) public view returns (uint256) {
         uint256 _now = block.timestamp;
-        if (_unlock_time <= _now) return 0;
-        uint256 _lockedSeconds = _unlock_time - _now;
+        if (_unlockTime <= _now) return 0;
+        uint256 _lockedSeconds = _unlockTime - _now;
         if (_lockedSeconds >= MAXTIME) {
             return _value;
         }
@@ -84,12 +83,12 @@ contract VoteEscrow is Ownable, ERC20Votes {
         return (_value * _days) / MAXDAYS;
     }
 
-    function deposit_for(address _addr, uint256 _value) external {
+    function deposit_for(address _addr, uint256 _value) external override {
         require(_value >= minLockedAmount, "less than min amount");
         _deposit_for(_addr, _value, 0);
     }
 
-    function create_lock(uint256 _value, uint256 _days) external {
+    function create_lock(uint256 _value, uint256 _days) external override {
         require(_value >= minLockedAmount, "less than min amount");
         require(locked[_msgSender()].amount == 0, "Withdraw old tokens first");
         require(_days >= MINDAYS, "Voting lock can be 7 days min");
@@ -97,18 +96,18 @@ contract VoteEscrow is Ownable, ERC20Votes {
         _deposit_for(_msgSender(), _value, _days);
     }
 
-    function increase_amount(uint256 _value) external {
+    function increase_amount(uint256 _value) external override {
         require(_value >= minLockedAmount, "less than min amount");
         _deposit_for(_msgSender(), _value, 0);
     }
 
-    function increase_unlock_time(uint256 _days) external {
+    function increase_unlock_time(uint256 _days) external override {
         require(_days >= MINDAYS, "Voting lock can be 7 days min");
         require(_days <= MAXDAYS, "Voting lock can be 4 years max");
         _deposit_for(_msgSender(), 0, _days);
     }
 
-    function withdraw() external lock {
+    function withdraw() external override nonReentrant {
         LockedBalance storage _locked = locked[_msgSender()];
         uint256 _now = block.timestamp;
         require(_locked.amount > 0, "Nothing to withdraw");
@@ -124,7 +123,7 @@ contract VoteEscrow is Ownable, ERC20Votes {
     }
 
     // This will charge PENALTY if lock is not expired yet
-    function emergencyWithdraw() external lock {
+    function emergencyWithdraw() external nonReentrant {
         LockedBalance storage _locked = locked[_msgSender()];
         uint256 _now = block.timestamp;
         require(_locked.amount > 0, "Nothing to withdraw");
@@ -154,7 +153,7 @@ contract VoteEscrow is Ownable, ERC20Votes {
         address _addr,
         uint256 _value,
         uint256 _days
-    ) internal lock {
+    ) internal nonReentrant {
         LockedBalance storage _locked = locked[_addr];
         uint256 _now = block.timestamp;
         uint256 _amount = _locked.amount;
