@@ -9,6 +9,19 @@ npm run-script lint:sol
 npx hardhat compile
 ```
 
+# Errors
+
+A note on errors
+To reduce bytecode size and gas costs, error strings are shortened following UNIv3 as an example.  
+The template is: {origin contract}:reason  
+Common reasons:
+
+```
+CBL0 - contract balance will be less than 0 after this operation
+VL0 - Value less than 0 and needs to be greater than 0
+AGC - Amount greater than cap or some stored value or requirement
+```
+
 # SharedDeposit V2
 
 Spec:

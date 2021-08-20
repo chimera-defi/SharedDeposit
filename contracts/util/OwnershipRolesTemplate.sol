@@ -16,7 +16,7 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
     }
 
     function _checkOnlyBenefactor() private view {
-        require(hasRole(BENEFICIARY_ROLE, _msgSender()), "ORT: no auth");
+        require(hasRole(BENEFICIARY_ROLE, _msgSender()), "ORT:NA");
     }
 
     modifier onlyBenefactor() {
@@ -43,6 +43,8 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
         _setRoleAdmin(PAUSER_ROLE, GOVERNANCE_ROLE);
         // Allow adding/changing the benefactor address
         _setRoleAdmin(BENEFICIARY_ROLE, GOVERNANCE_ROLE);
+        // Gov should be able to change gov in case of multisig change
+        _setRoleAdmin(GOVERNANCE_ROLE, GOVERNANCE_ROLE);
     }
 
     function togglePause() external onlyAdminOrGovernance {
@@ -50,7 +52,7 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
             hasRole(PAUSER_ROLE, _msgSender()) ||
                 hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
                 hasRole(GOVERNANCE_ROLE, _msgSender()),
-            "OwnershipRolesTemplate: access denied"
+            "ORT:NA"
         );
         if (paused()) {
             _unpause();
@@ -61,10 +63,7 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
 
     //  Initializers
     function __OwnershipRolesTemplate_init() internal initializer {
-        __OwnershipRolesTemplate_init_unchained();
-    }
-
-    function __OwnershipRolesTemplate_init_unchained() internal initializer {
+        __UpgradeableSafeContractBase_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(PAUSER_ROLE, _msgSender());
         _setupRole(GOVERNANCE_ROLE, _msgSender());

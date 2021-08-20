@@ -78,7 +78,7 @@ contract VaultWithAdminFeeUpgradeable is
         address _tokenAddress,
         uint256 _epochLength
     ) internal initializer {
-        __UpgradeableSafeContractBase_init_unchained();
+        __UpgradeableSafeContractBase_init();
         __VaultWithSharesAndCapUpgradeable_init_unchained(_costPerShare);
         __MintableBurnableTokenManagerUpgradeable_init_unchained(_tokenAddress);
         _setup(_cap, _buffer, _currentShares, _costPerShare, _adminFee, _withdrawRefundBool, _epochLength);

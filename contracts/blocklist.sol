@@ -9,6 +9,11 @@ import {BlocklistBase} from "./util/BlocklistBase.sol";
 contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
     bytes32 public constant BLOCKLIST_OWNER = keccak256("BLOCKLIST_OWNER");
 
+    modifier onlyBlockListers() {
+        _checkOnlyBlockListers();
+        _;
+    }
+
     /// @dev Private method is used instead of inlining into modifier because modifiers are copied into each method,
     ///     and the use of immutable means the address bytes are copied in every place the modifier is used.
     function _checkOnlyBlockListers() private view {
@@ -20,13 +25,8 @@ contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
         );
     }
 
-    modifier onlyBlockListers() {
-        _checkOnlyBlockListers();
-        _;
-    }
-
     function initialize(address[] calldata _addresses) external initializer {
-        __OwnershipRolesTemplate_init_unchained();
+        __OwnershipRolesTemplate_init();
         __BlocklistBase_init_unchained(_addresses);
         _setupRole(BLOCKLIST_OWNER, _msgSender());
     }

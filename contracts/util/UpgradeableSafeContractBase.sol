@@ -19,10 +19,6 @@ contract UpgradeableSafeContractBase is
     using AddressUpgradeable for address;
 
     function __UpgradeableSafeContractBase_init() internal initializer {
-        __UpgradeableSafeContractBase_init_unchained();
-    }
-
-    function __UpgradeableSafeContractBase_init_unchained() internal initializer {
         __Context_init_unchained();
         __AccessControlEnumerable_init_unchained();
         __Pausable_init_unchained();
@@ -35,13 +31,7 @@ contract UpgradeableSafeContractBase is
     ///
     /// This is used to prevent contracts from interacting.
     modifier noContractAllowed() {
-        require(!address(_msgSender()).isContract() && _msgSender() == tx.origin, "USafeContractBase: No contracts! 1");
-        uint256 size;
-        address addr = _msgSender();
-        assembly {
-            size := extcodesize(addr)
-        }
-        require(size == 0, "SafeContractBase: No contracts! 2");
+        require(!address(_msgSender()).isContract() && _msgSender() == tx.origin, "USCB:NC");
         _;
     }
 

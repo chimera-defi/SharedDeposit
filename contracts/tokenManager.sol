@@ -25,7 +25,7 @@ contract TokenManager is OwnershipRolesTemplate, MintableBurnableTokenManagerUpg
     }
 
     function initialize(address _tokenAddress) external initializer {
-        __OwnershipRolesTemplate_init_unchained();
+        __OwnershipRolesTemplate_init();
         __MintableBurnableTokenManagerUpgradeable_init_unchained(_tokenAddress);
         _setupRole(MINTER_ROLE, _msgSender());
     }
