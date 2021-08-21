@@ -10,15 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../interfaces/IVotingEscrow.sol";
 
-
-// import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-// import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-// import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-// import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-// import {ERC20VotesUpgradeable} from "@openzeppelin/contracts-upgradeable/token/extensions/ERC20VotesUpgradeable.sol";
-
 contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
-// contract VoteEscrow is OwnableUpgradeable, ERC20VotesUpgradeable, ReentrancyGuardUpgradeable, IVotingEscrow {
     using SafeERC20 for IERC20;
 
     struct LockedBalance {
@@ -43,7 +35,12 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
     mapping(address => LockedBalance) public locked;
     mapping(address => uint256) public mintedForLock;
 
-    /* ========== MODIFIERS ========== */
+    /* =============== EVENTS ==================== */
+    event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 timestamp);
+    event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
+    event PenaltyCollectorSet(address indexed addr);
+    event EarlyWithdrawPenaltySet(uint256 indexed penalty);
+    event MinLockedAmountSet(uint256 indexed amount);
 
     constructor(
         string memory _name,
@@ -54,33 +51,6 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
         lockedToken = _lockedToken;
         minLockedAmount = _minLockedAmount;
         earlyWithdrawPenaltyRate = 30000; // 30%
-    }
-
-    /* ========== PUBLIC FUNCTIONS ========== */
-
-    function locked__of(address _addr) external view returns (uint256) {
-        return locked[_addr].amount;
-    }
-
-    function locked__end(address _addr) external view returns (uint256) {
-        return locked[_addr].end;
-    }
-
-    function voting_power_unlock_time(uint256 _value, uint256 _unlockTime) public view returns (uint256) {
-        uint256 _now = block.timestamp;
-        if (_unlockTime <= _now) return 0;
-        uint256 _lockedSeconds = _unlockTime - _now;
-        if (_lockedSeconds >= MAXTIME) {
-            return _value;
-        }
-        return (_value * _lockedSeconds) / MAXTIME;
-    }
-
-    function voting_power_locked_days(uint256 _value, uint256 _days) public pure returns (uint256) {
-        if (_days >= MAXDAYS) {
-            return _value;
-        }
-        return (_value * _days) / MAXDAYS;
     }
 
     function deposit_for(address _addr, uint256 _value) external override {
@@ -143,9 +113,50 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
         emit Withdraw(_msgSender(), _amount, _now);
     }
 
-    // function burn(uint256 amount) public virtual {
-    //     _burn(_msgSender(), amount);
-    // }
+    /* ========== RESTRICTED FUNCTIONS ========== */
+
+    function setMinLockedAmount(uint256 _minLockedAmount) external onlyOwner {
+        minLockedAmount = _minLockedAmount;
+        emit MinLockedAmountSet(_minLockedAmount);
+    }
+
+    function setEarlyWithdrawPenaltyRate(uint256 _earlyWithdrawPenaltyRate) external onlyOwner {
+        require(_earlyWithdrawPenaltyRate <= MAX_WITHDRAWAL_PENALTY, "withdrawal penalty is too high"); // <= 50%
+        earlyWithdrawPenaltyRate = _earlyWithdrawPenaltyRate;
+        emit EarlyWithdrawPenaltySet(_earlyWithdrawPenaltyRate);
+    }
+
+    function setPenaltyCollector(address _addr) external onlyOwner {
+        penaltyCollector = _addr;
+        emit PenaltyCollectorSet(_addr);
+    }
+
+    /* ========== PUBLIC FUNCTIONS ========== */
+
+    function locked__of(address _addr) external view returns (uint256) {
+        return locked[_addr].amount;
+    }
+
+    function locked__end(address _addr) external view returns (uint256) {
+        return locked[_addr].end;
+    }
+
+    function voting_power_unlock_time(uint256 _value, uint256 _unlockTime) public view returns (uint256) {
+        uint256 _now = block.timestamp;
+        if (_unlockTime <= _now) return 0;
+        uint256 _lockedSeconds = _unlockTime - _now;
+        if (_lockedSeconds >= MAXTIME) {
+            return _value;
+        }
+        return (_value * _lockedSeconds) / MAXTIME;
+    }
+
+    function voting_power_locked_days(uint256 _value, uint256 _days) public view returns (uint256) {
+        if (_days >= MAXDAYS) {
+            return _value;
+        }
+        return (_value * _days) / MAXDAYS;
+    }
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
@@ -212,29 +223,4 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
 
         emit Withdraw(_msgSender(), _amount, _now);
     }
-
-    /* ========== RESTRICTED FUNCTIONS ========== */
-
-    function setMinLockedAmount(uint256 _minLockedAmount) external onlyOwner {
-        minLockedAmount = _minLockedAmount;
-        emit MinLockedAmountSet(_minLockedAmount);
-    }
-
-    function setEarlyWithdrawPenaltyRate(uint256 _earlyWithdrawPenaltyRate) external onlyOwner {
-        require(_earlyWithdrawPenaltyRate <= MAX_WITHDRAWAL_PENALTY, "withdrawal penalty is too high"); // <= 50%
-        earlyWithdrawPenaltyRate = _earlyWithdrawPenaltyRate;
-        emit EarlyWithdrawPenaltySet(_earlyWithdrawPenaltyRate);
-    }
-
-    function setPenaltyCollector(address _addr) external onlyOwner {
-        penaltyCollector = _addr;
-        emit PenaltyCollectorSet(_addr);
-    }
-
-    /* =============== EVENTS ==================== */
-    event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 timestamp);
-    event Withdraw(address indexed provider, uint256 value, uint256 timestamp);
-    event PenaltyCollectorSet(address indexed addr);
-    event EarlyWithdrawPenaltySet(uint256 indexed penalty);
-    event MinLockedAmountSet(uint256 indexed amount);
 }

@@ -3,14 +3,11 @@
 pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import "../interfaces/IRewarder.sol";
 import "../interfaces/IFundDistributor.sol";
-// import "../interfaces/IMasterChef.sol";
-// import "../interfaces/IMiniChefV2.sol";
 import "../interfaces/ITokenUtilityModule.sol";
-
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /*  IronChef is a fork from Sushi's MiniChef v2 with slightly modification.
     1.  Rewards will be transferred from a seperated contract so that it will be more flexible to switch between:
@@ -52,6 +49,20 @@ contract MasterChef is Ownable {
     // Additions
     ITokenUtilityModule public tokenUtilityModule;
 
+    /* =============== EVENTS ==================== */
+
+    event Deposit(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
+    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
+    event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
+    event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
+    event LogPoolAddition(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
+    event LogSetPool(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
+    event LogUpdatePool(uint256 indexed pid, uint256 lastRewardTime, uint256 lpSupply, uint256 accRewardPerShare);
+    event LogRewardPerSecond(uint256 rewardPerSecond);
+    event PoolFundChanged(address indexed fund);
+    event TokenUtilityModuleChanged(address indexed fund);
+    event ErrorIgnored();
+
     constructor(
         IERC20 _reward,
         IFundDistributor _fund,
@@ -63,48 +74,6 @@ contract MasterChef is Ownable {
     }
 
     /* ========== PUBLIC FUNCTIONS ========== */
-
-    /// @notice Returns the number of MCV2 pools.
-    function poolLength() external view returns (uint256 pools) {
-        pools = poolInfo.length;
-    }
-
-    /// @notice View function to see pending reward on frontend.
-    /// @param _pid The index of the pool. See `poolInfo`.
-    /// @param _user Address of user.
-    /// @return pending reward for a given user.
-    function pendingReward(uint256 _pid, address _user) external view returns (uint256 pending) {
-        PoolInfo memory pool = poolInfo[_pid];
-        UserInfo storage user = userInfo[_pid][_user];
-        uint256 accRewardPerShare = pool.accRewardPerShare;
-        uint256 lpSupply = lpToken[_pid].balanceOf(address(this));
-        if (block.timestamp > pool.lastRewardTime && lpSupply != 0) {
-            uint256 time = block.timestamp - pool.lastRewardTime;
-            uint256 rewardAmount = (time * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
-            accRewardPerShare += (rewardAmount * ACC_REWARD_PRECISION) / lpSupply;
-        }
-        pending = uint256(int256((user.amount * accRewardPerShare) / ACC_REWARD_PRECISION) - user.rewardDebt);
-        pending = _applyBoost(_user, pending, user.amount);
-        return pending;
-    }
-
-    /// @notice Update reward variables of the given pool.
-    /// @param pid The index of the pool. See `poolInfo`.
-    /// @return pool Returns the pool that was updated.
-    function updatePool(uint256 pid) public returns (PoolInfo memory pool) {
-        pool = poolInfo[pid];
-        if (block.timestamp > pool.lastRewardTime) {
-            uint256 lpSupply = lpToken[pid].balanceOf(address(this));
-            if (lpSupply > 0) {
-                uint256 time = block.timestamp - pool.lastRewardTime;
-                uint256 rewardAmount = (time * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
-                pool.accRewardPerShare += (rewardAmount * ACC_REWARD_PRECISION) / lpSupply;
-            }
-            pool.lastRewardTime = block.timestamp;
-            poolInfo[pid] = pool;
-            emit LogUpdatePool(pid, pool.lastRewardTime, lpSupply, pool.accRewardPerShare);
-        }
-    }
 
     /// @notice Update reward variables for all pools. Be careful of gas spending!
     /// @param pids Pool IDs of all to be updated. Make sure to update all active pools.
@@ -171,25 +140,8 @@ contract MasterChef is Ownable {
     /// @notice Harvest proceeds for transaction sender to `to`.
     /// @param pid The index of the pool. See `poolInfo`.
     /// @param to Receiver of rewards.
-    function harvest(uint256 pid, address to) public {
-        PoolInfo memory pool = updatePool(pid);
-        UserInfo storage user = userInfo[pid][msg.sender];
-        int256 accumulatedReward = int256((user.amount * pool.accRewardPerShare) / ACC_REWARD_PRECISION);
-        uint256 _pendingReward = uint256(accumulatedReward - user.rewardDebt);
-        _pendingReward = _applyBoost(to, _pendingReward, user.amount);
-
-        // Effects
-        user.rewardDebt = accumulatedReward;
-
-        // Interactions
-        fund.distributeTo(to, _pendingReward);
-
-        IRewarder _rewarder = rewarder[pid];
-        if (address(_rewarder) != address(0)) {
-            _rewarder.onReward(pid, msg.sender, to, _pendingReward, user.amount);
-        }
-
-        emit Harvest(msg.sender, pid, _pendingReward);
+    function harvest(uint256 pid, address to) external {
+        _harvest(pid, to);
     }
 
     /// @notice Withdraw LP tokens from MCV2 and harvest proceeds for transaction sender to `to`.
@@ -236,7 +188,9 @@ contract MasterChef is Ownable {
 
         IRewarder _rewarder = rewarder[pid];
         if (address(_rewarder) != address(0)) {
-            try _rewarder.onReward(pid, msg.sender, to, 0, 0) {} catch {}
+            try _rewarder.onReward(pid, msg.sender, to, 0, 0) {} catch {
+                emit ErrorIgnored();
+            }
         }
 
         // Note: transfer can fail or succeed if `amount` is zero.
@@ -248,50 +202,54 @@ contract MasterChef is Ownable {
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
             if (userInfo[pid][msg.sender].amount > 0) {
-                harvest(pid, to);
+                _harvest(pid, to);
             }
         }
     }
 
-    /* ========== INTERNAL FUNCTIONS ========== */
+    // External views
 
-    function _checkPoolDuplicate(IERC20 _lpToken) internal view {
-        uint256 length = poolInfo.length;
-        for (uint256 pid = 0; pid < length; ++pid) {
-            require(lpToken[pid] != _lpToken, "add: existing pool?");
-        }
-    }
-
-    function _applyBoost(
-        address _user,
-        uint256 _pendingReward,
-        uint256 _supplyAmt
-    ) internal view returns (uint256 boostedAmount) {
-        if (address(tokenUtilityModule) == address(0)) {
-            boostedAmount = _pendingReward;
-        } else {
-            boostedAmount = tokenUtilityModule.getBoost(_user, address(this), _pendingReward, _supplyAmt);
-        }
+    /// @notice Returns the number of MCV2 pools.
+    function poolLength() external view returns (uint256 pools) {
+        pools = poolInfo.length;
     }
 
     /// @notice View function to see pending reward on frontend.
     /// @param _pid The index of the pool. See `poolInfo`.
     /// @param _user Address of user.
     /// @return pending reward for a given user.
-    // function _pendingReward(uint256 _pid, address _user) internal view returns (uint256 pending) {
-    //     PoolInfo memory pool = poolInfo[_pid];
-    //     UserInfo storage user = userInfo[_pid][_user];
-    //     uint256 accRewardPerShare = pool.accRewardPerShare;
-    //     uint256 lpSupply = lpToken[_pid].balanceOf(address(this));
-    //     if (block.timestamp > pool.lastRewardTime && lpSupply != 0) {
-    //         uint256 time = block.timestamp - pool.lastRewardTime;
-    //         uint256 rewardAmount = (time * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
-    //         accRewardPerShare += (rewardAmount * ACC_REWARD_PRECISION) / lpSupply;
-    //     }
-    //     pending = uint256(int256((user.amount * accRewardPerShare) / ACC_REWARD_PRECISION) - user.rewardDebt);
-    //     pending = _applyBoost(_user, pending, user.amount);
-    //     return pending;
-    // }
+    function pendingReward(uint256 _pid, address _user) external view returns (uint256 pending) {
+        PoolInfo memory pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][_user];
+        uint256 accRewardPerShare = pool.accRewardPerShare;
+        uint256 lpSupply = lpToken[_pid].balanceOf(address(this));
+        if (block.timestamp > pool.lastRewardTime && lpSupply != 0) {
+            uint256 time = block.timestamp - pool.lastRewardTime;
+            uint256 rewardAmount = (time * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
+            accRewardPerShare += (rewardAmount * ACC_REWARD_PRECISION) / lpSupply;
+        }
+        pending = uint256(int256((user.amount * accRewardPerShare) / ACC_REWARD_PRECISION) - user.rewardDebt);
+        pending = _applyBoost(_user, pending, user.amount);
+        return pending;
+    }
+
+    /// @notice Update reward variables of the given pool.
+    /// @param pid The index of the pool. See `poolInfo`.
+    /// @return pool Returns the pool that was updated.
+    function updatePool(uint256 pid) public returns (PoolInfo memory pool) {
+        pool = poolInfo[pid];
+        if (block.timestamp > pool.lastRewardTime) {
+            uint256 lpSupply = lpToken[pid].balanceOf(address(this));
+            if (lpSupply > 0) {
+                uint256 time = block.timestamp - pool.lastRewardTime;
+                uint256 rewardAmount = (time * rewardPerSecond * pool.allocPoint) / totalAllocPoint;
+                pool.accRewardPerShare += (rewardAmount * ACC_REWARD_PRECISION) / lpSupply;
+            }
+            pool.lastRewardTime = block.timestamp;
+            poolInfo[pid] = pool;
+            emit LogUpdatePool(pid, pool.lastRewardTime, lpSupply, pool.accRewardPerShare);
+        }
+    }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
@@ -355,16 +313,45 @@ contract MasterChef is Ownable {
         emit TokenUtilityModuleChanged(address(_tum));
     }
 
-    /* =============== EVENTS ==================== */
+    /* ========== INTERNAL FUNCTIONS ========== */
 
-    event Deposit(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
-    event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount, address indexed to);
-    event Harvest(address indexed user, uint256 indexed pid, uint256 amount);
-    event LogPoolAddition(uint256 indexed pid, uint256 allocPoint, IERC20 indexed lpToken, IRewarder indexed rewarder);
-    event LogSetPool(uint256 indexed pid, uint256 allocPoint, IRewarder indexed rewarder, bool overwrite);
-    event LogUpdatePool(uint256 indexed pid, uint256 lastRewardTime, uint256 lpSupply, uint256 accRewardPerShare);
-    event LogRewardPerSecond(uint256 rewardPerSecond);
-    event PoolFundChanged(address indexed fund);
-    event TokenUtilityModuleChanged(address indexed fund);
+    function _harvest(uint256 pid, address to) internal {
+        PoolInfo memory pool = updatePool(pid);
+        UserInfo storage user = userInfo[pid][msg.sender];
+        int256 accumulatedReward = int256((user.amount * pool.accRewardPerShare) / ACC_REWARD_PRECISION);
+        uint256 _pendingReward = uint256(accumulatedReward - user.rewardDebt);
+        _pendingReward = _applyBoost(to, _pendingReward, user.amount);
+
+        // Effects
+        user.rewardDebt = accumulatedReward;
+
+        // Interactions
+        fund.distributeTo(to, _pendingReward);
+
+        IRewarder _rewarder = rewarder[pid];
+        if (address(_rewarder) != address(0)) {
+            _rewarder.onReward(pid, msg.sender, to, _pendingReward, user.amount);
+        }
+
+        emit Harvest(msg.sender, pid, _pendingReward);
+    }
+
+    function _applyBoost(
+        address _user,
+        uint256 _pendingReward,
+        uint256 _supplyAmt
+    ) internal view returns (uint256 boostedAmount) {
+        if (address(tokenUtilityModule) == address(0)) {
+            boostedAmount = _pendingReward;
+        } else {
+            boostedAmount = tokenUtilityModule.getBoost(_user, address(this), _pendingReward, _supplyAmt);
+        }
+    }
+
+    function _checkPoolDuplicate(IERC20 _lpToken) internal view {
+        uint256 length = poolInfo.length;
+        for (uint256 pid = 0; pid < length; ++pid) {
+            require(lpToken[pid] != _lpToken, "add: existing pool?");
+        }
+    }
 }

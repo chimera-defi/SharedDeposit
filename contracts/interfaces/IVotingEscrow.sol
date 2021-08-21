@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: UNLICENSED
+
 // Standard Curvefi voting escrow interface
 // We want to use a standard iface to allow compatibility
 pragma solidity ^0.8.0;
@@ -41,4 +43,6 @@ interface IVotingEscrow {
 
     // Extra required views
     function supply() external view returns (uint256);
+
+    // function transferOwnership(address addr) external;
 }
