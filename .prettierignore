@@ -12,3 +12,8 @@ typechain/
 coverage.json
 other_contracts/sharedDeposit_1.1.0.sol
 other_contracts/*
+contracts/interfaces/*
+
+contracts/governance/VestingMerkleDistributor.sol
+contracts/governance/SimpleVesting.sol
+contracts/util/SingleTokenVestingNonRevocable.sol

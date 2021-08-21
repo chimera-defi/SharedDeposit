@@ -5,7 +5,11 @@ dist/
 node_modules/
 
 # files
-contracts/interfaces/*
 other_contracts/*
+contracts/interfaces/*
 contracts/vEth2.sol
 contracts/masterChefGeneric_Iron.sol
+contracts/governance/VestingMerkleDistributor.sol
+
+contracts/governance/SimpleVesting.sol
+contracts/util/SingleTokenVestingNonRevocable.sol
