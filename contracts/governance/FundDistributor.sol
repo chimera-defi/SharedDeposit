@@ -28,7 +28,7 @@ contract FundDistributor is Ownable, Initializable {
     /* ========== MODIFIER ========== */
 
     modifier onlyRequester() {
-        require(requesters[_msgSender()], "Only pool can request transfer");
+        require(requesters[_msgSender()], "FD:NA");
         _;
     }
 
@@ -40,7 +40,7 @@ contract FundDistributor is Ownable, Initializable {
     /* ========== MUTATIVE ====================== */
 
     function distributeTo(address _receiver, uint256 _amount) external onlyRequester {
-        require(_receiver != address(0), "Invalid address");
+        require(_receiver != address(0), "FD:0AD");
         if (_amount > 0) {
             IERC20(reward).safeTransfer(_receiver, _amount.div(10**missingDecimals));
         }
@@ -49,13 +49,13 @@ contract FundDistributor is Ownable, Initializable {
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function addRequester(address _requester) external onlyOwner {
-        require(!requesters[_requester], "requester existed");
+        require(!requesters[_requester], "FD:AE");
         requesters[_requester] = true;
         emit RequesterAdded(_requester);
     }
 
     function removeRequester(address _requester) external onlyOwner {
-        require(requesters[_requester], "requester not found");
+        require(requesters[_requester], "FD:NA");
         delete requesters[_requester];
         emit RequesterRemoved(_requester);
     }

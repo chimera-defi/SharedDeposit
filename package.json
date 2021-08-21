@@ -24,7 +24,8 @@
     "@openzeppelin/contracts-upgradeable": "^4.2.0"
   },
   "scripts": {
-    "flat": "npx hardhat flat contracts/blocklist.sol --output flats/blocklist_flat2.sol",
+    "uml": "npx sol2uml ./flats/",
+    "flat": "npx hardhat flat contracts/${CNAME} --output flats/${CNAME}",
     "flatten": "npx hardhat flatten --remove-licenses ./contracts/sharedDeposit_v2.sol > flattened/sharedDeposit_v2_flat.sol",
     "build": "npm run-script prettier ; npm run-script prettier:check ; npm run-script lint:sol ; npx hardhat compile",
     "clean": "hardhat clean",

@@ -351,7 +351,7 @@ contract MasterChef is Ownable {
     function _checkPoolDuplicate(IERC20 _lpToken) internal view {
         uint256 length = poolInfo.length;
         for (uint256 pid = 0; pid < length; ++pid) {
-            require(lpToken[pid] != _lpToken, "add: existing pool?");
+            require(lpToken[pid] != _lpToken, "MC:AE");
         }
     }
 }

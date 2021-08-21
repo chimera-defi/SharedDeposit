@@ -59,10 +59,10 @@ const _getAddress = obj => {
     : obj.contract.address;
 };
 
-const _printesults = contracts => {
-  console.log("Deployment finished. Contracts deployed: ");
-  Object.keys(contracts).map((k, v) => {
-    console.log(`${k} deployed to ${v.address}`);
+const _printResults = contracts => {
+  console.log("\n\n Deployment finished. Contracts deployed: \n\n");
+  Object.keys(contracts).map((k) => {
+    console.log(`${k} deployed to ${contracts[k].contract.address}`);
   });
 };
 
@@ -71,5 +71,5 @@ module.exports = {
   _deployContract: _deployContract,
   _getAddress: _getAddress,
   _verify: _verify,
-  _printesults: _printesults,
+  _printResults: _printResults,
 };

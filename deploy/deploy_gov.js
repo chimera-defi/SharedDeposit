@@ -24,7 +24,7 @@ async function main() {
     _deployContract,
     _getAddress,
     _verify,
-    _printesults,
+    _printResults,
   } = require("./deploy_utils.js");
   // deploy, deployer
   const [deployer] = await hre.ethers.getSigners();
@@ -65,7 +65,7 @@ async function main() {
     return new Promise(async resolve => {
       contracts[vef].contract.on("VoteEscrowCreated", async (address, name, symbol, event) => {
         console.log(`${address} sent to ${name} ${symbol}`);
-        contracts[ve] = {address: address};
+        contracts[ve] = {contract: {address: address}};
         // await _verify(contracts[ve], launchNetwork, ve_args);
         resolve();
         // console.log(event);    console.log(event.decode());
@@ -132,7 +132,14 @@ async function main() {
   let mc_args = [sgtv2_addr, addressOf(fund), addressOf()];
   await deployContract(masterChef, mc_args);
 
-  _printesults(contracts);
+  let tokenMigrator = "TokenMigrator";
+  console.log(tokenMigrator, sgtv2, ve_args)
+
+  contracts["SGTv1"] = await _deployContract(sgtv2, launchNetwork, sgtv2_args);
+  let tmargs = [contracts["SGTv1"].contract.address, sgtv2_addr, addressOf()];
+  await deployContract(tokenMigrator, tmargs);
+
+  _printResults(contracts);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

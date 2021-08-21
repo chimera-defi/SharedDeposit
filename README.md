@@ -18,8 +18,12 @@ Common reasons:
 
 ```
 CBL0 - contract balance will be less than 0 after this operation
-VL0 - Value less than 0 and needs to be greater than 0
+VL0 - Value less than or equal to 0 and needs to be greater than 0
+VLC - Value less than cap or check amount
 AGC - Amount greater than cap or some stored value or requirement
+NA - No Access / Not allowed
+AE - Already exists
+0AD - 0 address
 ```
 
 # SharedDeposit V2

@@ -54,7 +54,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
     }
 
     function deposit_for(address _addr, uint256 _value) external override {
-        require(_value >= minLockedAmount, "less than min amount");
+        require(_value >= minLockedAmount, "VE:VL0");
         _deposit_for(_addr, _value, 0);
     }
 
