@@ -72,10 +72,7 @@ contract SharedDepositV2 is
     uint256 public performanceFeePrct;
     uint256 public sharesBurnt;
     uint8 public beneficiaryRewardsClaimed;
-    uint256 constant _BIPS_DENOM = 1000;
-
-    // string private constant _senderBalLessThanAmountError = "SD:SBLA";
-    // string private constant _contractBalLessThan0Error = "SD:CBL0";
+    uint256 private constant _BIPS_DENOM = 1000;
 
     // =============== EVENTS =================
     event Withdraw(address indexed _from, uint256 _value);
@@ -257,6 +254,64 @@ contract SharedDepositV2 is
         _sendEth(_msgSender(), amount);
     }
 
+    // ================ END OWNER/ Gov ONLY FUNCTIONS ===================================
+
+    // ========= VIEW FUNCTIONS ===============
+    function readState()
+        external
+        view
+        returns (uint256[7] memory configurableUints, address[6] memory configurableAddresses)
+    {
+        return (
+            [
+                validatorsCreated,
+                performanceFeePrct,
+                epochLength,
+                numValidators,
+                adminFee,
+                depositsEnabled ? 1 : 0,
+                disableWithdrawRefund ? 1 : 0
+            ],
+            [
+                address(depositContract),
+                address(contractRegistry.priceOracle),
+                address(contractRegistry.tokenManager),
+                address(contractRegistry.blocklist),
+                address(contractRegistry.tokenUtilityModule),
+                address(BETHToken)
+            ]
+        );
+    }
+
+    function mintingAllowedAfter() external view returns (uint256) {
+        return BETHToken.mintingAllowedAfter();
+    }
+
+    function remainingSpaceInEpoch() external view returns (uint256) {
+        // Helpful view function to gauge how much the user can send to the contract when it is near full
+        uint256 remainingShares = (maxValidatorShares()).sub(curValidatorShares);
+        uint256 valBeforeAdmin = remainingShares.mul(1e18).div(
+            uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator))
+        );
+        return valBeforeAdmin;
+    }
+
+    // ========= PUBLIC FUNCTIONS ===============
+    // Updates price per share using price oracle
+    function updateCostPerShare() public {
+        uint256 priceOracleCostPerShare = contractRegistry.priceOracle.getCostPerShare();
+
+        // we set the real cost per share after deducting admin profits here
+        // assuming the virtual price is 1.03 * 1e18, this represents a 3% gain.
+        // performanceFeePrct / Bips denom will be deducted from it
+        // if the perf fee is e.g. 5%, .03*5% * 1e18 will be returned
+        uint256 beneficiaryCut = priceOracleCostPerShare
+            .sub(1e18)
+            .mul(performanceFeePrct.mul(1e18).div(_BIPS_DENOM))
+            .div(1e18);
+        costPerShare = priceOracleCostPerShare.sub(beneficiaryCut);
+    }
+
     // Used to copy over state from previous contract
     function setupState(uint256[] calldata configurableUints, address[] calldata configurableAddresses)
         public
@@ -295,67 +350,10 @@ contract SharedDepositV2 is
         curShares = curValidatorShares;
     }
 
-    // ================ END OWNER/ Gov ONLY FUNCTIONS ===================================
-
-    // ========= PUBLIC FUNCTIONS ===============
-    // Updates price per share using price oracle
-    function updateCostPerShare() public {
-        uint256 priceOracleCostPerShare = contractRegistry.priceOracle.getCostPerShare();
-
-        // we set the real cost per share after deducting admin profits here
-        // assuming the virtual price is 1.03 * 1e18, this represents a 3% gain.
-        // performanceFeePrct / Bips denom will be deducted from it
-        // if the perf fee is e.g. 5%, .03*5% * 1e18 will be returned
-        uint256 beneficiaryCut = priceOracleCostPerShare
-            .sub(1e18)
-            .mul(performanceFeePrct.mul(1e18).div(_BIPS_DENOM))
-            .div(1e18);
-        costPerShare = priceOracleCostPerShare.sub(beneficiaryCut);
-    }
-
     // ========= PUBLIC VIEW FUNCTIONS ===============
-
-    function readState()
-        external
-        view
-        returns (uint256[7] memory configurableUints, address[6] memory configurableAddresses)
-    {
-        return (
-            [
-                validatorsCreated,
-                performanceFeePrct,
-                epochLength,
-                numValidators,
-                adminFee,
-                depositsEnabled ? 1 : 0,
-                disableWithdrawRefund ? 1 : 0
-            ],
-            [
-                address(depositContract),
-                address(contractRegistry.priceOracle),
-                address(contractRegistry.tokenManager),
-                address(contractRegistry.blocklist),
-                address(contractRegistry.tokenUtilityModule),
-                address(BETHToken)
-            ]
-        );
-    }
-
-    function mintingAllowedAfter() external view returns (uint256) {
-        return BETHToken.mintingAllowedAfter();
-    }
 
     function maxValidatorShares() public view returns (uint256) {
         return uint256(depositAmount).mul(1e18).mul(numValidators);
-    }
-
-    function remainingSpaceInEpoch() external view returns (uint256) {
-        // Helpful view function to gauge how much the user can send to the contract when it is near full
-        uint256 remainingShares = (maxValidatorShares()).sub(curValidatorShares);
-        uint256 valBeforeAdmin = remainingShares.mul(1e18).div(
-            uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator))
-        );
-        return valBeforeAdmin;
     }
 
     // TODO: implementation and use of this depends on if we keep veth2 or not
@@ -369,8 +367,6 @@ contract SharedDepositV2 is
         // this only works for a 1 time withdrawal of ALL shares.
         return address(this).balance.sub((sharesBurnt.add(curShares)).mul(costPerShare).div(1e18));
     }
-
-    // ========= PUBLIC VIEW FUNCTIONS ===============
 
     // ====== Internal helper functions =======
 

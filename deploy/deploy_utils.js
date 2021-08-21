@@ -16,7 +16,7 @@ const _getOverrides = async () => {
 
 const _verify = async (contract, launchNetwork, cArgs) => {
   if (!launchNetwork || launchNetwork == "hardhat") return;
-  await new Promise(resolve => setTimeout(resolve, 50000));
+  await new Promise(resolve => setTimeout(resolve, 10000));
   try {
     await hre.run("verify:verify", {
       address: contract.address,
@@ -26,6 +26,7 @@ const _verify = async (contract, launchNetwork, cArgs) => {
     console.log("\n");
   } catch (e) {
     console.log("Etherscan verification failed w/ ", e);
+    console.log(cArgs, launchNetwork, contract);
   }
 };
 
@@ -58,8 +59,17 @@ const _getAddress = obj => {
     : obj.contract.address;
 };
 
+const _printesults = contracts => {
+  console.log("Deployment finished. Contracts deployed: ");
+  Object.keys(contracts).map((k, v) => {
+    console.log(`${k} deployed to ${v.address}`);
+  });
+};
+
 module.exports = {
   _deployInitializableContract: _deployInitializableContract,
   _deployContract: _deployContract,
   _getAddress: _getAddress,
+  _verify: _verify,
+  _printesults: _printesults,
 };

@@ -32,7 +32,7 @@ contract WithdrawQueueUpgradeable is Initializable {
         uint256 balanceOfSelf,
         uint256 amountToWithdraw,
         uint256 _epochLength
-    ) internal view returns (bool withdrawalAllowed) {
+    ) internal returns (bool withdrawalAllowed) {
         UserEntry memory userEntry = userEntries[sender];
         require(amountToWithdraw >= balanceOfSelf, "WQ:CBL0");
         require(userEntry.amount >= amountToWithdraw, "WQ:AGC");

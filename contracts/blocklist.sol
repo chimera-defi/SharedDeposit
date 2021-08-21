@@ -14,17 +14,6 @@ contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
         _;
     }
 
-    /// @dev Private method is used instead of inlining into modifier because modifiers are copied into each method,
-    ///     and the use of immutable means the address bytes are copied in every place the modifier is used.
-    function _checkOnlyBlockListers() private view {
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
-                hasRole(GOVERNANCE_ROLE, _msgSender()) ||
-                hasRole(BLOCKLIST_OWNER, _msgSender()),
-            "Blocklist: no auth"
-        );
-    }
-
     function initialize(address[] calldata _addresses) external initializer {
         __OwnershipRolesTemplate_init();
         __BlocklistBase_init_unchained(_addresses);
@@ -41,5 +30,16 @@ contract Blocklist is OwnershipRolesTemplate, BlocklistBase {
 
     function inBlockList(address _user) public view returns (bool _isInBlocklist) {
         return isBlocklisted[_user];
+    }
+
+    /// @dev Private method is used instead of inlining into modifier because modifiers are copied into each method,
+    ///     and the use of immutable means the address bytes are copied in every place the modifier is used.
+    function _checkOnlyBlockListers() private view {
+        require(
+            hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
+                hasRole(GOVERNANCE_ROLE, _msgSender()) ||
+                hasRole(BLOCKLIST_OWNER, _msgSender()),
+            "B:NA"
+        );
     }
 }
