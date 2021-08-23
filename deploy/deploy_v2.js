@@ -40,7 +40,7 @@ async function main() {
   let address = deployer.address;
 
   // for testing we deploy a new veth2
-  const veth2Name = "veth2";
+  const veth2Name = "vEth2";
   const veth2_args = [address, address, Date.now() + 500];
   contracts[veth2Name] = await _deployContract(veth2Name, launchNetwork, veth2_args);
 

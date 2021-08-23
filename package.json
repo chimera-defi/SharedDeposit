@@ -24,7 +24,8 @@
     "@openzeppelin/contracts-upgradeable": "^4.2.0"
   },
   "scripts": {
-    "flat": "npx hardhat flat contracts/blocklist.sol --output flats/blocklist_flat2.sol",
+    "uml": "npx sol2uml ./flats/",
+    "flat": "npx hardhat flat contracts/${CNAME} --output flats/${CNAME}",
     "flatten": "npx hardhat flatten --remove-licenses ./contracts/sharedDeposit_v2.sol > flattened/sharedDeposit_v2_flat.sol",
     "build": "npm run-script prettier ; npm run-script prettier:check ; npm run-script lint:sol ; npx hardhat compile",
     "clean": "hardhat clean",
@@ -33,6 +34,8 @@
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/**/*.ts\"",
     "deploy_v2_goerli": "npx hardhat run --network goerli deploy/deploy_v2.js",
     "deploy_v2_goerli_showall": "npx hardhat run --network goerli --verbose --show-stack-traces deploy/deploy_v2.js",
+    "deploy_gov": "npx hardhat run deploy/deploy_gov.js",
+    "deploy_gov_goerli": "npx hardhat run --network goerli deploy/deploy_gov.js",
     "deploy": "hardhat deploy:Greeter",
     "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:check",
     "lint:sol": "solhint --config ./.solhint.json --max-warnings 50 \"contracts/**/*.sol\"",

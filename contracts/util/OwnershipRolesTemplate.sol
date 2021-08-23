@@ -11,13 +11,6 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
     bytes32 public constant BENEFICIARY_ROLE = keccak256("BENEFICIARY_ROLE");
 
     // ====== Modifiers for syntactic sugar =======
-    function _checkOnlyAdminOrGovernance() private view {
-        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || hasRole(GOVERNANCE_ROLE, _msgSender()), "ORT: no auth");
-    }
-
-    function _checkOnlyBenefactor() private view {
-        require(hasRole(BENEFICIARY_ROLE, _msgSender()), "ORT: no auth");
-    }
 
     modifier onlyBenefactor() {
         _checkOnlyBenefactor();
@@ -27,6 +20,14 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
     modifier onlyAdminOrGovernance() {
         _checkOnlyAdminOrGovernance();
         _;
+    }
+
+    function _checkOnlyAdminOrGovernance() private view {
+        require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) || hasRole(GOVERNANCE_ROLE, _msgSender()), "ORT:NA");
+    }
+
+    function _checkOnlyBenefactor() private view {
+        require(hasRole(BENEFICIARY_ROLE, _msgSender()), "ORT:NA");
     }
 
     // ====== END Modifiers for syntactic sugar =====================================
@@ -43,6 +44,8 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
         _setRoleAdmin(PAUSER_ROLE, GOVERNANCE_ROLE);
         // Allow adding/changing the benefactor address
         _setRoleAdmin(BENEFICIARY_ROLE, GOVERNANCE_ROLE);
+        // Gov should be able to change gov in case of multisig change
+        _setRoleAdmin(GOVERNANCE_ROLE, GOVERNANCE_ROLE);
     }
 
     function togglePause() external onlyAdminOrGovernance {
@@ -50,7 +53,7 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
             hasRole(PAUSER_ROLE, _msgSender()) ||
                 hasRole(DEFAULT_ADMIN_ROLE, _msgSender()) ||
                 hasRole(GOVERNANCE_ROLE, _msgSender()),
-            "OwnershipRolesTemplate: access denied"
+            "ORT:NA"
         );
         if (paused()) {
             _unpause();
@@ -61,10 +64,7 @@ contract OwnershipRolesTemplate is UpgradeableSafeContractBase {
 
     //  Initializers
     function __OwnershipRolesTemplate_init() internal initializer {
-        __OwnershipRolesTemplate_init_unchained();
-    }
-
-    function __OwnershipRolesTemplate_init_unchained() internal initializer {
+        __UpgradeableSafeContractBase_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(PAUSER_ROLE, _msgSender());
         _setupRole(GOVERNANCE_ROLE, _msgSender());

@@ -60,10 +60,19 @@ contract SharedDepositV2 is
     // New additions
     ContractRegistry public contractRegistry;
 
+    // Todo: move new settings to struct
+    // struct Settings {
+    //     uint8 depositsEnabled;
+    //     uint8 beneficiaryRewardsClaimed;
+    //     uint64 performanceFeePrct;
+    //     uint256 sharesBurnt;
+    // }
+
     bool public depositsEnabled;
     uint256 public performanceFeePrct;
     uint256 public sharesBurnt;
     uint8 public beneficiaryRewardsClaimed;
+    uint256 private constant _BIPS_DENOM = 1000;
 
     // =============== EVENTS =================
     event Withdraw(address indexed _from, uint256 _value);
@@ -86,7 +95,7 @@ contract SharedDepositV2 is
         external
         initializer
     {
-        __OwnershipRolesTemplate_init_unchained();
+        __OwnershipRolesTemplate_init();
         __DepositHelper_init_unchained(configurableAddresses[0]);
         __VaultWithSharesAndCapUpgradeable_init_unchained(1); // overwritten by updateCostPerShare in setupState
         __WithdrawQueue_init_unchained(0); // overwritten in setupState
@@ -113,31 +122,36 @@ contract SharedDepositV2 is
     */
 
     function deposit() external payable nonReentrant whenNotPaused {
-        require(depositsEnabled, "Eth2Staker: Deposits disabled");
+        require(depositsEnabled, "SD:DD");
         // input is whole, not / 1e18 , i.e. in 1 = 1 eth send when from etherscan
         uint256 value = msg.value;
-        ITokenManager _tm = contractRegistry.tokenManager;
-        ITokenUtilityModule _tum = contractRegistry.tokenUtilityModule;
 
         uint256 myAdminFee = value.mul(adminFee).div(costPerValidator);
-        if (address(_tum) != address(0)) {
-            myAdminFee = _tum.getAdminFee(_msgSender(), address(this), value, myAdminFee);
+        if (address(contractRegistry.tokenUtilityModule) != address(0)) {
+            myAdminFee = contractRegistry.tokenUtilityModule.getAdminFee(
+                _msgSender(),
+                address(this),
+                value,
+                myAdminFee
+            );
         }
         uint256 valMinusAdmin = value.sub(myAdminFee);
         uint256 newShareTotal = curValidatorShares.add(valMinusAdmin);
 
-        require(newShareTotal <= buffer.add(maxValidatorShares()), "Eth2Staker:deposit:Amount too large");
+        require(newShareTotal <= buffer.add(maxValidatorShares()), "SD:AGC"); // Amount > Cap
         _incrementShares(valMinusAdmin);
         curValidatorShares = newShareTotal;
         adminFeeTotal = adminFeeTotal.add(myAdminFee);
-        _tm.mint(msg.sender, valMinusAdmin);
+        contractRegistry.tokenManager.mint(msg.sender, valMinusAdmin);
     }
 
     function stakeForWithdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
-        require(BETHToken.balanceOf(_msgSender()) >= amount, "Eth2Staker: Sender balance too low");
+        require(BETHToken.balanceOf(_msgSender()) >= amount, "SD:SBLA"); // Sender bal < Amount
 
-        uint256 amountToReturn = getAmountGivenShares(amount);
-        require(address(this).balance.sub(amountToReturn) >= 0, "Eth2Staker:stakeForWithdraw:Contract balance too low");
+        require(
+            address(this).balance.sub(getAmountGivenShares(amount)) >= 0,
+            "SD:CBL0" // Contract bal < 0
+        );
 
         BETHToken.transferFrom(_msgSender(), address(this), amount);
 
@@ -147,26 +161,29 @@ contract SharedDepositV2 is
     function withdrawETHRewardsWithQueue() external nonReentrant whenNotPaused noContractAllowed {
         uint256 amount = userEntries[_msgSender()].amount;
         uint256 _epochLength = epochLength;
-        ITokenManager _tm = contractRegistry.tokenManager;
-        ITokenUtilityModule _tum = contractRegistry.tokenUtilityModule;
 
-        if (address(_tum) != address(0)) {
-            _epochLength = _tum.getEpochLength(_msgSender(), address(this), amount, epochLength);
+        if (address(contractRegistry.tokenUtilityModule) != address(0)) {
+            _epochLength = contractRegistry.tokenUtilityModule.getEpochLength(
+                _msgSender(),
+                address(this),
+                amount,
+                epochLength
+            );
         }
         uint256 amountToReturn = getAmountGivenShares(amount);
         require(
             _checkWithdraw(_msgSender(), BETHToken.balanceOf(address(this)), amount, _epochLength) == true,
-            "Withdrawal not allowed"
+            "SD:NA" // Withdraw not allowed
         );
         require(
             address(this).balance.sub(amountToReturn) >= 0,
-            "Eth2Staker:withdrawETHRewardsWithQueue:Contract balance too low"
+            "SD:CBL0" // Contract balance will be less than 0
         );
 
-        BETHToken.approve(address(_tm), amount);
+        BETHToken.approve(address(contractRegistry.tokenManager), amount);
         userEntries[_msgSender()].amount = 0;
         delete userEntries[_msgSender()];
-        _tm.burn(address(this), amount);
+        contractRegistry.tokenManager.burn(address(this), amount);
 
         _withdrawEthRewards(amountToReturn, amount);
     }
@@ -174,15 +191,18 @@ contract SharedDepositV2 is
     // TODO: This should be removed
     // but we need a way to change the epoch length dependent on NFTs held or vote escrowed tokens
     function withdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
-        require(BETHToken.balanceOf(_msgSender()) >= amount, "Eth2Staker: Sender balance not enough");
+        require(BETHToken.balanceOf(_msgSender()) >= amount, "SD:SBLA"); // Sender bal less than amount
         uint256 amountToReturn = getAmountGivenShares(amount);
-        ITokenUtilityModule _tum = contractRegistry.tokenUtilityModule;
-        ITokenManager _tm = contractRegistry.tokenManager;
 
-        require(address(this).balance.sub(amountToReturn) >= 0, "Eth2Staker:withdraw:Contract balance too low");
-        _tm.burn(_msgSender(), amount);
-        if (address(_tum) != address(0)) {
-            amountToReturn = _tum.getWithdrawalTotal(_msgSender(), address(this), amount, amountToReturn);
+        require(address(this).balance.sub(amountToReturn) >= 0, "SD:CBL0"); // Contract bal will be less than 0
+        contractRegistry.tokenManager.burn(_msgSender(), amount);
+        if (address(contractRegistry.tokenUtilityModule) != address(0)) {
+            amountToReturn = contractRegistry.tokenUtilityModule.getWithdrawalTotal(
+                _msgSender(),
+                address(this),
+                amount,
+                amountToReturn
+            );
         }
         _withdrawEthRewards(amountToReturn, amount);
     }
@@ -195,8 +215,9 @@ contract SharedDepositV2 is
 
     // ======= Beneficiary only function =============
     function getBeneficiaryRewards() external onlyBenefactor whenNotPaused {
-        require(beneficiaryRewardsClaimed == 0, "Rewards already claimed");
-        _sendEth(getTotalBeneficiaryGains());
+        require(beneficiaryRewardsClaimed == 0, "SD:RAC"); // Rewards already claimed
+
+        _sendEth(_msgSender(), getTotalBeneficiaryGains());
         beneficiaryRewardsClaimed = 1;
     }
 
@@ -227,88 +248,20 @@ contract SharedDepositV2 is
         if (amount == 0) {
             amount = adminFeeTotal;
         }
-        require(amount <= adminFeeTotal, "Eth2Staker:withdrawAdminFee: >adminFeeTotal cant be withdrawn");
+        require(amount <= adminFeeTotal, "SD:AGC"); // Amount > admin fee total
         adminFeeTotal = adminFeeTotal.sub(amount);
-        _sendEth(amount);
-    }
 
-    // Used to copy over state from previous contract
-    function setupState(uint256[] calldata configurableUints, address[] calldata configurableAddresses)
-        public
-        onlyAdminOrGovernance
-    {
-        validatorsCreated = configurableUints[0];
-        performanceFeePrct = configurableUints[1];
-        _setEpochLength(configurableUints[2] * 1 days);
-        numValidators = configurableUints[3];
-        adminFee = configurableUints[4];
-        depositsEnabled = configurableUints[5] > 0;
-        disableWithdrawRefund = configurableUints[6] > 0;
-
-        ContractRegistry memory _contractRegistry;
-        _contractRegistry = ContractRegistry(
-            IPriceOracle(configurableAddresses[1]),
-            ITokenManager(configurableAddresses[2]),
-            IBlocklist(configurableAddresses[3]),
-            ITokenUtilityModule(configurableAddresses[4])
-        );
-        contractRegistry = _contractRegistry;
-
-        // vETH2 token
-        address _BETHTokenAddress = configurableAddresses[5];
-        BETHToken = IvETH2(_BETHTokenAddress);
-
-        costPerValidator = uint256(32).mul(1e18).add(adminFee);
-
-        // max validators
-        _setCap(numValidators.mul(costPerValidator));
-        updateTotalShares();
-        updateCostPerShare();
-    }
-
-    // TODO: implementation and use of this depends on if we keep veth2 or not
-    // POLL: https://twitter.com/ChimeraDefi/status/1426587489951621122
-    function updateTotalShares() public onlyAdminOrGovernance {
-        uint256 circulatingShares = BETHToken.totalSupply();
-        curValidatorShares = circulatingShares;
-        curShares = curValidatorShares;
+        _sendEth(_msgSender(), amount);
     }
 
     // ================ END OWNER/ Gov ONLY FUNCTIONS ===================================
 
-    // ========= PUBLIC FUNCTIONS ===============
-    // Updates price per share using price oracle
-    function updateCostPerShare() public {
-        uint256 BIPS_DENOM = 1000;
-        uint256 priceOracleCostPerShare = contractRegistry.priceOracle.getCostPerShare();
-
-        // we set the real cost per share after deducting admin profits here
-        // assuming the virtual price is 1.03 * 1e18, this represents a 3% gain.
-        // performanceFeePrct / Bips denom will be deducted from it
-        // if the perf fee is e.g. 5%, .03*5% * 1e18 will be returned
-        uint256 beneficiaryCut = priceOracleCostPerShare
-            .sub(1e18)
-            .mul(performanceFeePrct.mul(1e18).div(BIPS_DENOM))
-            .div(1e18);
-        uint256 actualCostPerShare = priceOracleCostPerShare.sub(beneficiaryCut);
-        costPerShare = actualCostPerShare;
-    }
-
-    // ========= PUBLIC VIEW FUNCTIONS ===============
-
+    // ========= VIEW FUNCTIONS ===============
     function readState()
         external
         view
         returns (uint256[7] memory configurableUints, address[6] memory configurableAddresses)
     {
-        uint256 _depositsEnabled = 0;
-        if (depositsEnabled) {
-            _depositsEnabled = 1;
-        }
-        uint256 _disableWithdrawRefund = 0;
-        if (disableWithdrawRefund) {
-            _disableWithdrawRefund = 1;
-        }
         return (
             [
                 validatorsCreated,
@@ -316,8 +269,8 @@ contract SharedDepositV2 is
                 epochLength,
                 numValidators,
                 adminFee,
-                _depositsEnabled,
-                _disableWithdrawRefund
+                depositsEnabled ? 1 : 0,
+                disableWithdrawRefund ? 1 : 0
             ],
             [
                 address(depositContract),
@@ -334,10 +287,6 @@ contract SharedDepositV2 is
         return BETHToken.mintingAllowedAfter();
     }
 
-    function maxValidatorShares() public view returns (uint256) {
-        return uint256(32).mul(1e18).mul(numValidators);
-    }
-
     function remainingSpaceInEpoch() external view returns (uint256) {
         // Helpful view function to gauge how much the user can send to the contract when it is near full
         uint256 remainingShares = (maxValidatorShares()).sub(curValidatorShares);
@@ -347,44 +296,103 @@ contract SharedDepositV2 is
         return valBeforeAdmin;
     }
 
+    // ========= PUBLIC FUNCTIONS ===============
+    // Updates price per share using price oracle
+    function updateCostPerShare() public {
+        uint256 priceOracleCostPerShare = contractRegistry.priceOracle.getCostPerShare();
+
+        // we set the real cost per share after deducting admin profits here
+        // assuming the virtual price is 1.03 * 1e18, this represents a 3% gain.
+        // performanceFeePrct / Bips denom will be deducted from it
+        // if the perf fee is e.g. 5%, .03*5% * 1e18 will be returned
+        uint256 beneficiaryCut = priceOracleCostPerShare
+            .sub(1e18)
+            .mul(performanceFeePrct.mul(1e18).div(_BIPS_DENOM))
+            .div(1e18);
+        costPerShare = priceOracleCostPerShare.sub(beneficiaryCut);
+    }
+
+    // Used to copy over state from previous contract
+    function setupState(uint256[] calldata configurableUints, address[] calldata configurableAddresses)
+        public
+        onlyAdminOrGovernance
+    {
+        validatorsCreated = configurableUints[0];
+        performanceFeePrct = configurableUints[1];
+        _setEpochLength(configurableUints[2] * 1 days);
+        numValidators = configurableUints[3];
+        adminFee = configurableUints[4];
+        depositsEnabled = configurableUints[5] > 0;
+        disableWithdrawRefund = configurableUints[6] > 0;
+
+        require(configurableAddresses[1] != address(0), "SD:0AD:1");
+        require(configurableAddresses[2] != address(0), "SD:0AD:2");
+
+        contractRegistry = ContractRegistry(
+            IPriceOracle(configurableAddresses[1]),
+            ITokenManager(configurableAddresses[2]),
+            IBlocklist(configurableAddresses[3]),
+            ITokenUtilityModule(configurableAddresses[4])
+        );
+
+        // vETH2 token
+        BETHToken = IvETH2(configurableAddresses[5]);
+
+        costPerValidator = uint256(depositAmount).mul(1e18).add(adminFee);
+
+        // max validators
+        _setCap(numValidators.mul(costPerValidator));
+        updateTotalShares();
+        updateCostPerShare();
+    }
+
+    // TODO: implementation and use of this depends on if we keep veth2 or not
+    // POLL: https://twitter.com/ChimeraDefi/status/1426587489951621122
+    function updateTotalShares() public onlyAdminOrGovernance {
+        curValidatorShares = BETHToken.totalSupply();
+        curShares = curValidatorShares;
+    }
+
+    // ========= PUBLIC VIEW FUNCTIONS ===============
+
+    function maxValidatorShares() public view returns (uint256) {
+        return uint256(depositAmount).mul(1e18).mul(numValidators);
+    }
+
     // TODO: implementation and use of this depends on if we keep veth2 or not
     // POLL: https://twitter.com/ChimeraDefi/status/1426587489951621122
     function getTotalBeneficiaryGains() public view returns (uint256 totalGains) {
-        uint256 total = address(this).balance;
         // cost per share is calculated when we setCostPerShare() based on the oracle
         // to be the provided oracle rate minus performanceFeePrct of the profits
         // total - (customer shares * share price) => remainder is profit
 
         // Note: for continuation this will need to be changed to only acc burnt shares.
         // this only works for a 1 time withdrawal of ALL shares.
-        return total.sub((sharesBurnt.add(curShares)).mul(costPerShare).div(1e18));
+        return address(this).balance.sub((sharesBurnt.add(curShares)).mul(costPerShare).div(1e18));
     }
-
-    // ========= PUBLIC VIEW FUNCTIONS ===============
 
     // ====== Internal helper functions =======
 
-    function _sendEth(uint256 amount) internal {
-        address payable sender = payable(_msgSender());
+    function _sendEth(address to, uint256 amount) internal {
+        require(to != address(0), "SD:ST0"); // Send to 0 address
+        address payable sender = payable(to);
         AddressUpgradeable.sendValue(sender, amount);
     }
 
     function _withdrawEthRewards(uint256 amountToReturn, uint256 sharesUnderlying) internal {
         _decrementShares(sharesUnderlying);
         sharesBurnt = sharesBurnt.add(sharesUnderlying);
-        IBlocklist _bl = contractRegistry.blocklist;
 
         emit Withdraw(_msgSender(), amountToReturn);
         // Re-route any eth from blocklisted addresses to
         // multisig for community redistribution to prevent
         // rugpullers and malicious actors from profiting any more
         // from protocol
-        if (_bl.inBlockList(_msgSender())) {
-            address payable sender;
-            sender = payable(getRoleMember(GOVERNANCE_ROLE, 0));
-            AddressUpgradeable.sendValue(sender, amountToReturn);
+        // address payable sender;
+        if (address(contractRegistry.blocklist) != address(0) && contractRegistry.blocklist.inBlockList(_msgSender())) {
+            _sendEth(getRoleMember(GOVERNANCE_ROLE, 0), amountToReturn);
         } else {
-            _sendEth(amountToReturn);
+            _sendEth(_msgSender(), amountToReturn);
         }
     }
     // ====== END Internal helper functions =======

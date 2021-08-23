@@ -10,26 +10,26 @@ interface ITokenUtilityModule {
         address _requestContract,
         uint256 amt,
         uint256 defaultVal
-    ) external returns (uint256);
+    ) external view returns (uint256);
 
     function getAdminFee(
         address _address,
         address _requestContract,
         uint256 amt,
         uint256 defaultVal
-    ) external returns (uint256);
+    ) external view returns (uint256);
 
     function getWithdrawalTotal(
         address _address,
         address _requestContract,
         uint256 amt,
         uint256 defaultVal
-    ) external returns (uint256);
+    ) external view returns (uint256);
 
     function getBoost(
         address _address,
         address _requestContract,
         uint256 amt,
         uint256 defaultVal
-    ) external returns (uint256);
+    ) external view returns (uint256);
 }

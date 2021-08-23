@@ -1,0 +1,3 @@
+[submodule "sharedstake-oracle"]
+	path = sharedstake-oracle
+	url = git@github.com:chimera-defi/sharedstake-oracle.git

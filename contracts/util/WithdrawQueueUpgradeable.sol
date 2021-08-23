@@ -13,6 +13,13 @@ contract WithdrawQueueUpgradeable is Initializable {
     mapping(address => UserEntry) public userEntries;
     uint256 public epochLength;
 
+    // Error map:
+    // prefix origin wq - WithdrawQueue
+    // CBL0 - contract bal less than 0 after op
+    // AGSA - Amount greater than stored amount
+    // TS - Too soon
+    // EG30 - Epoch cant be greater than 30 days
+
     // if you just use the foll func you open yourself up to attacks
     // remember to move funds from the user
     // Based on:
@@ -25,13 +32,13 @@ contract WithdrawQueueUpgradeable is Initializable {
         uint256 balanceOfSelf,
         uint256 amountToWithdraw,
         uint256 _epochLength
-    ) internal view returns (bool withdrawalAllowed) {
+    ) internal returns (bool withdrawalAllowed) {
         UserEntry memory userEntry = userEntries[sender];
-        require(amountToWithdraw >= balanceOfSelf, "WithdrawQueue: Not enough funds");
-        require(userEntry.amount >= amountToWithdraw, "WithdrawQueue: Amount mismatch!");
+        require(amountToWithdraw >= balanceOfSelf, "WQ:CBL0");
+        require(userEntry.amount >= amountToWithdraw, "WQ:AGC");
 
         uint256 lockEnd = userEntry.timestamp.add(_epochLength);
-        require(block.timestamp >= lockEnd, "WithdrawQueue: Too soon!");
+        require(block.timestamp >= lockEnd, "WQ:TS");
         return true;
     }
 
@@ -46,7 +53,7 @@ contract WithdrawQueueUpgradeable is Initializable {
 
     // should be admin only or used in a constructor upstream
     function _setEpochLength(uint256 _value) internal {
-        require(_value <= 30 days, "WithdrawQueue: epoch > 30");
+        require(_value <= 30 days, "WQ:AGC");
         epochLength = _value;
     }
 

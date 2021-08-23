@@ -31,26 +31,26 @@ contract VaultWithSharesAndCapUpgradeable is Initializable {
     }
 
     function _setCap(uint256 amount) internal {
-        require(amount > 0, "VaultWithSharesAndCap: Cap must be >0");
+        require(amount > 0, "VWSAC:VL0");
         maxShares = amount;
     }
 
     function _setBuffer(uint256 amount) internal {
-        require(amount > 0, "VaultWithSharesAndCap: Buffer must be >0");
+        require(amount > 0, "VWSAC:VL0");
         buffer = amount;
     }
 
     function _incrementShares(uint256 amount) internal {
         uint256 newSharesTotal = curShares.add(amount);
         // Check that we are under the cap
-        require(newSharesTotal <= buffer.add(maxShares), "VaultWithSharesAndCap:: Amount too large; Exceeds Cap");
+        require(newSharesTotal <= buffer.add(maxShares), "VWSAC:AGC");
         curShares = newSharesTotal;
     }
 
     function _decrementShares(uint256 amount) internal {
         uint256 newSharesTotal = curShares.sub(amount);
         // check we are above 0
-        require(newSharesTotal >= 0, "VaultWithSharesAndCap: overflow to -ve");
+        require(newSharesTotal >= 0, "VWSAC:VL0");
         curShares = newSharesTotal;
     }
 
