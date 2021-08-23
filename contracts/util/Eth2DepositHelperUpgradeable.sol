@@ -65,7 +65,7 @@ contract Eth2DepositHelperUpgradeable is Initializable {
         bytes calldata signature,
         bytes32 depositDataRoot
     ) internal {
-        require(address(this).balance >= depositAmount, "DH:VMM"); //need at least 32 ETH
+        require(address(this).balance >= depositAmount, "DH:VLC"); //need at least 32 ETH
 
         validatorsCreated = validatorsCreated.add(1);
 

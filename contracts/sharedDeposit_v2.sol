@@ -325,6 +325,9 @@ contract SharedDepositV2 is
         depositsEnabled = configurableUints[5] > 0;
         disableWithdrawRefund = configurableUints[6] > 0;
 
+        require(configurableAddresses[1] != address(0), "SD:0AD:1");
+        require(configurableAddresses[2] != address(0), "SD:0AD:2");
+
         contractRegistry = ContractRegistry(
             IPriceOracle(configurableAddresses[1]),
             ITokenManager(configurableAddresses[2]),
@@ -386,7 +389,7 @@ contract SharedDepositV2 is
         // rugpullers and malicious actors from profiting any more
         // from protocol
         // address payable sender;
-        if (contractRegistry.blocklist.inBlockList(_msgSender())) {
+        if (address(contractRegistry.blocklist) != address(0) && contractRegistry.blocklist.inBlockList(_msgSender())) {
             _sendEth(getRoleMember(GOVERNANCE_ROLE, 0), amountToReturn);
         } else {
             _sendEth(_msgSender(), amountToReturn);

@@ -133,7 +133,7 @@ async function main() {
   await deployContract(masterChef, mc_args);
 
   let tokenMigrator = "TokenMigrator";
-  console.log(tokenMigrator, sgtv2, ve_args)
+  console.log(tokenMigrator, sgtv2, ve_args);
 
   contracts["SGTv1"] = await _deployContract(sgtv2, launchNetwork, sgtv2_args);
   let tmargs = [contracts["SGTv1"].contract.address, sgtv2_addr, addressOf()];

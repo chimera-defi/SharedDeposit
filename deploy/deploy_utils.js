@@ -61,7 +61,7 @@ const _getAddress = obj => {
 
 const _printResults = contracts => {
   console.log("\n\n Deployment finished. Contracts deployed: \n\n");
-  Object.keys(contracts).map((k) => {
+  Object.keys(contracts).map(k => {
     console.log(`${k} deployed to ${contracts[k].contract.address}`);
   });
 };
