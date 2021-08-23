@@ -195,6 +195,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
     }
 
     function _penalize(uint256 _amount) internal {
+        // TODO: we cannot burn univ2/sushi LP tokens, therefore they need to be sent to 0xdead or this needs to change
         if (penaltyCollector != address(0)) {
             // send to collector if `penaltyCollector` set
             IERC20(lockedToken).safeTransfer(penaltyCollector, _amount);
