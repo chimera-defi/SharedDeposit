@@ -201,8 +201,6 @@ abstract contract Context {
 
 pragma solidity ^0.8.0;
 
-
-
 /**
  * @dev Implementation of the {IERC20} interface.
  *
@@ -841,10 +839,6 @@ library Counters {
 
 pragma solidity ^0.8.0;
 
-
-
-
-
 /**
  * @dev Implementation of the ERC20 Permit extension allowing approvals to be made via signatures, as defined in
  * https://eips.ethereum.org/EIPS/eip-2612[EIP-2612].
@@ -926,7 +920,6 @@ abstract contract ERC20Permit is ERC20, IERC20Permit, EIP712 {
 // License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-
 
 /**
  * @dev Extension of {ERC20} that allows token holders to destroy both their own

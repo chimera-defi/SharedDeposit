@@ -396,7 +396,6 @@ library Address {
 
 pragma solidity ^0.8.0;
 
-
 /**
  * @title SafeERC20
  * @dev Wrappers around ERC20 operations that throw on failure (when the token
@@ -560,9 +559,6 @@ interface ITokenUtilityModule {
 // License-Identifier: UNLICENSED
 
 pragma solidity 0.8.7;
-
-
-
 
 /*  IronChef is a fork from Sushi's MiniChef v2 with slightly modification.
     1.  Rewards will be transferred from a seperated contract so that it will be more flexible to switch between:

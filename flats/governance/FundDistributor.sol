@@ -487,8 +487,6 @@ interface IERC20Metadata is IERC20 {
 
 pragma solidity ^0.8.0;
 
-
-
 /**
  * @dev Implementation of the {IERC20} interface.
  *
@@ -1053,7 +1051,6 @@ library Address {
 
 pragma solidity ^0.8.0;
 
-
 /**
  * @title SafeERC20
  * @dev Wrappers around ERC20 operations that throw on failure (when the token
@@ -1150,11 +1147,6 @@ library SafeERC20 {
 // License-Identifier: MIT
 
 pragma solidity 0.8.7;
-
-
-
-
-
 
 contract FundDistributor is Ownable, Initializable {
     using SafeMath for uint256;

@@ -390,7 +390,6 @@ library AddressUpgradeable {
 
 pragma solidity ^0.8.0;
 
-
 /**
  * @title SafeERC20
  * @dev Wrappers around ERC20 operations that throw on failure (when the token
@@ -503,8 +502,8 @@ abstract contract ContextUpgradeable is Initializable {
         __Context_init_unchained();
     }
 
-    function __Context_init_unchained() internal initializer {
-    }
+    function __Context_init_unchained() internal initializer {}
+
     function _msgSender() internal view virtual returns (address) {
         return msg.sender;
     }
@@ -512,6 +511,7 @@ abstract contract ContextUpgradeable is Initializable {
     function _msgData() internal view virtual returns (bytes calldata) {
         return msg.data;
     }
+
     uint256[50] private __gap;
 }
 
@@ -519,7 +519,6 @@ abstract contract ContextUpgradeable is Initializable {
 // License-Identifier: MIT
 
 pragma solidity ^0.8.0;
-
 
 /**
  * @dev Contract module which provides a basic access control mechanism, where
@@ -590,6 +589,7 @@ abstract contract OwnableUpgradeable is Initializable, ContextUpgradeable {
         _owner = newOwner;
         emit OwnershipTransferred(oldOwner, newOwner);
     }
+
     uint256[49] private __gap;
 }
 
@@ -825,9 +825,6 @@ library SafeMathUpgradeable {
 //License-Identifier: Unlicense
 pragma solidity 0.8.7;
 
-
-
-
 // Forked from badger
 /**
  * @title SingleTokenVesting
@@ -978,8 +975,6 @@ contract SingleTokenVestingNonRevocable is OwnableUpgradeable {
 // File contracts/governance/SimpleVesting.sol
 //License-Identifier: Unlicense
 pragma solidity 0.8.7;
-
-
 
 /**
     Fork of badger vesting contracts at https://github.com/chimera-defi/badger-system/blob/adf58e75de994564b55ceb0529a666149d708c8c/contracts/badger-timelock/SmartVesting.sol
