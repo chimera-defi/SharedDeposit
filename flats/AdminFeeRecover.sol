@@ -1,12 +1,12 @@
 /**
  *Submitted for verification at Etherscan.io on 2021-08-06
-*/
+ */
 
 // This contract serves to recover admin fees from the sharedStake sharedDeposit contract which are used for infrastructure fees. It cannot cause any infinite mints
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/utils/Address.sol
 
-pragma solidity ^0.6.2;
+pragma solidity ^0.7.0;
 
 /**
  * @dev Collection of functions related to the address type
@@ -36,7 +36,9 @@ library Address {
 
         uint256 size;
         // solhint-disable-next-line no-inline-assembly
-        assembly { size := extcodesize(account) }
+        assembly {
+            size := extcodesize(account)
+        }
         return size > 0;
     }
 
@@ -60,7 +62,7 @@ library Address {
         require(address(this).balance >= amount, "Address: insufficient balance");
 
         // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
-        (bool success, ) = recipient.call{ value: amount }("");
+        (bool success, ) = recipient.call{value: amount}("");
         require(success, "Address: unable to send value, recipient may have reverted");
     }
 
@@ -83,7 +85,7 @@ library Address {
      * _Available since v3.1._
      */
     function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-      return functionCall(target, data, "Address: low-level call failed");
+        return functionCall(target, data, "Address: low-level call failed");
     }
 
     /**
@@ -92,7 +94,11 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
+    function functionCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
         return _functionCallWithValue(target, data, 0, errorMessage);
     }
 
@@ -107,7 +113,11 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value
+    ) internal returns (bytes memory) {
         return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
     }
 
@@ -117,16 +127,26 @@ library Address {
      *
      * _Available since v3.1._
      */
-    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
         require(address(this).balance >= value, "Address: insufficient balance for call");
         return _functionCallWithValue(target, data, value, errorMessage);
     }
 
-    function _functionCallWithValue(address target, bytes memory data, uint256 weiValue, string memory errorMessage) private returns (bytes memory) {
+    function _functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 weiValue,
+        string memory errorMessage
+    ) private returns (bytes memory) {
         require(isContract(target), "Address: call to non-contract");
 
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = target.call{ value: weiValue }(data);
+        (bool success, bytes memory returndata) = target.call{value: weiValue}(data);
         if (success) {
             return returndata;
         } else {
@@ -205,7 +225,11 @@ library SafeMath {
      *
      * - Subtraction cannot overflow.
      */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
         require(b <= a, errorMessage);
         uint256 c = a - b;
 
@@ -264,7 +288,11 @@ library SafeMath {
      *
      * - The divisor cannot be zero.
      */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -300,7 +328,11 @@ library SafeMath {
      *
      * - The divisor cannot be zero.
      */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
         require(b != 0, errorMessage);
         return a % b;
     }
@@ -308,11 +340,7 @@ library SafeMath {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/SafeERC20.sol
 
-
 pragma solidity ^0.6.0;
-
-
-
 
 /**
  * @title SafeERC20
@@ -327,11 +355,20 @@ library SafeERC20 {
     using SafeMath for uint256;
     using Address for address;
 
-    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+    function safeTransfer(
+        IERC20 token,
+        address to,
+        uint256 value
+    ) internal {
         _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
     }
 
-    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+    function safeTransferFrom(
+        IERC20 token,
+        address from,
+        address to,
+        uint256 value
+    ) internal {
         _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
     }
 
@@ -342,24 +379,40 @@ library SafeERC20 {
      * Whenever possible, use {safeIncreaseAllowance} and
      * {safeDecreaseAllowance} instead.
      */
-    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+    function safeApprove(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
         // safeApprove should only be called when setting an initial allowance,
         // or when resetting it to zero. To increase and decrease it, use
         // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
         // solhint-disable-next-line max-line-length
-        require((value == 0) || (token.allowance(address(this), spender) == 0),
+        require(
+            (value == 0) || (token.allowance(address(this), spender) == 0),
             "SafeERC20: approve from non-zero to non-zero allowance"
         );
         _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
     }
 
-    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+    function safeIncreaseAllowance(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
         uint256 newAllowance = token.allowance(address(this), spender).add(value);
         _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
     }
 
-    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
-        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+    function safeDecreaseAllowance(
+        IERC20 token,
+        address spender,
+        uint256 value
+    ) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(
+            value,
+            "SafeERC20: decreased allowance below zero"
+        );
         _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
     }
 
@@ -375,7 +428,8 @@ library SafeERC20 {
         // the target address contains contract code and also asserts for success in the low-level call.
 
         bytes memory returndata = address(token).functionCall(data, "SafeERC20: low-level call failed");
-        if (returndata.length > 0) { // Return data is optional
+        if (returndata.length > 0) {
+            // Return data is optional
             // solhint-disable-next-line max-line-length
             require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
         }
@@ -383,7 +437,6 @@ library SafeERC20 {
 }
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/token/ERC20/IERC20.sol
-
 
 pragma solidity ^0.6.0;
 
@@ -444,7 +497,11 @@ interface IERC20 {
      *
      * Emits a {Transfer} event.
      */
-    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
 
     /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
@@ -462,7 +519,6 @@ interface IERC20 {
 }
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/GSN/Context.sol
-
 
 pragma solidity ^0.6.0;
 
@@ -489,7 +545,6 @@ abstract contract Context {
 
 // File: https://raw.githubusercontent.com/sharedStake-dev/badger-system/master/deps/%40openzeppelin/contracts/access/Ownable.sol
 
-
 pragma solidity ^0.6.0;
 
 /**
@@ -512,7 +567,7 @@ contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor () internal {
+    constructor() internal {
         address msgSender = _msgSender();
         _owner = msgSender;
         emit OwnershipTransferred(address(0), msgSender);
@@ -558,25 +613,25 @@ contract Ownable is Context {
 
 // File: recover.sol
 
-
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.6.9;
-
-
-
 
 pragma experimental ABIEncoderV2;
 
 interface ISharedDeposit {
     function deposit() external payable;
+
     function withdrawAdminFee(uint256 amount) external;
+
     function transferOwnership(address newOwner) external;
 }
+
 contract AdminFeeRecover is Ownable {
     using SafeERC20 for IERC20;
 
     ISharedDeposit public sharedDeposit;
-    constructor () public {}
+
+    constructor() public {}
 
     function setSharedDeposit(address _sharedDeposit) external onlyOwner {
         sharedDeposit = ISharedDeposit(_sharedDeposit);
@@ -588,7 +643,7 @@ contract AdminFeeRecover is Ownable {
         sharedDeposit.deposit{value: value}();
         sharedDeposit.withdrawAdminFee(value);
     }
-    
+
     function forwardFunds() external payable onlyOwner {
         sharedDeposit.deposit{value: msg.value}();
     }
@@ -615,6 +670,6 @@ contract AdminFeeRecover is Ownable {
 
         payable(owner()).transfer(etherToTransfer);
     }
-    fallback() payable external {}
 
+    fallback() external payable {}
 }
