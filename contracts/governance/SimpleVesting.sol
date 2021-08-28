@@ -1,49 +1,44 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.7;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../util/SingleTokenVestingNonRevocable.sol";
+// import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
     Fork of badger vesting contracts at https://github.com/chimera-defi/badger-system/blob/adf58e75de994564b55ceb0529a666149d708c8c/contracts/badger-timelock/SmartVesting.sol
     With all executor capabilities removed
+    and changed to not be upgradeable
  */
 
 /* 
   A token vesting contract that is capable of interacting with other smart contracts.
   This allows the beneficiary to participate in on-chain goverance processes, despite having locked tokens.
   The beneficiary can withdraw the appropriate vested amount at any time.
-
   Features safety functions to allow beneficiary to claim ETH & ERC20-compliant tokens sent to the timelock contract, accidentially or otherwise.
-
   An optional 'governor' address has the ability to allow the vesting to send it's tokens to approved destinations. 
   This is intended to allow the token holder to stake their tokens in approved mechanisms.
 */
 
-contract SimpleVesting is SingleTokenVestingNonRevocable, ReentrancyGuardUpgradeable {
-    address internal _governor;
+contract SimpleVesting is SingleTokenVestingNonRevocable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    address internal immutable _governor;
     mapping(address => bool) internal _transferAllowed;
 
-    // address beneficiary, uint256 start, uint256 cliffDuration, uint256 duration, bool revocable
-
-    function initialize(
-        IERC20Upgradeable token,
+    constructor(
+        IERC20 token,
         address beneficiary,
         address governor,
         uint256 start,
         uint256 cliffDuration,
         uint256 duration
-    ) public initializer {
-        __SingleTokenVestingNonRevocable_init(token, beneficiary, start, cliffDuration, duration);
-        __ReentrancyGuard_init_unchained();
+    ) public SingleTokenVestingNonRevocable(token, beneficiary, start, cliffDuration, duration) {
         _governor = governor;
     }
 
-    event Call(address to, uint256 value, bytes data, bool transfersAllowed);
-    event ApproveTransfer(address to);
-    event RevokeTransfer(address to);
-    event ClaimToken(IERC20Upgradeable token, uint256 amount);
+    event ClaimToken(IERC20 token, uint256 amount);
     event ClaimEther(uint256 amount);
 
     modifier onlyBeneficiary() {
@@ -60,7 +55,7 @@ contract SimpleVesting is SingleTokenVestingNonRevocable, ReentrancyGuardUpgrade
      * @notice Claim ERC20-compliant tokens other than locked token.
      * @param tokenToClaim Token to claim balance of.
      */
-    function claimToken(IERC20Upgradeable tokenToClaim) external onlyBeneficiary nonReentrant {
+    function claimToken(IERC20 tokenToClaim) external onlyBeneficiary() nonReentrant() {
         require(address(tokenToClaim) != address(token()), "smart-timelock/no-locked-token-claim");
         uint256 preAmount = token().balanceOf(address(this));
 
@@ -78,7 +73,7 @@ contract SimpleVesting is SingleTokenVestingNonRevocable, ReentrancyGuardUpgrade
     /**
      * @notice Claim Ether in contract.
      */
-    function claimEther() external onlyBeneficiary nonReentrant {
+    function claimEther() external onlyBeneficiary() nonReentrant() {
         uint256 preAmount = token().balanceOf(address(this));
 
         uint256 etherToTransfer = address(this).balance;

@@ -13,6 +13,14 @@ import "../interfaces/ITokenUtilityModule.sol";
     1.  Rewards will be transferred from a seperated contract so that it will be more flexible to switch between:
         [mint reward token directly] OR [transfer them instead]
     2.  Add a Harvest all function to quickly harvest rewards from all the deposited pools
+
+    Sharedstakes masterchef is in turn a fork of ironchef
+    We add a TokenUtilityModule to boost/reduce user rewards depending on variables such as veSGT & NFTs
+
+    Sushi: https://github.com/sushiswap/sushiswap/blob/canary/contracts/MasterChefV2.sol
+    Iron: https://github.com/chimera-defi/iron-core-v2/blob/master/contracts/IronChef.sol
+    Sharedstake: https://github.com/chimera-defi/SharedDeposit/blob/main/contracts/governance/MasterChef.sol
+
 */
 contract MasterChef is Ownable {
     using SafeERC20 for IERC20;

@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../interfaces/IVotingEscrow.sol";
 
-contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
+contract VoteEscrow is ERC20Votes, ReentrancyGuard, Ownable, IVotingEscrow {
     using SafeERC20 for IERC20;
 
     struct LockedBalance {
@@ -34,6 +34,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
 
     mapping(address => LockedBalance) public locked;
     mapping(address => uint256) public mintedForLock;
+    address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
     /* =============== EVENTS ==================== */
     event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 timestamp);
@@ -104,6 +105,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
             _amount = _amount - _fee;
         }
         _locked.end = 0;
+        supply -= _locked.amount;
         _locked.amount = 0;
         _burn(_msgSender(), mintedForLock[_msgSender()]);
         mintedForLock[_msgSender()] = 0;
@@ -189,7 +191,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
         }
         _mint(_addr, _vp);
         mintedForLock[_addr] += _vp;
-        supply += _amount;
+        supply += _value;
 
         emit Deposit(_addr, _locked.amount, _locked.end, _now);
     }

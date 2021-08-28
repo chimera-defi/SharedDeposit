@@ -1,4 +1,6 @@
-// ref code from gnt
+// SPDX-License-Identifier: UNLICENSED
+
+// based on ref code from gnt
 pragma solidity 0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -16,6 +18,8 @@ contract TokenMigrator is Ownable {
     ERC20Burnable public target;
     IERC20 public oldToken;
     IBlocklist private _blocklist;
+    uint256 public startTime;
+    // address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
     mapping(address => uint256) public migratedForHolder;
 
@@ -32,14 +36,15 @@ contract TokenMigrator is Ownable {
         oldToken = _oldToken;
         _blocklist = bl;
         target = _target;
+        startTime = block.timestamp;
     }
 
     function migrateFrom(address _from, uint256 _value) external {
         require(address(target) != address(0), "FD:0AD");
 
-        oldToken.transferFrom(msg.sender, address(0), _value);
+        oldToken.transferFrom(msg.sender, 0x000000000000000000000000000000000000dEaD, _value);
         if (address(_blocklist) != address(0) && _blocklist.inBlockList(msg.sender)) {
-            target.burn(_value);
+            target.transfer(owner(), _value);
             emit Migrated(_from, address(0), target, _value);
         } else {
             target.transfer(msg.sender, _value);
@@ -55,5 +60,14 @@ contract TokenMigrator is Ownable {
     function setBlocklist(IBlocklist bl) external onlyOwner {
         emit BlocklistChanged(_blocklist, bl);
         _blocklist = bl;
+    }
+
+    // Based on community advice. once a preset epoch of 1-2 mos expired,
+    // all tokens in the contract
+    // should be burnt. this will reduce circulating supply and
+    // reassure the community of limited dilution
+    function burnAll() external onlyOwner {
+        require((startTime + 60 days) < block.timestamp, "TM:Too early");
+        target.burn(target.balanceOf(address(this)));
     }
 }
