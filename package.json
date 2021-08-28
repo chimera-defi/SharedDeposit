@@ -2,13 +2,13 @@
   "name": "hardhat-project",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.10",
-    "@nomiclabs/hardhat-etherscan": "^2.1.4",
+    "@nomiclabs/hardhat-etherscan": "^2.1.5",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
-    "@openzeppelin/hardhat-upgrades": "^1.9.0",
+    "@openzeppelin/hardhat-upgrades": "^1.10.0",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.4.4",
-    "hardhat": "^2.6.0",
+    "ethers": "^5.4.6",
+    "hardhat": "^2.6.1",
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-deploy": "^0.7.11",
     "hardhat-deploy-ethers": "^0.3.0-beta.10",
@@ -20,8 +20,8 @@
     "solhint-plugin-prettier": "^0.0.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.1.0",
-    "@openzeppelin/contracts-upgradeable": "^4.2.0"
+    "@openzeppelin/contracts": "^4.3.1",
+    "@openzeppelin/contracts-upgradeable": "^4.3.1"
   },
   "scripts": {
     "uml": "npx sol2uml ./flats/",

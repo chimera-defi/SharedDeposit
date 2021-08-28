@@ -63,9 +63,9 @@ This represents a 0.13% improvement in the cost of a transfer, arguably the most
 Deploy costs:  
 Optimizations | Cost  
 5000000 | 27645256739592190  
-200 | 22124896691748864  
+200 | 22124896691748864
 
-This represents a 24% increase in deployment costs with 5000000 optimizer runs vs 200.  
+This represents a 24% increase in deployment costs with 5000000 optimizer runs vs 200.
 
 This was carried out on Goerli using a gas price avg of 4.5 Gwei.  
-Based on this a 200 run base is chosen.  
+Based on this a 200 run base is chosen.

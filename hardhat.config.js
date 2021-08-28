@@ -5,7 +5,7 @@ require("@nomiclabs/hardhat-etherscan");
 require("hardhat-deploy");
 require("hardhat-deploy-ethers");
 require("hardhat-gas-reporter");
-require("hardhat-contract-sizer");
+// require("hardhat-contract-sizer");
 
 let secrets = require("./secrets.js");
 
@@ -68,6 +68,7 @@ module.exports = {
     ],
   },
   networks: {
+    hardhat: {},
     goerli: {
       url: secrets.INFURA_GOERLI,
       accounts: [`0x${secrets.GOERLI_PRIVATE_KEY}`],
