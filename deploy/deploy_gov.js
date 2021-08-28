@@ -3,8 +3,8 @@
 //
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-const { BigNumber } = require("ethers");
-const { ethers } = require("hardhat");
+const {BigNumber} = require("ethers");
+const {ethers} = require("hardhat");
 const hre = require("hardhat");
 require("@openzeppelin/hardhat-upgrades");
 require("hardhat-deploy");
@@ -29,7 +29,7 @@ async function main() {
     _verifyAll,
     _postRun,
     _getOverrides,
-    log
+    log,
   } = require("./deploy_utils.js");
   // deploy, deployer
   const [deployer] = await hre.ethers.getSigners();
@@ -52,20 +52,22 @@ async function main() {
 
   // Token
   let sgtv2 = "SGTv2";
-  let maxSupply = constants.maxSupply // 10 million - 10 000 000
+  let maxSupply = constants.maxSupply; // 10 million - 10 000 000
   let sgtv2_args = ["Sharedstake.finance", "SGTv2", maxSupply, address];
   await deployContract(sgtv2, sgtv2_args);
   sgtv2_addr = addressOf(sgtv2);
 
   const blocklistName = "Blocklist";
-  if (launchNetwork == 'mainnet') {
+  if (launchNetwork == "mainnet") {
     contracts[blocklistName] = {
       contract: {
-        address: constants.blocklistAddress
-      }
-    }
+        address: constants.blocklistAddress,
+      },
+    };
   } else {
-    contracts[blocklistName] = await _deployInitializableContract(blocklistName, launchNetwork, [constants.blocklist.concat(address)]);
+    contracts[blocklistName] = await _deployInitializableContract(blocklistName, launchNetwork, [
+      constants.blocklist.concat(address),
+    ]);
   }
 
   // Vote escrow
@@ -130,7 +132,14 @@ async function main() {
   ];
   contracts[founderVesting] = await _deployContract(vesting, launchNetwork, founder_vesting_args);
 
-  let treasury_vesting_args = [sgtv2_addr, multisig_address, multisig_address, startTime, 0, constants.twoYearsInSeconds];
+  let treasury_vesting_args = [
+    sgtv2_addr,
+    multisig_address,
+    multisig_address,
+    startTime,
+    0,
+    constants.twoYearsInSeconds,
+  ];
   contracts[treasuryVesting] = await _deployContract(vesting, launchNetwork, treasury_vesting_args);
 
   // Farmning
@@ -142,15 +151,15 @@ async function main() {
   let mc_args = [sgtv2_addr, addressOf(fund), addressOf()];
   await deployContract(masterChef, mc_args);
 
-  if (launchNetwork !== 'mainnet') {
+  if (launchNetwork !== "mainnet") {
     let sgtv1_args = ["Sharedstake.finance", "SGTv1", maxSupply, address];
     contracts["SGTv1"] = await _deployContract("SGTv2", launchNetwork, sgtv1_args);
   } else {
     contracts["SGTv1"] = {
       contract: {
-        address: constants.oldSgt
-      }
-    }
+        address: constants.oldSgt,
+      },
+    };
   }
 
   let tokenMigrator = "TokenMigrator";
@@ -164,15 +173,18 @@ async function main() {
     await deployContract(faucet, faucet_args);
     // await contracts[sgtv2].contract.transfer(addressOf(faucet), maxSupply.div(2).toString());
 
-    contracts['FaucetOldToken'] = await _deployContract(faucet, launchNetwork, [
+    contracts["FaucetOldToken"] = await _deployContract(faucet, launchNetwork, [
       contracts["SGTv1"].contract.address,
-      ethers.utils.parseEther((10 ** 3).toString())
+      ethers.utils.parseEther((10 ** 3).toString()),
     ]);
-    await contracts[sgtv2].contract.transfer(addressOf(faucet), ethers.utils.parseEther((1*10**6).toString()), overrides);
+    await contracts[sgtv2].contract.transfer(
+      addressOf(faucet),
+      ethers.utils.parseEther((1 * 10 ** 6).toString()),
+      overrides,
+    );
 
     await contracts["SGTv1"].contract.transfer(addressOf("FaucetOldToken"), maxSupply.div(2).toString(), overrides);
   }
-
 
   await contracts[sgtv2].contract.transfer(addressOf(tokenMigrator), constants.tokensInMigrator, overrides);
   await contracts[sgtv2].contract.transfer(addressOf(treasuryVesting), constants.tokensInTreasury, overrides);
@@ -184,20 +196,10 @@ async function main() {
 
   let mc = contracts[masterChef].contract;
   // Add new token to farming contract as a pool
-  await mc.add(
-    constants.SGTv2AP,
-    addressOf(sgtv2),
-    constants.zeroAddress,
-    overrides
-  );
-  if (launchNetwork == 'mainnet') {
+  await mc.add(constants.SGTv2AP, addressOf(sgtv2), constants.zeroAddress, overrides);
+  if (launchNetwork == "mainnet") {
     // add veth2
-    await mc.add(
-      constants.SGTv2AP,
-      veth2,
-      constants.zeroAddress,
-      overrides
-    );
+    await mc.add(constants.SGTv2AP, veth2, constants.zeroAddress, overrides);
   }
   await mc.setFund(addressOf(fund), overrides);
   await mc.setRewardPerSecond(constants.rewardsPerSecond, overrides);
@@ -206,7 +208,9 @@ async function main() {
   await _postRun(contracts, launchNetwork);
 
   let finalBalance = await hre.ethers.provider.getBalance(address);
-  log(`Total cost of deploys: ${(initialBalance-finalBalance).toString()} with gas price: ${JSON.stringify(overrides)}`);
+  log(
+    `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas price: ${JSON.stringify(overrides)}`,
+  );
 }
 
 // We recommend this pattern to be able to use async/await everywhere

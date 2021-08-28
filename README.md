@@ -51,7 +51,6 @@ Spec:
 - Support for stable coins
 - Address blocklist; currently deploying a new eth2 validator takes effort. one can assume exiting one would also take effort. a blocklist would prevent a malicious address from forcing continous entries and exits e.g. an address adding and exiting 1000s of eth every epoch. some parameters should be set to prevent user concers such as a final exit allowance
 
-
 # Gas profiling
 
 Gas profiling on goerli with different optimizations.  
@@ -60,13 +59,13 @@ Optimizations | Cost
 5000000 | 51481
 200 | 51553
 
-This represents a 0.13% improvement in the cost of a transfer, arguably the most frequent interaction. 
+This represents a 0.13% improvement in the cost of a transfer, arguably the most frequent interaction.
 Deploy costs:  
 Optimizations | Cost
 5000000 | 27645256739592190
 200 | 22124896691748864
 
-This represents a 24% increase in deployment costs with 5000000 optimizer runs vs 200.  
+This represents a 24% increase in deployment costs with 5000000 optimizer runs vs 200.
 
-This was carried out on Goerli using a gas price avg of 4.5 Gwei.   
-Based on this a 200 run base is chosen.   
+This was carried out on Goerli using a gas price avg of 4.5 Gwei.  
+Based on this a 200 run base is chosen.

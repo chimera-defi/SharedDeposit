@@ -1,8 +1,8 @@
-const { ethers } = require("hardhat");
+const {ethers} = require("hardhat");
 
-let num = (int) => {
-  return ethers.utils.parseEther((int).toString());
-}
+let num = int => {
+  return ethers.utils.parseEther(int.toString());
+};
 
 module.exports = {
   oldSgt: "0x84810bcf08744d5862b8181f12d17bfd57d3b078",
@@ -12,36 +12,36 @@ module.exports = {
   multisig_address: "0xeBc37F4c20C7F8336E81fB3aDf82f6372BEf777E",
   veth2: "0x898bad2774eb97cf6b94605677f43b41871410b1",
   maxSupply: num(10 ** 7),
-  twoYearsInSeconds: (2 * 12 * 30 * 24 * 60 * 60),
-  tokensInMigrator: num(3.2*10**6),
-  tokensInTreasury: num(2.38*10**6),
-  tokensInFounder: num(1.02*10**6),
-  tokensInFarmEth: num(2.04*10**6),
-  tokensInFarmElsewhere: num(1.28*10**6),
+  twoYearsInSeconds: 2 * 12 * 30 * 24 * 60 * 60,
+  tokensInMigrator: num(3.2 * 10 ** 6),
+  tokensInTreasury: num(2.38 * 10 ** 6),
+  tokensInFounder: num(1.02 * 10 ** 6),
+  tokensInFarmEth: num(2.04 * 10 ** 6),
+  tokensInFarmElsewhere: num(1.28 * 10 ** 6),
   SGTv2AP: 1000,
-  rewardsPerSecond: num((2.04*10**6)/(24*30*24*60*60)),
+  rewardsPerSecond: num((2.04 * 10 ** 6) / (24 * 30 * 24 * 60 * 60)),
   blocklist: [
-    '0x8e3b0d68b31a809eae55278a0e163696ce9f09d7',
-    '0xb0303ee320c037f6cd01F82f7F77E56Cd0453652',
-    '0x830AD068936Ac012C0F891476c7C0A30CD51Dd60',
-    '0xf9589b4Da15fFE6825Df987E9651F7A4dB8a296E',
-    '0x47a44AE76B63B562a1764F6032241d9BA8e11C56',
-    '0xDe17d0D3DFeF397C904003C69f9b8220C1D931bb',
-    '0xf6827E678F2d8F7656E577842a84B602DB202Eec',
-    '0xcee0414594374E622D1fFE7CD3D489b9159ECe9c',
-    '0x7d2c8B58032844F222e2c80219975805DcE1921c',
-    '0x1afC8BB3C824dEad213C4F34F7D60c20cCb29297',
-    '0xd64f72410ACC2ea5e044bD9910249418569d9270',
-    '0x7526A8B502daEe3afd54074Ab2E75d7DdFda951B',
-    '0xc94ebb328ac25b95db0e0aa968371885fa516215',
-    '0x0822d138AaE127789eA42Abae034D39f7dcD5DC1',
-    '0xc7fe34ad877098d0e0aefc7b1b0d65695790a1f3',
-    '0xa59c86f222d4df8f02b95b197761b304e7e7c546',
-    '0x896C8463E03b5677A43533eD66bcC3938b1168a6',
-    '0xEfBf7e48e78Dbc61B0F0F876f277D46cB9615845',
-    '0xE33e3AFF2b9246F97f078954C4A4A8Db014b1C47',
-    '0x236fEDC6B5C9D228D151F734155e4641d9d3257F',
-    '0xfac0105d031d77346ee3a5ea77eff7d17d2b06f8',
-    '0xe4382f06191cb158515a763e2ed5c573d7b3e4c0'
-  ]
+    "0x8e3b0d68b31a809eae55278a0e163696ce9f09d7",
+    "0xb0303ee320c037f6cd01F82f7F77E56Cd0453652",
+    "0x830AD068936Ac012C0F891476c7C0A30CD51Dd60",
+    "0xf9589b4Da15fFE6825Df987E9651F7A4dB8a296E",
+    "0x47a44AE76B63B562a1764F6032241d9BA8e11C56",
+    "0xDe17d0D3DFeF397C904003C69f9b8220C1D931bb",
+    "0xf6827E678F2d8F7656E577842a84B602DB202Eec",
+    "0xcee0414594374E622D1fFE7CD3D489b9159ECe9c",
+    "0x7d2c8B58032844F222e2c80219975805DcE1921c",
+    "0x1afC8BB3C824dEad213C4F34F7D60c20cCb29297",
+    "0xd64f72410ACC2ea5e044bD9910249418569d9270",
+    "0x7526A8B502daEe3afd54074Ab2E75d7DdFda951B",
+    "0xc94ebb328ac25b95db0e0aa968371885fa516215",
+    "0x0822d138AaE127789eA42Abae034D39f7dcD5DC1",
+    "0xc7fe34ad877098d0e0aefc7b1b0d65695790a1f3",
+    "0xa59c86f222d4df8f02b95b197761b304e7e7c546",
+    "0x896C8463E03b5677A43533eD66bcC3938b1168a6",
+    "0xEfBf7e48e78Dbc61B0F0F876f277D46cB9615845",
+    "0xE33e3AFF2b9246F97f078954C4A4A8Db014b1C47",
+    "0x236fEDC6B5C9D228D151F734155e4641d9d3257F",
+    "0xfac0105d031d77346ee3a5ea77eff7d17d2b06f8",
+    "0xe4382f06191cb158515a763e2ed5c573d7b3e4c0",
+  ],
 };
