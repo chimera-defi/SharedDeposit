@@ -12,12 +12,12 @@ const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
     maxFeePerGas: ethers.utils.parseUnits("10", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("3", "gwei"),
     gasLimit: 8000000,
   };
   const gasPrice = await hre.ethers.provider.getGasPrice();
   overridesForEIP1559.maxFeePerGas = gasPrice * 3;
-  overridesForEIP1559.maxPriorityFeePerGas = gasPrice;
+  // overridesForEIP1559.maxPriorityFeePerGas = gasPrice;
   return overridesForEIP1559;
 };
 
@@ -106,10 +106,14 @@ const _getAddress = obj => {
     : obj.contract.address;
 };
 
+const isMainnet = launchNetwork => {
+  return launchNetwork == "localhost" || launchNetwork == "mainnet";
+};
+
 const _postRun = (contracts, launchNetwork) => {
   log("\n\n Deployment finished. Contracts deployed: \n\n");
   let prefix = "https://";
-  if (launchNetwork !== "mainnet") {
+  if (!isMainnet(launchNetwork)) {
     prefix += `${launchNetwork}.`;
   }
   prefix += "etherscan.io/address/";
@@ -160,5 +164,6 @@ module.exports = {
   _postRun: _postRun,
   _getOverrides: _getOverrides,
   log: log,
+  isMainnet: isMainnet,
   DeployHelper: DeployHelper,
 };

@@ -30,6 +30,7 @@ async function main() {
     _postRun,
     _getOverrides,
     log,
+    isMainnet,
   } = require("./deploy_utils.js");
   // deploy, deployer
   const [deployer] = await hre.ethers.getSigners();
@@ -58,12 +59,13 @@ async function main() {
   sgtv2_addr = addressOf(sgtv2);
 
   const blocklistName = "Blocklist";
-  if (launchNetwork == "mainnet") {
-    contracts[blocklistName] = {
-      contract: {
-        address: constants.blocklistAddress,
-      },
-    };
+  if (isMainnet(launchNetwork)) {
+    // contracts[blocklistName] = {
+    //   contract: {
+    //     address: constants.blocklistAddress,
+    //   },
+    // };
+    await deployInitializableContract(blocklistName, [constants.blocklist]);
   } else {
     contracts[blocklistName] = await _deployInitializableContract(blocklistName, launchNetwork, [
       constants.blocklist.concat(address),
@@ -113,7 +115,7 @@ async function main() {
   let startTime = (await hre.ethers.provider.getBlock()).timestamp + 60;
 
   let founder_benefactor_address, multisig_address;
-  if (launchNetwork !== "mainnet") {
+  if (!isMainnet(launchNetwork)) {
     founder_benefactor_address = address;
     multisig_address = address;
   } else {
@@ -151,7 +153,7 @@ async function main() {
   let mc_args = [sgtv2_addr, addressOf(fund), addressOf()];
   await deployContract(masterChef, mc_args);
 
-  if (launchNetwork !== "mainnet") {
+  if (!isMainnet(launchNetwork)) {
     let sgtv1_args = ["Sharedstake.finance", "SGTv1", maxSupply, address];
     contracts["SGTv1"] = await _deployContract("SGTv2", launchNetwork, sgtv1_args);
   } else {
@@ -162,12 +164,14 @@ async function main() {
     };
   }
 
+  console.log("here", addressOf(), contracts["SGTv1"].contract.address, sgtv2_addr, addressOf(blocklistName));
+
   let tokenMigrator = "TokenMigrator";
   let tmargs = [contracts["SGTv1"].contract.address, sgtv2_addr, addressOf(blocklistName)];
   await deployContract(tokenMigrator, tmargs);
 
   let overrides = await _getOverrides();
-  if (launchNetwork !== "mainnet") {
+  if (!isMainnet(launchNetwork)) {
     let faucet = "Faucet";
     let faucet_args = [sgtv2_addr, ethers.utils.parseEther((10 ** 3).toString())];
     await deployContract(faucet, faucet_args);
@@ -197,9 +201,9 @@ async function main() {
   let mc = contracts[masterChef].contract;
   // Add new token to farming contract as a pool
   await mc.add(constants.SGTv2AP, addressOf(sgtv2), constants.zeroAddress, overrides);
-  if (launchNetwork == "mainnet") {
+  if (isMainnet(launchNetwork)) {
     // add veth2
-    await mc.add(constants.SGTv2AP, veth2, constants.zeroAddress, overrides);
+    await mc.add(constants.SGTv2AP, constants.veth2, constants.zeroAddress, overrides);
   }
   await mc.setFund(addressOf(fund), overrides);
   await mc.setRewardPerSecond(constants.rewardsPerSecond, overrides);
