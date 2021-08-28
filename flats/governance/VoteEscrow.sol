@@ -140,6 +140,8 @@ abstract contract Context {
 
 pragma solidity ^0.8.0;
 
+
+
 /**
  * @dev Implementation of the {IERC20} interface.
  *
@@ -492,6 +494,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 
 pragma solidity ^0.8.0;
 
+
 /**
  * @dev Extension of {ERC20} that allows token holders to destroy both their own
  * tokens and those that they have an allowance for, in a way that can be
@@ -744,6 +747,7 @@ library Address {
 // License-Identifier: MIT
 
 pragma solidity ^0.8.0;
+
 
 /**
  * @title SafeERC20
@@ -1189,6 +1193,10 @@ library Counters {
 
 pragma solidity ^0.8.0;
 
+
+
+
+
 /**
  * @dev Implementation of the ERC20 Permit extension allowing approvals to be made via signatures, as defined in
  * https://eips.ethereum.org/EIPS/eip-2612[EIP-2612].
@@ -1556,6 +1564,9 @@ library SafeCast {
 // License-Identifier: MIT
 
 pragma solidity ^0.8.0;
+
+
+
 
 /**
  * @dev Extension of ERC20 to support Compound-like voting and delegation. This version is more generic than Compound's,
@@ -1995,7 +2006,10 @@ interface IVotingEscrow {
 
 // File contracts/governance/VoteEscrow.sol
 // License-Identifier: UNLICENSED
-pragma solidity 0.8.6;
+pragma solidity 0.8.7;
+
+
+
 
 contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
     using SafeERC20 for IERC20;
@@ -2021,6 +2035,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
 
     mapping(address => LockedBalance) public locked;
     mapping(address => uint256) public mintedForLock;
+    address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
     /* =============== EVENTS ==================== */
     event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 timestamp);
@@ -2041,7 +2056,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
     }
 
     function deposit_for(address _addr, uint256 _value) external override {
-        require(_value >= minLockedAmount, "less than min amount");
+        require(_value >= minLockedAmount, "VE:VL0");
         _deposit_for(_addr, _value, 0);
     }
 
@@ -2182,6 +2197,7 @@ contract VoteEscrow is Ownable, ERC20Votes, ReentrancyGuard, IVotingEscrow {
     }
 
     function _penalize(uint256 _amount) internal {
+        // TODO: we cannot burn univ2/sushi LP tokens, therefore they need to be sent to 0xdead or this needs to change
         if (penaltyCollector != address(0)) {
             // send to collector if `penaltyCollector` set
             IERC20(lockedToken).safeTransfer(penaltyCollector, _amount);
