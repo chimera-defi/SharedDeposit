@@ -31,7 +31,7 @@ const chainIds = {
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
-
+let maxRunsOnEtherscan = 1000000;
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
@@ -43,7 +43,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 500000,
+            runs: 200,
           },
         },
       },
@@ -52,7 +52,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 500000,
+            runs: 200,
           },
         },
       },
@@ -61,7 +61,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 500000,
+            runs: 200,
           },
         },
       },
@@ -72,7 +72,7 @@ module.exports = {
       url: secrets.INFURA_GOERLI,
       accounts: [`0x${secrets.GOERLI_PRIVATE_KEY}`],
       chainId: chainIds.goerli,
-      initialBaseFeePerGas: 0,
+      initialBaseFeePerGas: 1000000000,
     },
   },
   gasReporter: {
