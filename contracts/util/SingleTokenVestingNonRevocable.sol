@@ -4,13 +4,6 @@ pragma solidity 0.8.7;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-// import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-// pragma solidity ^0.6.0;
-
-// import "deps/@openzeppelin/contracts-upgradeable/token/ERC20/SafeERC20Upgradeable.sol";
-// import "deps/@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-// import "deps/@openzeppelin/contracts-upgradeable/math/SafeMathUpgradeable.sol";
-// import "deps/@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 
 /**
  * @title SingleTokenVesting
