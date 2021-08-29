@@ -30,6 +30,7 @@
     "flatten": "npx hardhat flatten --remove-licenses ./contracts/sharedDeposit_v2.sol > flattened/sharedDeposit_v2_flat.sol",
     "build": "npm run-script prettier ; npm run-script prettier:check ; npm run-script lint:sol ; npx hardhat compile",
     "clean": "hardhat clean",
+    "clean_logs": "rm deploy_log.json && rm log.txt && rm verify_attempt_log.json",
     "commit": "git-cz",
     "compile": "hardhat compile",
     "coverage": "hardhat coverage --solcoverjs ./.solcover.js --temp artifacts --testfiles \"./test/**/*.ts\"",
