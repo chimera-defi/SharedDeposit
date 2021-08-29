@@ -3,12 +3,11 @@
 //
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-const {BigNumber} = require("ethers");
 const {ethers} = require("hardhat");
 const hre = require("hardhat");
 require("@openzeppelin/hardhat-upgrades");
 require("hardhat-deploy");
-const constants = require("./constants.js");
+const constants = require("../constants.js");
 module.exports = async ({getNamedAccounts, deployments}) => {
   const {deploy} = deployments;
   const {deployer} = await getNamedAccounts();
@@ -49,22 +48,18 @@ async function main() {
     return _getAddress(contracts[name]);
   };
   let initialBalance = await hre.ethers.provider.getBalance(address);
-  console.log(`Initial balance of deployer is: ${initialBalance.toString()}`);
+  let currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
+  console.log(`Initial balance of deployer is: ${initialBalance.toString()} at block timestamp : ${currentBlockTime}`);
 
   // Token
   let sgtv2 = "SGTv2";
   let maxSupply = constants.maxSupply; // 10 million - 10 000 000
-  let sgtv2_args = ["Sharedstake.finance", "SGTv2", maxSupply, address];
+  let sgtv2_args = ["Sharedstake.finance", "SGT", maxSupply, address];
   await deployContract(sgtv2, sgtv2_args);
   sgtv2_addr = addressOf(sgtv2);
 
   const blocklistName = "Blocklist";
   if (isMainnet(launchNetwork)) {
-    // contracts[blocklistName] = {
-    //   contract: {
-    //     address: constants.blocklistAddress,
-    //   },
-    // };
     await deployInitializableContract(blocklistName, [constants.blocklist]);
   } else {
     contracts[blocklistName] = await _deployInitializableContract(blocklistName, launchNetwork, [
@@ -72,32 +67,34 @@ async function main() {
     ]);
   }
 
-  // Vote escrow
-
   let vef = "VoteEscrowFactory";
   await deployContract(vef);
-  const ve = "VoteEscrow";
-  let ve_args = ["Vote Escrowed Sharedstake Gov token", "veSGT", sgtv2_addr, "10"];
+
+  // Vote escrow must be deployed manually via factory
+  // Following is reference code if needed
+
+  // const ve = "VoteEscrow";
+  // let ve_args = ["Vote Escrowed Sharedstake Gov token", "veSGT", sgtv2_addr, "10"];
   // await deployContract(ve, ve_args);
   // let ve_address = await contracts[vef].contract.createVoteEscrowContract(...ve_args);
   // console.log(ve_address);
   // Receive an event when ANY transfer occurs
 
-  let verifyVE = async () => {
-    return new Promise(async resolve => {
-      contracts[vef].contract.on("VoteEscrowCreated", async (address, name, symbol, event) => {
-        console.log(`${address} sent to ${name} ${symbol}`);
-        contracts[ve] = {contract: {address: address}};
-        // await _verify(contracts[ve], launchNetwork, ve_args);
-        resolve();
-        // console.log(event);    console.log(event.decode());
+  // let verifyVE = async () => {
+  //   return new Promise(async resolve => {
+  //     contracts[vef].contract.on("VoteEscrowCreated", async (address, name, symbol, event) => {
+  //       console.log(`${address} sent to ${name} ${symbol}`);
+  //       contracts[ve] = {contract: {address: address}};
+  //       // await _verify(contracts[ve], launchNetwork, ve_args);
+  //       resolve();
+  //       // console.log(event);    console.log(event.decode());
 
-        // The event object contains the verbatim log data, the
-        // EventFragment and functions to fetch the block,
-        // transaction and receipt and event functions
-      });
-    });
-  };
+  //       // The event object contains the verbatim log data, the
+  //       // EventFragment and functions to fetch the block,
+  //       // transaction and receipt and event functions
+  //     });
+  //   });
+  // };
   // await verifyVE();
   //  contracts[vef].contract.on("VoteEscrowCreated", (address, name, symbol, event) => {
   //     console.log(`${ from } sent to ${ to}`);
@@ -112,7 +109,7 @@ async function main() {
   // Vesting
   let founderVesting = "founderVesting";
   let treasuryVesting = "treasuryVesting";
-  let startTime = (await hre.ethers.provider.getBlock()).timestamp + 60;
+  let startTime = currentBlockTime + 60;
 
   let founder_benefactor_address, multisig_address;
   if (!isMainnet(launchNetwork)) {
@@ -127,22 +124,18 @@ async function main() {
   let founder_vesting_args = [
     sgtv2_addr, //
     founder_benefactor_address, // beneficiary
-    founder_benefactor_address, // gov
     startTime,
     0, // cliff
     constants.twoYearsInSeconds,
   ];
   contracts[founderVesting] = await _deployContract(vesting, launchNetwork, founder_vesting_args);
 
-  let treasury_vesting_args = [
-    sgtv2_addr,
-    multisig_address,
-    multisig_address,
-    startTime,
-    0,
-    constants.twoYearsInSeconds,
-  ];
+  let treasury_vesting_args = [sgtv2_addr, multisig_address, startTime, 0, constants.twoYearsInSeconds];
   contracts[treasuryVesting] = await _deployContract(vesting, launchNetwork, treasury_vesting_args);
+
+  let tokenTimelock = "SimpleTimelock";
+  let ttargs = [sgtv2_addr, multisig_address, currentBlockTime + constants.oneMonthInSeconds];
+  await deployContract(tokenTimelock, ttargs);
 
   // Farmning
   let fund = "FundDistributor";
@@ -164,10 +157,8 @@ async function main() {
     };
   }
 
-  console.log("here", addressOf(), contracts["SGTv1"].contract.address, sgtv2_addr, addressOf(blocklistName));
-
   let tokenMigrator = "TokenMigrator";
-  let tmargs = [contracts["SGTv1"].contract.address, sgtv2_addr, addressOf(blocklistName)];
+  let tmargs = [addressOf("SGTv1"), sgtv2_addr, addressOf(blocklistName)];
   await deployContract(tokenMigrator, tmargs);
 
   let overrides = await _getOverrides();
@@ -175,12 +166,12 @@ async function main() {
     let faucet = "Faucet";
     let faucet_args = [sgtv2_addr, ethers.utils.parseEther((10 ** 3).toString())];
     await deployContract(faucet, faucet_args);
-    // await contracts[sgtv2].contract.transfer(addressOf(faucet), maxSupply.div(2).toString());
 
     contracts["FaucetOldToken"] = await _deployContract(faucet, launchNetwork, [
       contracts["SGTv1"].contract.address,
       ethers.utils.parseEther((10 ** 3).toString()),
     ]);
+
     await contracts[sgtv2].contract.transfer(
       addressOf(faucet),
       ethers.utils.parseEther((1 * 10 ** 6).toString()),
@@ -194,6 +185,7 @@ async function main() {
   await contracts[sgtv2].contract.transfer(addressOf(treasuryVesting), constants.tokensInTreasury, overrides);
   await contracts[sgtv2].contract.transfer(addressOf(founderVesting), constants.tokensInFounder, overrides);
   await contracts[sgtv2].contract.transfer(addressOf(fund), constants.tokensInFarmEth, overrides);
+  await contracts[sgtv2].contract.transfer(addressOf(tokenTimelock), constants.tokensInFarmElsewhere, overrides);
 
   // Add masterchef as requester to funddistributor
   await contracts[fund].contract.addRequester(addressOf(masterChef), overrides);
@@ -208,8 +200,8 @@ async function main() {
   await mc.setFund(addressOf(fund), overrides);
   await mc.setRewardPerSecond(constants.rewardsPerSecond, overrides);
 
+  _postRun(contracts, launchNetwork);
   await _verifyAll(contracts, launchNetwork);
-  await _postRun(contracts, launchNetwork);
 
   let finalBalance = await hre.ethers.provider.getBalance(address);
   log(

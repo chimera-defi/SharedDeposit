@@ -12,6 +12,7 @@ module.exports = {
   multisig_address: "0xeBc37F4c20C7F8336E81fB3aDf82f6372BEf777E",
   veth2: "0x898bad2774eb97cf6b94605677f43b41871410b1",
   maxSupply: num(10 ** 7),
+  oneMonthInSeconds: 30 * 24 * 60 * 60,
   twoYearsInSeconds: 2 * 12 * 30 * 24 * 60 * 60,
   tokensInMigrator: num(3.2 * 10 ** 6),
   tokensInTreasury: num(2.38 * 10 ** 6),

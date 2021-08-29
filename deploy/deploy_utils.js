@@ -8,6 +8,11 @@ const log = txt => {
   fs.writeFileSync("log.txt", txt, {flag: "a"});
 };
 
+const isMainnet = launchNetwork => {
+  // some behaviours need to be tested with a mainnet fork which behaves the same as mainnet
+  return launchNetwork == "localhost" || launchNetwork == "mainnet";
+};
+
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
@@ -17,7 +22,6 @@ const _getOverrides = async () => {
   };
   const gasPrice = await hre.ethers.provider.getGasPrice();
   overridesForEIP1559.maxFeePerGas = gasPrice * 3;
-  // overridesForEIP1559.maxPriorityFeePerGas = gasPrice;
   return overridesForEIP1559;
 };
 
@@ -32,7 +36,6 @@ const _verifyBase = async (contract, launchNetwork, cArgs) => {
     log("\n");
   } catch (e) {
     log(`Etherscan verification failed w/ ${e} | Args: ${cArgs} | on ${launchNetwork} for ${contract.address}`);
-    // log(cArgs, launchNetwork, contract);
   }
 };
 
@@ -48,7 +51,6 @@ const _deployContract = async (name, launchNetwork = false, cArgs = []) => {
   const contract = await factory.deploy(...cArgs, overridesForEIP1559);
   await contract.deployTransaction.wait(1);
   await contract.deployed();
-  // await _verify(contract, launchNetwork, cArgs);
   log(`\n Deployed ${name} to ${contract.address} on ${launchNetwork}`);
   return Promise.resolve({contract: contract, args: cArgs, initialized: false, srcName: name});
 };
@@ -62,20 +64,26 @@ function chunkArray(array, size) {
 
 const _verifyAll = async (allContracts, launchNetwork) => {
   log("starting verifyall");
-  if (!launchNetwork || launchNetwork == "hardhat") return;
+  if (!launchNetwork || launchNetwork == "hardhat" || launchNetwork == "localhost") return;
   log("Waiting 10s to make sure everything has propagated on etherscan");
   await new Promise(resolve => setTimeout(resolve, 10000));
   // wait 10s to make sure everything has propagated on etherscan
 
-  let contractArr = [];
+  let contractArr = [],
+    verifyAttemtLog = {};
   Object.keys(allContracts).forEach(k => {
     let obj = allContracts[k];
-    contractArr.push({
+    let contractMin = {
       address: obj.contract.address,
       args: obj.args,
       initialized: obj.initialized,
-    });
+      name: k,
+    };
+    contractArr.push(contractMin);
+    verifyAttemtLog[k] = contractMin;
   });
+
+  fs.writeFileSync("verify_attempt_log.json", JSON.stringify(verifyAttemtLog));
 
   contractArr = chunkArray(contractArr, 5);
 
@@ -106,10 +114,6 @@ const _getAddress = obj => {
     : obj.contract.address;
 };
 
-const isMainnet = launchNetwork => {
-  return launchNetwork == "localhost" || launchNetwork == "mainnet";
-};
-
 const _postRun = (contracts, launchNetwork) => {
   log("\n\n Deployment finished. Contracts deployed: \n\n");
   let prefix = "https://";
@@ -129,6 +133,11 @@ class DeployHelper {
   constructor(launchNetwork) {
     this.contracts = {};
     this.launchNetwork = launchNetwork;
+    this.initalBalance = 0;
+  }
+  async init(address) {
+    this.address = address;
+    this.initalBalance = await hre.ethers.provider.getBalance(address);
   }
   async deployContract(name, args) {
     this.contracts[name] = await _deployContract(name, this.launchNetwork, args);
@@ -150,8 +159,14 @@ class DeployHelper {
     tx(...args, overrides);
   }
   async postRun() {
-    await _verifyAll(this.contracts, this.launchNetwork);
     _postRun(this.contracts, this.launchNetwork);
+    let finalBalance = await hre.ethers.provider.getBalance(this.address);
+    log(
+      `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas price: ${JSON.stringify(
+        overrides,
+      )}`,
+    );
+    await _verifyAll(this.contracts, this.launchNetwork);
   }
 }
 
