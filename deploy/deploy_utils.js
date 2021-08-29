@@ -34,8 +34,10 @@ const _verifyBase = async (contract, launchNetwork, cArgs) => {
     });
     log(`Verified ${JSON.stringify(contract)} on network: ${launchNetwork} with constructor args ${cArgs.join(", ")}`);
     log("\n");
+    return true;
   } catch (e) {
     log(`Etherscan verification failed w/ ${e} | Args: ${cArgs} | on ${launchNetwork} for ${contract.address}`);
+    return false;
   }
 };
 
@@ -86,18 +88,21 @@ const _verifyAll = async (allContracts, launchNetwork) => {
   fs.writeFileSync("verify_attempt_log.json", JSON.stringify(verifyAttemtLog));
 
   contractArr = chunkArray(contractArr, 5);
+  let verificationsPassed = 0;
+  let verificationsFailed = 0;
 
   for (const arr of contractArr) {
     await Promise.all(
       arr.map(async contract => {
         log(`Verifying ${JSON.stringify(contract)} at ${contract.address} `);
-        await _verifyBase(contract, launchNetwork, contract.initialized ? [] : contract.args);
+        let res = await _verifyBase(contract, launchNetwork, contract.initialized ? [] : contract.args);
+        res ? verificationsPassed++ : verificationsFailed++;
       }),
     );
     log("Waiting 2 s for Etherscan API limit of 5 calls/s");
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
-  log("\n\n Verifications finished:  \n\n");
+  log(` Verifications finished: ${verificationsPassed} / ${verificationsFailed + verificationsPassed} `);
 };
 
 const _deployInitializableContract = async (name, launchNetwork = false, initArgs = []) => {
@@ -129,6 +134,10 @@ const _postRun = (contracts, launchNetwork) => {
   fs.writeFileSync("deploy_log.json", JSON.stringify(contracts), {flag: "a"});
 };
 
+const _transact = async (tx, ...args) => {
+  let overrides = await _getOverrides();
+  tx(...args, overrides);
+};
 class DeployHelper {
   constructor(launchNetwork) {
     this.contracts = {};
@@ -139,11 +148,11 @@ class DeployHelper {
     this.address = address;
     this.initalBalance = await hre.ethers.provider.getBalance(address);
   }
-  async deployContract(name, args) {
-    this.contracts[name] = await _deployContract(name, this.launchNetwork, args);
+  async deployContract(name, ctrctName, args) {
+    this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args);
   }
-  async deployInitializableContract(name, args) {
-    this.contracts[name] = await _deployInitializableContract(name, this.launchNetwork, args);
+  async deployInitializableContract(name, ctrctName, args) {
+    this.contracts[name] = await _deployInitializableContract(ctrctName, this.launchNetwork, args);
   }
   addressOf(name) {
     return _getAddress(this.contracts[name]);
@@ -155,8 +164,7 @@ class DeployHelper {
     return await _getOverrides();
   }
   async transact(tx, ...args) {
-    let overrides = await this.getOverrides();
-    tx(...args, overrides);
+    return await _transact(tx, args);
   }
   async postRun() {
     _postRun(this.contracts, this.launchNetwork);
@@ -180,5 +188,6 @@ module.exports = {
   _getOverrides: _getOverrides,
   log: log,
   isMainnet: isMainnet,
+  _transact: _transact,
   DeployHelper: DeployHelper,
 };

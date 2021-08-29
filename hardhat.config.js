@@ -9,6 +9,7 @@ require("hardhat-contract-sizer");
 require("hardhat-abi-exporter");
 
 let secrets = require("./secrets.js");
+const path = require("path");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -205,6 +206,7 @@ task("flat", "Flattens and prints contracts and their dependencies")
   .addOptionalVariadicPositionalParam("files", "The files to flatten", undefined, types.inputFile)
   .addOptionalParam("output", "Specify the output file", undefined, types.string)
   .setAction(async ({files, output}, {run}) => {
+    console.log(files, output);
     console.log(
       await run("flat:get-flattened-sources", {
         files,
@@ -212,3 +214,25 @@ task("flat", "Flattens and prints contracts and their dependencies")
       }),
     );
   });
+
+task("flattenAll", "Flatten all files we care about").setAction(async ({}, {run}) => {
+  let srcpath = "contracts";
+  let files = fs.readdirSync(srcpath).map(file => `${srcpath}/${file}`);
+  srcpath = `${srcpath}/governance`;
+  files = files.concat(fs.readdirSync(srcpath).map(file => `${srcpath}/${file}`));
+
+  try {
+    fs.mkdirSync("flats/contracts/governance", {recursive: true});
+  } catch (e) {}
+
+  await Promise.all(
+    files.map(async file => {
+      if (path.extname(file) == ".sol") {
+        await run("flat:get-flattened-sources", {
+          files: [file],
+          output: `./flats/${file}`,
+        });
+      }
+    }),
+  );
+});
