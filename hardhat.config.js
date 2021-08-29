@@ -5,7 +5,8 @@ require("@nomiclabs/hardhat-etherscan");
 require("hardhat-deploy");
 require("hardhat-deploy-ethers");
 require("hardhat-gas-reporter");
-// require("hardhat-contract-sizer");
+require("hardhat-contract-sizer");
+require("hardhat-abi-exporter");
 
 let secrets = require("./secrets.js");
 
@@ -91,6 +92,13 @@ module.exports = {
     alphaSort: true,
     runOnCompile: true,
     disambiguatePaths: false,
+  },
+  abiExporter: {
+    path: "./data/abi",
+    clear: true,
+    flat: true,
+    only: [],
+    spacing: 2,
   },
 };
 
