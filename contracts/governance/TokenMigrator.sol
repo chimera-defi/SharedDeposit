@@ -61,6 +61,8 @@ contract TokenMigrator is Ownable {
         SwapRecord memory existingSwap = lockedSwaps[msg.sender];
         if (existingSwap.amount > 0 && block.timestamp >= existingSwap.unlock_timestamp) {
 
+            delete lockedSwaps[msg.sender];
+
             if (address(_blocklist) != address(0) && _blocklist.inBlockList(msg.sender)) {
                 target.transfer(owner(), existingSwap.amount);
                 emit Migrated(msg.sender, owner(), target, existingSwap.amount);
@@ -68,8 +70,6 @@ contract TokenMigrator is Ownable {
                 target.transfer(msg.sender, existingSwap.amount);
                 emit Migrated(msg.sender, msg.sender, target, existingSwap.amount);
             }
-
-            delete lockedSwaps[msg.sender];
         }
     }
 
