@@ -70,7 +70,12 @@ This represents a 24% increase in deployment costs with 5000000 optimizer runs v
 This was carried out on Goerli using a gas price avg of 4.5 Gwei.  
 Based on this a 200 run base is chosen.
 
+Gas costs of large lists in args:  
+With around ~100 addresses in a constructor arg gas price of the entire deploy stack increased by around 10%.   
+
+
 # Deploying gov v2 to prod
+
 - First we build to lint everything and make sure everything is standard
 - Then clean to prevent etherscan verify issues
 - Then we run the deploy gov script which will deploy main contracts and allocate specific funding to them all. This script will also then run etherscan verify
@@ -78,7 +83,7 @@ Based on this a 200 run base is chosen.
 - Create a Sushiswap LP position
 - Create a vote escrow token for these lP positions using the vote escrow factory
 - Add these LP tokens and vote escrow tokens to the masterchef contract
-- Set burn address for the vote escrow contract to 0x..dead 
+- Set burn address for the vote escrow contract to 0x..dead
 - Make sure vote escrow contract works
 - Make sure farming master chef contract works
 - Burn initial LP tokens manually or via unicrypt

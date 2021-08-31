@@ -30,6 +30,10 @@ async function main() {
     _getOverrides,
     log,
     isMainnet,
+    _sendTokens,
+    _transferOwnership,
+    _getContract,
+    _transact,
   } = require("./deploy_utils.js");
   // deploy, deployer
   const [deployer] = await hre.ethers.getSigners();
@@ -47,9 +51,14 @@ async function main() {
   let addressOf = name => {
     return _getAddress(contracts[name]);
   };
+  let getContract = name => {
+    return _getContract(contracts, name);
+  };
   let initialBalance = await hre.ethers.provider.getBalance(address);
   let currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
-  console.log(`Initial balance of deployer is: ${initialBalance.toString()} at block timestamp : ${currentBlockTime}`);
+  log(
+    `Initial balance of deployer at ${address} is: ${initialBalance.toString()} at block timestamp : ${currentBlockTime}`,
+  );
 
   // Token
   let sgtv2 = "SGTv2";
@@ -58,14 +67,52 @@ async function main() {
   await deployContract(sgtv2, sgtv2_args);
   sgtv2_addr = addressOf(sgtv2);
 
-  const blocklistName = "Blocklist";
+  let blocklistName = "Blocklist";
   if (isMainnet(launchNetwork)) {
     await deployInitializableContract(blocklistName, [constants.blocklist]);
   } else {
     contracts[blocklistName] = await _deployInitializableContract(blocklistName, launchNetwork, [
-      constants.blocklist.concat(address),
+      constants.blocklist.concat("0xa1feaF41d843d53d0F6bEd86a8cF592cE21C409e"),
     ]);
   }
+
+  let allowlistName = "Allowlist";
+  if (isMainnet(launchNetwork)) {
+    await deployInitializableContract(allowlistName, [constants.allowlist]);
+  } else {
+    contracts[allowlistName] = await _deployInitializableContract(allowlistName, launchNetwork, [
+      constants.allowlist.concat(address),
+    ]);
+  }
+
+  // Grant rights to sentinels. i.e. ice bear and chimera
+  const grantSentinelRightsOnACLs = async () => {
+    let al = getContract(allowlistName);
+    let bl = getContract(blocklistName);
+    let alo = await al.ALLOWLIST_OWNER();
+    let blo = await bl.BLOCKLIST_OWNER();
+    for (let addr of constants.sentinels) {
+      log(`Granting ACL rights to ${addr}`);
+      await _transact(al.grantRole, alo, addr);
+      await _transact(bl.grantRole, blo, addr);
+    }
+    log("ACL Sentinels added");
+  };
+
+  if (!isMainnet(launchNetwork)) {
+    let sgtv1_args = ["Sharedstake.finance", "SGTv1", maxSupply, address];
+    contracts["SGTv1"] = await _deployContract("SGTv2", launchNetwork, sgtv1_args);
+  } else {
+    contracts["SGTv1"] = {
+      contract: {
+        address: constants.oldSgt,
+      },
+    };
+  }
+
+  let tokenMigrator = "TokenMigrator";
+  let tmargs = [addressOf("SGTv1"), sgtv2_addr, addressOf(blocklistName), addressOf(allowlistName)];
+  await deployContract(tokenMigrator, tmargs);
 
   let vef = "VoteEscrowFactory";
   await deployContract(vef);
@@ -146,21 +193,6 @@ async function main() {
   let mc_args = [sgtv2_addr, addressOf(fund), addressOf()];
   await deployContract(masterChef, mc_args);
 
-  if (!isMainnet(launchNetwork)) {
-    let sgtv1_args = ["Sharedstake.finance", "SGTv1", maxSupply, address];
-    contracts["SGTv1"] = await _deployContract("SGTv2", launchNetwork, sgtv1_args);
-  } else {
-    contracts["SGTv1"] = {
-      contract: {
-        address: constants.oldSgt,
-      },
-    };
-  }
-
-  let tokenMigrator = "TokenMigrator";
-  let tmargs = [addressOf("SGTv1"), sgtv2_addr, addressOf(blocklistName)];
-  await deployContract(tokenMigrator, tmargs);
-
   let overrides = await _getOverrides();
   if (!isMainnet(launchNetwork)) {
     let faucet = "Faucet";
@@ -179,33 +211,84 @@ async function main() {
     );
 
     await contracts["SGTv1"].contract.transfer(addressOf("FaucetOldToken"), maxSupply.div(2).toString(), overrides);
+    log("Deployed faucets");
   }
 
-  await contracts[sgtv2].contract.transfer(addressOf(tokenMigrator), constants.tokensInMigrator, overrides);
-  await contracts[sgtv2].contract.transfer(addressOf(treasuryVesting), constants.tokensInTreasury, overrides);
-  await contracts[sgtv2].contract.transfer(addressOf(founderVesting), constants.tokensInFounder, overrides);
-  await contracts[sgtv2].contract.transfer(addressOf(fund), constants.tokensInFarmEth, overrides);
-  await contracts[sgtv2].contract.transfer(addressOf(tokenTimelock), constants.tokensInFarmElsewhere, overrides);
+  let distribution = {};
+  const addDist = (name, amount) => {
+    distribution[name] = amount;
+  };
+  const checkEnoughTokensToDistribute = async () => {
+    let total = Object.values(distribution).reduce((a, b) => a.add(b));
+    let diff = (await getContract(sgtv2).balanceOf(address)).sub(total);
+    if (diff !== 0) {
+      log(`Distribution difference: ${diff.toString()}`);
+      if (isMainnet(launchNetwork) && diff < 0) {
+        throw "Not enough total balance";
+      }
+    }
+  };
+  const distribute = async () => {
+    await checkEnoughTokensToDistribute();
+    for (let name in distribution) {
+      await _sendTokens(getContract(sgtv2), name, addressOf(name), distribution[name]);
+    }
+  };
+  addDist(tokenMigrator, constants.tokensInMigrator);
+  addDist(treasuryVesting, constants.tokensInTreasury);
+  addDist(founderVesting, constants.tokensInFounder);
+  addDist(fund, constants.tokensInFarmEth);
+  addDist(tokenTimelock, isMainnet(launchNetwork) ? constants.tokensInFarmElsewhere : 0);
+  await distribute();
 
   // Add masterchef as requester to funddistributor
   await contracts[fund].contract.addRequester(addressOf(masterChef), overrides);
 
   let mc = contracts[masterChef].contract;
   // Add new token to farming contract as a pool
-  await mc.add(constants.SGTv2AP, addressOf(sgtv2), constants.zeroAddress, overrides);
+  await mc.add(constants.soloAP, addressOf(sgtv2), constants.zeroAddress, overrides);
   if (isMainnet(launchNetwork)) {
     // add veth2
-    await mc.add(constants.SGTv2AP, constants.veth2, constants.zeroAddress, overrides);
+    await mc.add(constants.soloAP, constants.veth2, constants.zeroAddress, overrides);
+    await mc.add(constants.lpAP, constants.veth2EthSlp, constants.zeroAddress, overrides);
   }
   await mc.setFund(addressOf(fund), overrides);
   await mc.setRewardPerSecond(constants.rewardsPerSecond, overrides);
+  log(`Setup farming`);
+
+  // Transfer contracts to multisig that do not need immediate followup
+  // These include, timelock, funcDistributor, tokenmigrator
+  const transferOwnershipToMultisig = async name => {
+    await _transferOwnership(name, getContract(name), multisig_address);
+  };
+  const transferOwnershipToMultisigMultiple = async arrOfNames => {
+    for (const name of arrOfNames) {
+      await transferOwnershipToMultisig(name);
+    }
+  };
+  // return;
+
+  await grantSentinelRightsOnACLs();
+
+  await transferOwnershipToMultisigMultiple([
+    treasuryVesting,
+    tokenTimelock,
+    fund,
+    tokenMigrator,
+    blocklistName,
+    allowlistName,
+  ]);
 
   _postRun(contracts, launchNetwork);
   await _verifyAll(contracts, launchNetwork);
 
   let finalBalance = await hre.ethers.provider.getBalance(address);
+  let finalBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
+
   log(
-    `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas price: ${JSON.stringify(overrides)}`,
+    `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas price: ${JSON.stringify(
+      overrides,
+    )}. Took ${finalBlockTime - currentBlockTime} seconds`,
   );
 }
 

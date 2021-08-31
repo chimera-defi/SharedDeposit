@@ -77,6 +77,12 @@ module.exports = {
       chainId: chainIds.goerli,
       initialBaseFeePerGas: 1000000000,
     },
+    mainnet: {
+      url: secrets.INFURA_MAINNET,
+      accounts: [`0x${secrets.MAINNET_PRIVATE_KEY}`],
+      chainId: chainIds.mainnet,
+      initialBaseFeePerGas: 1000000000
+    }
   },
   gasReporter: {
     currency: "USD",

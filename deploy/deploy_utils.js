@@ -18,7 +18,7 @@ const _getOverrides = async () => {
     type: 2,
     maxFeePerGas: ethers.utils.parseUnits("10", "gwei"),
     maxPriorityFeePerGas: ethers.utils.parseUnits("3", "gwei"),
-    gasLimit: 8000000,
+    gasLimit: 10000000,
   };
   const gasPrice = await hre.ethers.provider.getGasPrice();
   overridesForEIP1559.maxFeePerGas = gasPrice * 3;
@@ -53,7 +53,7 @@ const _deployContract = async (name, launchNetwork = false, cArgs = []) => {
   const contract = await factory.deploy(...cArgs, overridesForEIP1559);
   await contract.deployTransaction.wait(1);
   await contract.deployed();
-  log(`\n Deployed ${name} to ${contract.address} on ${launchNetwork}`);
+  log(`\nDeployed ${name} to ${contract.address} on ${launchNetwork}`);
   return Promise.resolve({contract: contract, args: cArgs, initialized: false, srcName: name});
 };
 
@@ -85,8 +85,6 @@ const _verifyAll = async (allContracts, launchNetwork) => {
     verifyAttemtLog[k] = contractMin;
   });
 
-  fs.writeFileSync("verify_attempt_log.json", JSON.stringify(verifyAttemtLog));
-
   contractArr = chunkArray(contractArr, 5);
   let verificationsPassed = 0;
   let verificationsFailed = 0;
@@ -97,18 +95,24 @@ const _verifyAll = async (allContracts, launchNetwork) => {
         log(`Verifying ${JSON.stringify(contract)} at ${contract.address} `);
         let res = await _verifyBase(contract, launchNetwork, contract.initialized ? [] : contract.args);
         res ? verificationsPassed++ : verificationsFailed++;
+        verifyAttemtLog[contract.name].verifified = res;
       }),
     );
     log("Waiting 2 s for Etherscan API limit of 5 calls/s");
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
-  log(` Verifications finished: ${verificationsPassed} / ${verificationsFailed + verificationsPassed} `);
+  fs.writeFileSync("verify_attempt_log.json", JSON.stringify(verifyAttemtLog));
+  log(`Verifications finished: ${verificationsPassed} / ${verificationsFailed + verificationsPassed} `);
 };
 
 const _deployInitializableContract = async (name, launchNetwork = false, initArgs = []) => {
   const overridesForEIP1559 = await _getOverrides();
   const {contract, _} = await _deployContract(name, launchNetwork, []);
-  if (initArgs.length > 0) await contract.initialize(...initArgs, overridesForEIP1559);
+  if (initArgs.length > 0) {
+    await contract.initialize(...initArgs, overridesForEIP1559);
+  } else {
+    await contract.initialize(initArgs, overridesForEIP1559);
+  }
   log(`Initialized ${name} with ${initArgs.toString()} \n`);
   return Promise.resolve({contract: contract, args: initArgs, initialized: true, srcName: name});
 };
@@ -120,7 +124,7 @@ const _getAddress = obj => {
 };
 
 const _postRun = (contracts, launchNetwork) => {
-  log("\n\n Deployment finished. Contracts deployed: \n\n");
+  log("\n\nDeployment finished. Contracts deployed: \n\n");
   let prefix = "https://";
   if (!isMainnet(launchNetwork)) {
     prefix += `${launchNetwork}.`;
@@ -134,19 +138,60 @@ const _postRun = (contracts, launchNetwork) => {
   fs.writeFileSync("deploy_log.json", JSON.stringify(contracts), {flag: "a"});
 };
 
+const _sendTokens = async (contract, name, to, amount) => {
+  let res = await _transact(contract.transfer, to, amount);
+  log(`Tokens transferred: From ${contract.address} to ${name} at ${to} : ${amount}`);
+  return res;
+};
+
+const _transferOwnership = async (name, contract, to) => {
+  let res = await _transact(contract.transferOwnership, to);
+  log(`Ownership transferred for ${name} at ${contract.address} to ${to}`);
+  return res;
+};
+
 const _transact = async (tx, ...args) => {
   let overrides = await _getOverrides();
-  tx(...args, overrides);
+  let trace = await tx(...args, overrides);
+  await trace.wait(); // throws on tx failure
+  return trace;
 };
+
+const _getContract = (contracts, name) => {
+  return contracts[name].contract;
+};
+
+async function advanceTimeAndBlock(time, ethers) {
+  await advanceTime(time, ethers);
+  await advanceBlock(ethers);
+}
+
+async function advanceTime(time, ethers) {
+  await ethers.provider.send("evm_increaseTime", [time]);
+}
+
+async function advanceBlock(ethers) {
+  await ethers.provider.send("evm_mine");
+}
+
 class DeployHelper {
-  constructor(launchNetwork) {
+  constructor(launchNetwork, multisig_address) {
     this.contracts = {};
     this.launchNetwork = launchNetwork;
     this.initalBalance = 0;
+    this.currentBlockTime = 0;
+    this.distribution = {};
+    this.multisig_address = multisig_address;
   }
   async init(address) {
     this.address = address;
     this.initalBalance = await hre.ethers.provider.getBalance(address);
+    this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
+    log(
+      `Initial balance of deployer at ${this.address} is: ${this.initialBalance.toString()} at block timestamp : ${
+        this.currentBlockTime
+      }`,
+    );
   }
   async deployContract(name, ctrctName, args) {
     this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args);
@@ -158,7 +203,7 @@ class DeployHelper {
     return _getAddress(this.contracts[name]);
   }
   getContract(name) {
-    return this.contracts[name].contract;
+    return _getContract(this.contracts, name);
   }
   async getOverrides() {
     return await _getOverrides();
@@ -166,13 +211,50 @@ class DeployHelper {
   async transact(tx, ...args) {
     return await _transact(tx, args);
   }
+
+  // Token distro
+  addDist(name, amount) {
+    this.distribution[name] = amount;
+  }
+  getContract(name) {
+    return _getContract(this.contracts, name);
+  }
+  async _checkEnoughTokensToDistribute(token) {
+    let total = Object.values(this.distribution).reduce((a, b) => a.add(b));
+    let diff = (await this.getContract(token).balanceOf(this.address)).sub(total);
+    if (diff !== 0) {
+      log(`Distribution difference: ${diff.toString()}`);
+      if (isMainnet(this.launchNetwork) && diff < 0) {
+        throw "Not enough total balance";
+      }
+    }
+  }
+  async distribute(token) {
+    await this._checkEnoughTokensToDistribute(token);
+    for (let name in this.distribution) {
+      await _sendTokens(this.getContract(token), name, this.addressOf(name), this.distribution[name]);
+    }
+  }
+
+  // ownership transfer
+  async transferOwnershipToMultisig(name) {
+    await _transferOwnership(name, getContract(name), this.multisig_address);
+  }
+  async transferOwnershipToMultisigMultiple(arrOfNames) {
+    for (let name of arrOfNames) {
+      await transferOwnershipToMultisig(name);
+    }
+  }
+
   async postRun() {
     _postRun(this.contracts, this.launchNetwork);
     let finalBalance = await hre.ethers.provider.getBalance(this.address);
+    let finalBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
+
     log(
-      `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas price: ${JSON.stringify(
+      `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas settings: ${JSON.stringify(
         overrides,
-      )}`,
+      )}. Took ${finalBlockTime - currentBlockTime} seconds`,
     );
     await _verifyAll(this.contracts, this.launchNetwork);
   }
@@ -189,5 +271,8 @@ module.exports = {
   log: log,
   isMainnet: isMainnet,
   _transact: _transact,
+  _sendTokens: _sendTokens,
+  _transferOwnership: _transferOwnership,
+  _getContract: _getContract,
   DeployHelper: DeployHelper,
 };
