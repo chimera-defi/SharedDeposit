@@ -11,11 +11,11 @@
       {
         "indexed": false,
         "internalType": "bool",
-        "name": "isBlocked",
+        "name": "isAllowed",
         "type": "bool"
       }
     ],
-    "name": "BlocklistSet",
+    "name": "AllowlistSet",
     "type": "event"
   },
   {
@@ -121,7 +121,7 @@
   },
   {
     "inputs": [],
-    "name": "BENEFICIARY_ROLE",
+    "name": "ALLOWLIST_OWNER",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -134,7 +134,7 @@
   },
   {
     "inputs": [],
-    "name": "BLOCKLIST_OWNER",
+    "name": "BENEFICIARY_ROLE",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -309,11 +309,11 @@
         "type": "address"
       }
     ],
-    "name": "inBlockList",
+    "name": "inAllowlist",
     "outputs": [
       {
         "internalType": "bool",
-        "name": "_isInBlocklist",
+        "name": "_isInAllowlist",
         "type": "bool"
       }
     ],
@@ -341,7 +341,7 @@
         "type": "address"
       }
     ],
-    "name": "isBlocklisted",
+    "name": "isAllowlisted",
     "outputs": [
       {
         "internalType": "bool",
@@ -430,7 +430,7 @@
       },
       {
         "internalType": "bool",
-        "name": "_isBlocked",
+        "name": "_val",
         "type": "bool"
       }
     ],

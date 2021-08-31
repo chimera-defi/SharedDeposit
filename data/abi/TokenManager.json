@@ -442,6 +442,13 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "renoucePrivileges",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes32",
