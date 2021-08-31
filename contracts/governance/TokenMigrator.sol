@@ -11,6 +11,11 @@ import "../interfaces/IBlocklist.sol";
 
 // Allows user to migrate from old token to new token by burning the old token
 
+struct SwapRecord {
+    uint256 amount;
+    uint256 unlock_timestamp;
+}
+
 contract TokenMigrator is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -21,10 +26,11 @@ contract TokenMigrator is Ownable {
     uint256 public startTime;
     // address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
-    mapping(address => uint256) public migratedForHolder;
+    mapping(address => SwapRecord) public lockedSwaps;
 
     event TargetChanged(ERC20Burnable previousTarget, ERC20Burnable changedTarget);
     event BlocklistChanged(IBlocklist previousTarget, IBlocklist changedTarget);
+    event SwapLocked(address from, uint256 value, uint256 unlock_timestamp);
     event Migrated(address from, address to, ERC20Burnable target, uint256 value);
 
     constructor(
@@ -39,16 +45,31 @@ contract TokenMigrator is Ownable {
         startTime = block.timestamp;
     }
 
-    function migrateFrom(address _from, uint256 _value) external {
+    function migrate(uint256 _value) external {
+        oldToken.transferFrom(msg.sender, 0x000000000000000000000000000000000000dEaD, _value);
+
+        SwapRecord memory existingSwap = lockedSwaps[msg.sender];
+        existingSwap.amount += _value;
+        existingSwap.unlock_timestamp = block.timestamp + 5 days;
+        lockedSwaps[msg.sender] = existingSwap;
+        emit SwapLocked(msg.sender, _value, existingSwap.unlock_timestamp);
+    }
+
+    function releaseTokens() external {
         require(address(target) != address(0), "FD:0AD");
 
-        oldToken.transferFrom(msg.sender, 0x000000000000000000000000000000000000dEaD, _value);
-        if (address(_blocklist) != address(0) && _blocklist.inBlockList(msg.sender)) {
-            target.transfer(owner(), _value);
-            emit Migrated(_from, address(0), target, _value);
-        } else {
-            target.transfer(msg.sender, _value);
-            emit Migrated(_from, msg.sender, target, _value);
+        SwapRecord memory existingSwap = lockedSwaps[msg.sender];
+        if (existingSwap.amount > 0 && block.timestamp >= existingSwap.unlock_timestamp) {
+
+            delete lockedSwaps[msg.sender];
+
+            if (address(_blocklist) != address(0) && _blocklist.inBlockList(msg.sender)) {
+                target.transfer(owner(), existingSwap.amount);
+                emit Migrated(msg.sender, owner(), target, existingSwap.amount);
+            } else {
+                target.transfer(msg.sender, existingSwap.amount);
+                emit Migrated(msg.sender, msg.sender, target, existingSwap.amount);
+            }
         }
     }
 
