@@ -1,4 +1,4 @@
-
+// Howto: `npm i got; node mva.js`
    
 const got = require('got');
 
