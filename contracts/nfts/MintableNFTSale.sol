@@ -23,14 +23,14 @@
  - add royalties on opensea and rarible later when the collection is imported
  */
 
- // Modified to reduce code size from:
- /**
+// Modified to reduce code size from:
+/**
  |  MintableNFTSale                            ·     14.382  │
 + 
  |  PaymentSplitter                            ·      1.520  │
  => 15.902
 
- to  8.47
+ to  8.45
   */
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.7;
@@ -46,7 +46,7 @@ contract MintableNFTSale is ERC721Enumerable, Ownable {
     uint256 public PRICE;
     uint256 public MAX_SUPPLY;
     uint256 public MAX_PER_MINT;
-    bool public paused_mint;
+    bool public can_mint;
 
     string private _baseTokenURI;
 
@@ -66,7 +66,6 @@ contract MintableNFTSale is ERC721Enumerable, Ownable {
         MAX_PER_MINT = _maxPerMint;
         _artist = payable(artist);
         _benefactor = payable(owner());
-        paused_mint = true;
 
         // Mint 5 to artist, 5 to owner, + 5 to owner for raffle
         for (uint256 i; i < 5; i++) {
@@ -77,25 +76,39 @@ contract MintableNFTSale is ERC721Enumerable, Ownable {
         }
     }
 
-    function updateParams(
-        uint256[] memory numericParams
-    ) external onlyOwner {
+    receive() external payable {}
+
+    fallback() external payable {}
+
+    function updateParams(uint256[] memory numericParams) external onlyOwner {
         PRICE = numericParams[0];
         MAX_SUPPLY = numericParams[1];
         MAX_PER_MINT = numericParams[2];
     }
 
-    fallback() external payable {}
+    function toggleMint() external onlyOwner {
+        can_mint = !can_mint;
+    }
 
-    receive() external payable {}
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+
+    function withdraw() external {
+        // Split payment 50/50 between artist and owner
+        // Owner shares will then be partly redirected to DAO
+        uint256 half = address(this).balance / 2;
+        Address.sendValue(_benefactor, half);
+        Address.sendValue(_artist, half);
+    }
 
     function mint(uint256 num) public payable {
-        require(!paused_mint, "mint paused");
+        require(can_mint, "mint paused");
 
         uint256 supply = totalSupply();
-        uint256 tokenCount = balanceOf(msg.sender);
+
         require(num <= MAX_PER_MINT, "2 many:call");
-        require(tokenCount + num <= MAX_PER_MINT, "2 many:user"); // max n tokens per user
+        require(balanceOf(msg.sender) + num <= MAX_PER_MINT, "2 many:user"); // max n tokens per user
         require(supply + num <= MAX_SUPPLY, "overlimit");
         require(msg.value >= PRICE * num, "2 cheap");
 
@@ -104,33 +117,12 @@ contract MintableNFTSale is ERC721Enumerable, Ownable {
         }
     }
 
-    function toggleMint() external onlyOwner {
-      paused_mint = !paused_mint;
-    }
-
-    function setBaseURI(string memory baseURI) external onlyOwner {
-        _baseTokenURI = baseURI;
-    }
-
-    function withdraw() external {
-      // Split payment 50/50 between artist and owner
-      // Owner shares will then be partly redirected to DAO
-      uint256 half = address(this).balance / 2;
-      Address.sendValue(_benefactor, half);
-      Address.sendValue(_artist, half);
-    }
-
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         require(_exists(tokenId), "INVALID");
 
         string memory baseURI = getBaseURI();
 
-        return
-            bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString(), ".json")) : "";
-    }
-
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721Enumerable) returns (bool) {
-        return super.supportsInterface(interfaceId);
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString(), ".json")) : "";
     }
 
     function getBaseURI() public view returns (string memory) {

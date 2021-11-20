@@ -1,8 +1,11 @@
 let {DeployHelper} = require("./deploy_utils.js");
+let secrets = require("../secrets.js");
 
 async function main() {
-  let dh = new DeployHelper();
-  await dh.init();
+  deployer = new ethers.Wallet(secrets.MAINNET_PRIVATE_KEY, ethers.provider);
+  let address = deployer.address;
+  let dh = new DeployHelper(network.name, address);
+  await dh.init(address);
 
   // Args:    
   /** 

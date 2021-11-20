@@ -16,12 +16,13 @@ const isMainnet = launchNetwork => {
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.utils.parseUnits("10", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("3", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("100", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
     gasLimit: 10000000,
   };
-  const gasPrice = await hre.ethers.provider.getGasPrice();
-  overridesForEIP1559.maxFeePerGas = gasPrice * 3;
+  // const gasPrice = await hre.ethers.provider.getGasPrice();
+  // overridesForEIP1559.maxFeePerGas = gasPrice;
+
   return overridesForEIP1559;
 };
 
@@ -178,17 +179,17 @@ class DeployHelper {
   constructor(launchNetwork, multisig_address) {
     this.contracts = {};
     this.launchNetwork = launchNetwork;
-    this.initalBalance = 0;
+    this.initialBalance = 0;
     this.currentBlockTime = 0;
     this.distribution = {};
     this.multisig_address = multisig_address;
   }
   async init(address) {
     this.address = address;
-    this.initalBalance = await hre.ethers.provider.getBalance(address);
+    this.initialBalance = await hre.ethers.provider.getBalance(address);
     this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
     log(
-      `Initial balance of deployer at ${this.address} is: ${this.initialBalance.toString()} at block timestamp : ${
+      `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${
         this.currentBlockTime
       }`,
     );
@@ -245,18 +246,21 @@ class DeployHelper {
       await transferOwnershipToMultisig(name);
     }
   }
+  async verify() {
+    await _verifyAll(this.contracts, this.launchNetwork);
+  }
 
   async postRun() {
-    _postRun(this.contracts, this.launchNetwork);
+    await _postRun(this.contracts, this.launchNetwork);
     let finalBalance = await hre.ethers.provider.getBalance(this.address);
     let finalBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
-
+    let overrides = await this.getOverrides(this.launchNetwork);
     log(
-      `Total cost of deploys: ${(initialBalance - finalBalance).toString()} with gas settings: ${JSON.stringify(
+      `Total cost of deploys: ${this.initialBalance.sub(finalBalance).toString()} with gas settings: ${JSON.stringify(
         overrides,
-      )}. Took ${finalBlockTime - currentBlockTime} seconds`,
+      )}. Took ${finalBlockTime - this.currentBlockTime} seconds`,
     );
-    await _verifyAll(this.contracts, this.launchNetwork);
+    await this.verify();
   }
 }
 

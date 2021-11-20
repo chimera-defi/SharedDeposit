@@ -2,17 +2,22 @@
 
 # Deployed mainnet contracts
 
+NFT
+MintableNFTSale deployed to 0x926a65012C23dcfB2227af46e6135C1c6413D8Ac at https://etherscan.io/address/0x926a65012C23dcfB2227af46e6135C1c6413D8Ac 
+cost: 322125589811035895 or 0.322 ETH   
+
 founderVesting deployed to 0x0279eBC54179EBc5E5e65A9f036Db351233adDc6 at https://etherscan.io/address/0x0279eBC54179EBc5E5e65A9f036Db351233adDc6  
 treasuryVesting deployed to 0x2Cb4bdc030975f2ABdbbb984e87715505C51D5BC at https://etherscan.io/address/0x2Cb4bdc030975f2ABdbbb984e87715505C51D5BC  
-SGTv2 deployed to 0x24C19F7101c1731b85F1127EaA0407732E36EcDD at https://etherscan.io/address/0x24C19F7101c1731b85F1127EaA0407732E36EcDD  
+SGTv2 deployed to 0x24C19F7101c1731b85F1127EaA0407732E36EcDD at https://etherscan.io/address/0x24C19F7101c1731b85F1127EaA0407732E36EcDD
 
 TokenMigrator deployed to 0x9615460582Efa2a9b1d8D21e7E02afE43A415E13 at https://etherscan.io/address/0x9615460582Efa2a9b1d8D21e7E02afE43A415E13  
 VoteEscrowFactory deployed to 0xeE5bd4b9C875BE3958b1255D181B8B3E978903b9 at https://etherscan.io/address/0xeE5bd4b9C875BE3958b1255D181B8B3E978903b9  
 SimpleTimelock deployed to 0xC0AAB794F9D2aA7cE56B8BEB6cFfc71BC05c21FC at https://etherscan.io/address/0xC0AAB794F9D2aA7cE56B8BEB6cFfc71BC05c21FC  
 FundDistributor deployed to 0x38aa4CC003D9Ad84505bc7b096122402Db31f708 at https://etherscan.io/address/0x38aa4CC003D9Ad84505bc7b096122402Db31f708  
-MasterChef deployed to 0x84B7644095d9a8BFDD2e5bfD8e41740bc1f4f412 at https://etherscan.io/address/0x84B7644095d9a8BFDD2e5bfD8e41740bc1f4f412  
+MasterChef deployed to 0x84B7644095d9a8BFDD2e5bfD8e41740bc1f4f412 at https://etherscan.io/address/0x84B7644095d9a8BFDD2e5bfD8e41740bc1f4f412
 
 VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/address/0x21b555305e9d65c8b8ae232e60fd806edc9c5d78#code
+
 # Quickstart and developer notes
 
 - Following env best practices from https://github.com/paulrberg/solidity-template
@@ -106,8 +111,8 @@ With around ~100 addresses in a constructor arg gas price of the entire deploy s
 npm run-script deploy_gov_prod
 ```
 
-
 # Extended Deploy logs Sep 1 2021
+
 ```
 Deployed SGTv2 to 0x24C19F7101c1731b85F1127EaA0407732E36EcDD on mainnet
 
@@ -122,7 +127,7 @@ Deployed SimpleVesting to 0x2Cb4bdc030975f2ABdbbb984e87715505C51D5BC on mainnet
 Deployed SimpleTimelock to 0xC0AAB794F9D2aA7cE56B8BEB6cFfc71BC05c21FC on mainnet
 
 Deployed FundDistributor to 0x38aa4CC003D9Ad84505bc7b096122402Db31f708 on mainnet
-Initialized FundDistributor with 0x24C19F7101c1731b85F1127EaA0407732E36EcDD 
+Initialized FundDistributor with 0x24C19F7101c1731b85F1127EaA0407732E36EcDD
 
 Tokens transferred: From 0x24C19F7101c1731b85F1127EaA0407732E36EcDD to TokenMigrator at 0x9615460582Efa2a9b1d8D21e7E02afE43A415E13 : 3200000000000000000000000
 Tokens transferred: From 0x24C19F7101c1731b85F1127EaA0407732E36EcDD to treasuryVesting at 0x2Cb4bdc030975f2ABdbbb984e87715505C51D5BC : 2380000000000000000000000
