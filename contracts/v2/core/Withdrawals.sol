@@ -12,7 +12,7 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 /// @notice Users call redeem() to redem for ETH = deposited shares * virtualPrice
 /// @notice The user can further call withdraw() if they change their mind about redeeming for ETH
 /// @dev TODO Docs
-/// @dev TODO Test goerli
+/// @dev Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
 contract Withdrawals {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
