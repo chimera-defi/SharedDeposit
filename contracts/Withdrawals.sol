@@ -5,10 +5,12 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-
 contract Withdrawals {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+
+    error ContractBalanceTooLow();
+    error UserStakeTooLow();
 
     struct UserEntry {
         uint256 amount;
@@ -25,20 +27,17 @@ contract Withdrawals {
     }
 
     function deposit(uint256 amount) external {
-        address user = msg.sender;
-        require(vEth2Token.balanceOf(user) >= amount, "SD:SBLA"); // Sender bal < Amount
-
-        vEth2Token.transferFrom(user, address(this), amount);
-
-        _stakeForWithdrawal(user, amount);
+        // vEth2 transfer from returns true otherwise reverts
+        if (vEth2Token.transferFrom(msg.sender, address(this), amount)) {
+            _stakeForWithdrawal(msg.sender, amount);
+        }
     }
 
-    function withdraw() external {
-        address user = msg.sender;
-        uint256 amt = userEntries[user].amount;
-        delete userEntries[user];
+    function exit() external {
+        uint256 amt = userEntries[msg.sender].amount;
+        delete userEntries[msg.sender];
 
-        vEth2Token.transferFrom(address(this), user, amt);
+        vEth2Token.transferFrom(address(this), msg.sender, amt);
     }
 
     function redeem() external {
@@ -51,14 +50,11 @@ contract Withdrawals {
 
     function _redeem(address user, uint256 amount) internal {
         uint256 amountToReturn = _getAmountGivenShares(amount);
-        require(address(this).balance >= amountToReturn, "SD:CBLA"); // Contract bal less than amount requested
-        if (_checkWithdraw(user, amount)) {
-            delete userEntries[user];
-            address payable sender = payable(user);
-            totalOut += amountToReturn;
+        _check(user, amount, amountToReturn);
+        delete userEntries[user];
+        totalOut += amountToReturn;
 
-            require(sender.send(amountToReturn), "Error refunding");
-        }
+        payable(user).transfer(amountToReturn);
     }
 
     function _getAmountGivenShares(uint256 shares) internal returns (uint256) {
@@ -71,12 +67,16 @@ contract Withdrawals {
         userEntries[sender] = ue;
     }
 
-    function _checkWithdraw(
+    function _check(
         address sender,
-        uint256 amountToWithdraw
-    ) internal returns (bool withdrawalAllowed) {
-        UserEntry memory userEntry = userEntries[sender];
-        require(userEntry.amount >= amountToWithdraw, "WQ:AGC");
-        return true;
+        uint256 amountToWithdraw,
+        uint256 amountToReturn
+    ) internal {
+        if (userEntries[sender].amount < amountToWithdraw) {
+            revert UserStakeTooLow();
+        }
+        if (address(this).balance < amountToReturn) {
+            revert ContractBalanceTooLow();
+        }
     }
 }
