@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.7;
+pragma solidity ^0.8.7;
 
 // Inherit permit to allow a permit signed approval for gas savings
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";

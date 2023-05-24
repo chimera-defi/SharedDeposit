@@ -2,13 +2,13 @@
 pragma solidity 0.8.7;
 pragma experimental ABIEncoderV2;
 
-import {VaultWithAdminFeeUpgradeable} from "./util/VaultWithAdminFeeUpgradeable.sol";
-import {Eth2DepositHelperUpgradeable} from "./util/Eth2DepositHelperUpgradeable.sol";
+import {VaultWithAdminFeeUpgradeable} from "../util/VaultWithAdminFeeUpgradeable.sol";
+import {Eth2DepositHelperUpgradeable} from "../util/Eth2DepositHelperUpgradeable.sol";
 import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
-import {IERC20MintableBurnable} from "./interfaces/IERC20MintableBurnable.sol";
+import {IERC20MintableBurnable} from "../interfaces/IERC20MintableBurnable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
-contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgradeable {
+contract SharedDeposit is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgradeable {
     using SafeMathUpgradeable for uint256;
 
     /* ========== STATE VARIABLES ========== */
@@ -23,7 +23,7 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
         uint256 cap = uint256(32).mul(1000).mul(1e18);
         uint256 buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
         uint256 costPerShare = uint256(1e18);
-        uint256 epochLength = 1 weeks;
+        uint256 _epochLength = 1 weeks;
         __SharedDeposit_init(
             cap,
             buffer,
@@ -32,7 +32,7 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
             adminFee,
             withdrawRefundDisabled,
             _BETHTokenAddress,
-            epochLength
+            _epochLength
         );
     }
 
@@ -44,7 +44,7 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
         uint256 adminFee,
         bool withdrawRefundDisabled,
         address _BETHTokenAddress,
-        uint256 epochLength
+        uint256 _epochLength
     ) internal initializer {
         __SharedDeposit_init_unchained(
             cap,
@@ -54,7 +54,7 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
             adminFee,
             withdrawRefundDisabled,
             _BETHTokenAddress,
-            epochLength
+            _epochLength
         );
     }
 
@@ -66,9 +66,9 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
         uint256 adminFee,
         bool withdrawRefundDisabled,
         address _BETHTokenAddress,
-        uint256 epochLength
+        uint256 _epochLength
     ) internal initializer {
-        __VaultWithAdminFeeUpgradeable_init(
+        __VaultWithAdminFeeUpgradeable_init_unchained(
             cap,
             buffer,
             currentShares,
@@ -76,7 +76,7 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
             adminFee,
             withdrawRefundDisabled,
             _BETHTokenAddress,
-            epochLength
+            _epochLength
         );
         __DepositHelper_init_unchained(mainnetDepositContractAddress);
     }
@@ -87,16 +87,19 @@ contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpg
     }
 
     // TODO
-    function stakeForWithdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
-        require(mintableBurnableToken.balanceOf(_msgSender()) >= amount, "Eth2Staker: Sender balance not enough");
-        super._stakeForWithdrawal(_msgSender(), amount);
-        super._burn(_msgSender(), amount);
-    }
+    // function stakeForWithdraw(uint256 amount)
+    //     external
+    //     nonReentrant
+    //     whenNotPaused
+    //     noContractAllowed
+    // {
+    // create an iterable mapping of users bal and timestamps and ensure only <= the locked amt can be withdrawn
+    // }
 
     function withdraw(uint256 amount) external nonReentrant whenNotPaused noContractAllowed {
+        require(mintableBurnableToken.balanceOf(_msgSender()) >= amount, "Eth2Staker: Sender balance not enough");
         uint256 valToReturn = super._withdrawEth(amount);
-        super._checkWithdraw(_msgSender(), address(this).balance, valToReturn, epochLength);
-
+        super._burn(_msgSender(), amount);
         address payable sender = payable(_msgSender());
         AddressUpgradeable.sendValue(sender, valToReturn);
     }

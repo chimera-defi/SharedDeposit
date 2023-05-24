@@ -3,19 +3,19 @@ pragma solidity 0.8.7;
 pragma experimental ABIEncoderV2;
 // pragma experimental SMTChecker;
 
-import {IvETH2} from "./interfaces/IvETH2.sol";
-import {ITokenManager} from "./interfaces/ITokenManager.sol";
-import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
-import {IBlocklist} from "./interfaces/IBlocklist.sol";
-import {ITokenUtilityModule} from "./interfaces/ITokenUtilityModule.sol";
+import {IvETH2} from "../interfaces/IvETH2.sol";
+import {ITokenManager} from "../interfaces/ITokenManager.sol";
+import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
+import {IBlocklist} from "../interfaces/IBlocklist.sol";
+import {ITokenUtilityModule} from "../interfaces/ITokenUtilityModule.sol";
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
-import {OwnershipRolesTemplate} from "./util/OwnershipRolesTemplate.sol";
-import {Eth2DepositHelperUpgradeable} from "./util/Eth2DepositHelperUpgradeable.sol";
-import {VaultWithSharesAndCapUpgradeable} from "./util/VaultWithSharesAndCapUpgradeable.sol";
-import {WithdrawQueueUpgradeable} from "./util/WithdrawQueueUpgradeable.sol";
+import {OwnershipRolesTemplate} from "../util/OwnershipRolesTemplate.sol";
+import {Eth2DepositHelperUpgradeable} from "../util/Eth2DepositHelperUpgradeable.sol";
+import {VaultWithSharesAndCapUpgradeable} from "../util/VaultWithSharesAndCapUpgradeable.sol";
+import {WithdrawQueueUpgradeable} from "../util/WithdrawQueueUpgradeable.sol";
 
 contract SharedDepositV2 is
     OwnershipRolesTemplate,
