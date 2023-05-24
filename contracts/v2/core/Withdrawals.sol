@@ -1,5 +1,4 @@
 pragma solidity 0.8.20;
-pragma experimental ABIEncoderV2;
 
 // SPDX-License-Identifier: MIT
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -19,7 +18,6 @@ contract Withdrawals {
     using SafeERC20 for IERC20;
 
     error ContractBalanceTooLow();
-    error UserStakeTooLow();
     struct UserEntry {
         uint256 amount;
     }
@@ -50,15 +48,13 @@ contract Withdrawals {
 
     function redeem() external {
         uint256 amountToReturn = _getAmountGivenShares(_userEntries[msg.sender].amount, virtualPrice);
-        _check(msg.sender, _userEntries[msg.sender].amount, amountToReturn);
+        if (amountToReturn > address(this).balance) {
+            revert ContractBalanceTooLow();
+        }
         delete _userEntries[msg.sender];
         totalOut += amountToReturn;
 
         payable(msg.sender).transfer(amountToReturn);
-    }
-
-    function _getAmountGivenShares(uint256 shares, uint256 _vp) internal pure returns (uint256) {
-        return shares.mul(_vp).div(1e18);
     }
 
     function _stakeForWithdrawal(address sender, uint256 amount) internal {
@@ -67,16 +63,8 @@ contract Withdrawals {
         _userEntries[sender] = ue;
     }
 
-    function _check(
-        address sender,
-        uint256 amountToWithdraw,
-        uint256 amountToReturn
-    ) internal view {
-        if (amountToWithdraw >= _userEntries[sender].amount) {
-            revert UserStakeTooLow();
-        } else if (amountToReturn >= address(this).balance) {
-            revert ContractBalanceTooLow();
-        }
+    function _getAmountGivenShares(uint256 shares, uint256 _vp) internal pure returns (uint256) {
+        return shares.mul(_vp).div(1e18);
     }
 
     receive() external payable {} // solhint-disable-line
