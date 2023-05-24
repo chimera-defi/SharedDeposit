@@ -2,9 +2,11 @@
 
 # Deployed mainnet contracts
 
+
+// Aug 31 '21
 NFT
-MintableNFTSale deployed to 0x926a65012C23dcfB2227af46e6135C1c6413D8Ac at https://etherscan.io/address/0x926a65012C23dcfB2227af46e6135C1c6413D8Ac 
-cost: 322125589811035895 or 0.322 ETH   
+MintableNFTSale deployed to 0x926a65012C23dcfB2227af46e6135C1c6413D8Ac at https://etherscan.io/address/0x926a65012C23dcfB2227af46e6135C1c6413D8Ac
+cost: 322125589811035895 or 0.322 ETH
 
 founderVesting deployed to 0x0279eBC54179EBc5E5e65A9f036Db351233adDc6 at https://etherscan.io/address/0x0279eBC54179EBc5E5e65A9f036Db351233adDc6  
 treasuryVesting deployed to 0x2Cb4bdc030975f2ABdbbb984e87715505C51D5BC at https://etherscan.io/address/0x2Cb4bdc030975f2ABdbbb984e87715505C51D5BC  
@@ -17,6 +19,13 @@ FundDistributor deployed to 0x38aa4CC003D9Ad84505bc7b096122402Db31f708 at https:
 MasterChef deployed to 0x84B7644095d9a8BFDD2e5bfD8e41740bc1f4f412 at https://etherscan.io/address/0x84B7644095d9a8BFDD2e5bfD8e41740bc1f4f412
 
 VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/address/0x21b555305e9d65c8b8ae232e60fd806edc9c5d78#code
+
+# Goerli
+
+May 24 '22
+Goerli test of streamlined Withdrawals contract 
+/// @dev Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
+
 
 # Quickstart and developer notes
 
