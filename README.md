@@ -2,7 +2,6 @@
 
 # Deployed mainnet contracts
 
-
 // Aug 31 '21
 NFT
 MintableNFTSale deployed to 0x926a65012C23dcfB2227af46e6135C1c6413D8Ac at https://etherscan.io/address/0x926a65012C23dcfB2227af46e6135C1c6413D8Ac
@@ -23,9 +22,8 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 # Goerli
 
 May 24 '22
-Goerli test of streamlined Withdrawals contract 
+Goerli test of streamlined Withdrawals contract
 /// @dev Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
-
 
 # Quickstart and developer notes
 
@@ -101,6 +99,14 @@ Based on this a 200 run base is chosen.
 
 Gas costs of large lists in args:  
 With around ~100 addresses in a constructor arg gas price of the entire deploy stack increased by around 10%.
+
+Added gas observations - may '23
+
+- OZ methods are not always optimal / most effecient. e.g. see address.sendValue vs examples from solidity docs to achieve same
+- 30% call cost reduction for 2% more contract size
+  Optimization increases deployment of withdrawals.sol by 10k gas units, but shows a call cost reduction of 3k / call or ~3% on empty loops i.e redeem without any staked collateral
+- loading calldata into mem e.g. via `address usr = msg.sender;` vs loading directly from msg.sender where needed
+- setting global vars to immutable
 
 # Deploying gov v2 to prod
 
