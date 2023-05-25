@@ -18,14 +18,15 @@ contract Withdrawals {
     using SafeERC20 for IERC20;
 
     error ContractBalanceTooLow();
+    error UserAmountIsZero();
     struct UserEntry {
         uint256 amount;
     }
 
-    mapping(address => UserEntry) internal _userEntries;
-    IERC20 public vEth2Token;
-    uint256 public virtualPrice;
+    mapping(address => UserEntry) public userEntries;
     uint256 public totalOut;
+    uint256 public immutable virtualPrice;
+    IERC20 public immutable vEth2Token;
 
     constructor(address _underlying, uint256 _virtualPrice) payable {
         vEth2Token = IERC20(_underlying);
@@ -40,27 +41,29 @@ contract Withdrawals {
     }
 
     function withdraw() external {
-        uint256 amt = _userEntries[msg.sender].amount;
-        delete _userEntries[msg.sender];
+        uint256 amt = userEntries[msg.sender].amount;
+        delete userEntries[msg.sender];
 
         vEth2Token.transferFrom(address(this), msg.sender, amt);
     }
 
     function redeem() external {
-        uint256 amountToReturn = _getAmountGivenShares(_userEntries[msg.sender].amount, virtualPrice);
+        // make sure user has tokens to redeem offchain first by looking at userEntries otherwise this will just waste gas
+        address usr = msg.sender;
+        uint256 amountToReturn = _getAmountGivenShares(userEntries[usr].amount, virtualPrice);
         if (amountToReturn > address(this).balance) {
             revert ContractBalanceTooLow();
         }
-        delete _userEntries[msg.sender];
+        delete userEntries[usr];
         totalOut += amountToReturn;
 
-        payable(msg.sender).transfer(amountToReturn);
+        payable(usr).transfer(amountToReturn);
     }
 
     function _stakeForWithdrawal(address sender, uint256 amount) internal {
-        UserEntry memory ue = _userEntries[sender];
+        UserEntry memory ue = userEntries[sender];
         ue.amount = ue.amount.add(amount);
-        _userEntries[sender] = ue;
+        userEntries[sender] = ue;
     }
 
     function _getAmountGivenShares(uint256 shares, uint256 _vp) internal pure returns (uint256) {
