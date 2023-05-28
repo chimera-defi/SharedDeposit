@@ -51,6 +51,9 @@ contract Withdrawals {
         // make sure user has tokens to redeem offchain first by looking at userEntries otherwise this will just waste gas
         address usr = msg.sender;
         uint256 amountToReturn = _getAmountGivenShares(userEntries[usr].amount, virtualPrice);
+        if (amountToReturn == 0) {
+            revert UserAmountIsZero();
+        }
         if (amountToReturn > address(this).balance) {
             revert ContractBalanceTooLow();
         }
