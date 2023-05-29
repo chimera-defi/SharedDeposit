@@ -6,13 +6,15 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 
 /// @title Withdrawals - ERC20 token to ETH redemption contract
 /// @author @ChimeraDefi - sharedstake.org
-/// @notice Deployer chooses static virtual price at launch in 1e18 and the underlying ERC20 token
-/// @notice Users call deposit(amt) to stake their ERC20 and signal intent to exit
-/// @notice When the contract has enough ETH to service the users debt
-/// @notice Users call redeem() to redem for ETH = deposited shares * virtualPrice
-/// @notice The user can further call withdraw() if they change their mind about redeeming for ETH
-/// @dev TODO Docs
-/// @dev Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
+/// @notice Withdrawals accepts an underlying ERC20 and redeems it for ETH
+/** @dev Deployer chooses static virtual price at launch in 1e18 and the underlying ERC20 token
+    Users call deposit(amt) to stake their ERC20 and signal intent to exit
+    When the contract has enough ETH to service the users debt
+    Users call redeem() to redem for ETH = deposited shares * virtualPrice
+    The user can further call withdraw() if they change their mind about redeeming for ETH
+    TODO Docs
+    Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
+**/
 contract Withdrawals {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
