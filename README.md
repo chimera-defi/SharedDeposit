@@ -31,9 +31,8 @@ Goerli test of streamlined Withdrawals contract
 - Pre-run checks:
 
 ```
-npm run-script prettier
-npm run-script lint:sol
-npx hardhat compile
+npm i --force
+yarn sol
 ```
 
 # Errors
