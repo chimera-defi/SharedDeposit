@@ -1,5 +1,5 @@
 {
-  "name": "hardhat-project",
+  "name": "SharedDeposit",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.10",
     "@nomiclabs/hardhat-etherscan": "^2.1.5",
@@ -21,8 +21,10 @@
     "solhint-plugin-prettier": "^0.0.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.3.1",
-    "@openzeppelin/contracts-upgradeable": "^4.3.1"
+    "@fei-protocol/erc4626": "^0.0.0",
+    "@openzeppelin/contracts": "^4.8.0",
+    "@openzeppelin/contracts-upgradeable": "^4.3.1",
+    "solmate": "^6.7.0"
   },
   "scripts": {
     "uml": "npx sol2uml ./flats",
@@ -42,6 +44,7 @@
     "deploy_gov_goerli": "npx hardhat run --network goerli deploy/deploy_gov.js",
     "deploy_gov_prod": "npx hardhat build && npx hardhat clean && npx hardhat run --network mainnet deploy/deploy_gov.js",
     "deploy": "hardhat deploy:Greeter",
+    "sol": "npm run-script prettier ; npm run-script lint:sol ; npx hardhat compile",
     "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:check",
     "lint:sol": "solhint --config ./.solhint.json --max-warnings 50 \"contracts/**/*.sol\"",
     "lint:ts": "eslint --config ./.eslintrc.yaml --ignore-path ./.eslintignore --ext .js,.ts .",
