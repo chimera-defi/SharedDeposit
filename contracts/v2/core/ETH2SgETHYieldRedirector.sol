@@ -5,6 +5,8 @@
 
 // call work() to process eth
 pragma solidity 0.8.20;
+// SPDX-License-Identifier: MIT
+
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {PaymentSplitter} from "../../lib/PaymentSplitter.sol";
 import {ISharedDeposit} from "../../interfaces/ISharedDeposit.sol";

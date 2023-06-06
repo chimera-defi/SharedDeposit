@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // DAO controlled fee splitter
 // Fees to pre-set NORs are autosent
 // More fine grained fee management is handled via merkle airdrops
