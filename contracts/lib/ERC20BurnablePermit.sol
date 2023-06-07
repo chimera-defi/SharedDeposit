@@ -20,20 +20,18 @@ contract ERC20BurnablePermit is ERC20Permit, ERC20Burnable, Ownable2Step, Access
     /* ========== CONSTRUCTOR ========== */
     constructor(string memory _name, string memory _symbol) 
     ERC20(_name, _symbol) ERC20Permit(_name) Ownable2Step()
-    {
-        _setupRole(MINTER, msg.sender);
-    }
+    {}
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     // Used by minters when user redeems
     function burnFrom(address addr, uint256 amt) public override onlyRole(MINTER) {
-        super.burnFrom(addr, amt);
+        burnFrom(addr, amt);
     }
 
     // This function is what other minters will call to mint new tokens
     function mint(address addr, uint256 amt) public onlyRole(MINTER) {
-        super._mint(addr, amt);
+        _mint(addr, amt);
     }
 
     // Adds whitelisted minters
