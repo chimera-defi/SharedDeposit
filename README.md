@@ -1,5 +1,7 @@
 # SharedDeposit
 
+Contracts powering sharedstake.org / sharedstake.finance
+
 # Deployed mainnet contracts
 
 // Aug 31 '21
@@ -21,7 +23,18 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 
 # Goerli
 
-May 24 '22
+Wed Jun 7 '23
+SgETH deployed to 0xd0f593aeB7E22B1038edC398aA53A56B38435de9 at https://goerli.etherscan.io/address/0xd0f593aeB7E22B1038edC398aA53A56B38435de9 
+WSGETH deployed to 0xCE066A0C47b95aA7fF53A22D099A1F33F3d7e7D9 at https://goerli.etherscan.io/address/0xCE066A0C47b95aA7fF53A22D099A1F33F3d7e7D9 
+SharedDepositMinter deployed to 0x62a4f18E1c42c63c6D02668A714eaD7323eF5CE0 at https://goerli.etherscan.io/address/0x62a4f18E1c42c63c6D02668A714eaD7323eF5CE0 
+PaymentSplitter deployed to 0xBaB96eEEE86b3dc57378C2b95aaFEc0aD3cc1Ed5 at https://goerli.etherscan.io/address/0xBaB96eEEE86b3dc57378C2b95aaFEc0aD3cc1Ed5 
+Withdrawals deployed to 0x62C4df1d2D30509833dEac78E968762Bf1B0CB6d at https://goerli.etherscan.io/address/0x62C4df1d2D30509833dEac78E968762Bf1B0CB6d 
+ETH2SgETHYieldRedirector deployed to 0xd810D44Ad63582C457814eD3a47e1d9B83aC2358 at https://goerli.etherscan.io/address/0xd810D44Ad63582C457814eD3a47e1d9B83aC2358 
+RewardsReceiver deployed to 0xf38bA1f9B416Ce6eB3D9336f417a5Fbf88aEb84F at https://goerli.etherscan.io/address/0xf38bA1f9B416Ce6eB3D9336f417a5Fbf88aEb84F 
+WithdrawalsvETH2 deployed to 0x0f779f0c7d0c8b9cD6e23e62D9aE51ED39aa256a at https://goerli.etherscan.io/address/0x0f779f0c7d0c8b9cD6e23e62D9aE51ED39aa256a 
+Rollover deployed to 0x17b9Ee3963a58c82d64Aa9fdaCce261257834623 at https://goerli.etherscan.io/address/0x17b9Ee3963a58c82d64Aa9fdaCce261257834623 
+
+May 24 '23
 Goerli test of streamlined Withdrawals contract
 /// @dev Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
 
@@ -34,6 +47,18 @@ Goerli test of streamlined Withdrawals contract
 npm i --force
 yarn sol
 ```
+
+- Deployments and hardhat
+```
+export GOERLIPK='Goerli private key'
+export ETHERSCAN_API='xx'
+export ALCHEMY_GOERLI_KEY='xx'
+// see deploy_minterv2.js or deply tasks in package.json for hardhat deploy useage
+```
+
+
+
+# Archival
 
 # Errors
 
