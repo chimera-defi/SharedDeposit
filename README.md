@@ -1,6 +1,9 @@
 # SharedDeposit
 
-Contracts powering sharedstake.org / sharedstake.finance
+Contracts powering https://sharedstake.org / https://sharedstake.finance
+
+Ethereum liquid staking derivatives.    
+Docs: https://docs.sharedstake.finance/
 
 # Deployed mainnet contracts
 
@@ -23,7 +26,8 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 
 # Goerli
 
-Wed Jun 7 '23
+## Wed Jun 7 '23   
+
 SgETH deployed to 0xd0f593aeB7E22B1038edC398aA53A56B38435de9 at https://goerli.etherscan.io/address/0xd0f593aeB7E22B1038edC398aA53A56B38435de9 
 WSGETH deployed to 0xCE066A0C47b95aA7fF53A22D099A1F33F3d7e7D9 at https://goerli.etherscan.io/address/0xCE066A0C47b95aA7fF53A22D099A1F33F3d7e7D9 
 SharedDepositMinter deployed to 0x62a4f18E1c42c63c6D02668A714eaD7323eF5CE0 at https://goerli.etherscan.io/address/0x62a4f18E1c42c63c6D02668A714eaD7323eF5CE0 
@@ -55,7 +59,6 @@ export ETHERSCAN_API='xx'
 export ALCHEMY_GOERLI_KEY='xx'
 // see deploy_minterv2.js or deply tasks in package.json for hardhat deploy useage
 ```
-
 
 
 # Archival
