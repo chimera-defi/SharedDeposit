@@ -22,12 +22,16 @@ contract ERC20MintableBurnableByMinter is ERC20Burnable, ERC20Permit, AccessCont
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    // Used by minters when user redeems
+    /// @notice burnFrom Used by minters when user redeems
+    /// @param addr The address to burn from 
+    /// @param amt The amount to burn 
     function burnFrom(address addr, uint256 amt) public override onlyRole(MINTER) {
         burnFrom(addr, amt);
     }
 
-    // This function is what other minters will call to mint new tokens
+    /// @notice mint This function is what other minters will call to mint new tokens
+    /// @param addr The address to mint to 
+    /// @param amt The amount to mint 
     function mint(address addr, uint256 amt) public onlyRole(MINTER) {
         _mint(addr, amt);
     }
