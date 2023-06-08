@@ -30,12 +30,12 @@ contract WSGETH is xERC4626, ReentrancyGuard {
     {}
 
     /// @notice inlines syncRewards with deposits when able
-    function deposit(uint256 assets, address receiver) public override andSync returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public override nonReentrant andSync returns (uint256 shares) {
         return super.deposit(assets, receiver);
     }
 
     /// @notice inlines syncRewards with mints when able
-    function mint(uint256 shares, address receiver) public override andSync returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) public override nonReentrant andSync returns (uint256 assets) {
         return super.mint(shares, receiver);
     }
 
@@ -44,7 +44,7 @@ contract WSGETH is xERC4626, ReentrancyGuard {
         uint256 assets,
         address receiver,
         address owner
-    ) public override andSync returns (uint256 shares) {
+    ) public override nonReentrant andSync returns (uint256 shares) {
         return super.withdraw(assets, receiver, owner);
     }
 
