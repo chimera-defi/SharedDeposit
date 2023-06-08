@@ -16,7 +16,7 @@ const isMainnet = launchNetwork => {
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.utils.parseUnits("100", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("20", "gwei"),
     maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
     gasLimit: 10000000,
   };
@@ -191,7 +191,7 @@ class DeployHelper {
     log(
       `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${
         this.currentBlockTime
-      }`,
+      } on network: ${this.launchNetwork}`,
     );
   }
   async deployContract(name, ctrctName, args) {
