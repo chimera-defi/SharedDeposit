@@ -8,17 +8,14 @@
 pragma solidity 0.8.20;
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {PaymentSplitter} from "../../lib/PaymentSplitter.sol";
-import {ISharedDeposit} from "../../interfaces/ISharedDeposit.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract FeeSplitter is Ownable2Step, PaymentSplitter {
-    address public immutable sgETH;
+    uint256[] public split;
+    address[] public splitAddrs;
 
-    constructor(
-        address _sgETh,
-        address[] memory splitAddrs,
-        uint256[] memory split
-    ) Ownable2Step() PaymentSplitter(splitAddrs, split) {
-        sgETH = _sgETh;
+    constructor() Ownable2Step() PaymentSplitter(splitAddrs, split) {}
+
+    function addPayee(address account, uint256 shares_) external onlyOwner {
+        _addPayee(account, shares_);
     }
 }

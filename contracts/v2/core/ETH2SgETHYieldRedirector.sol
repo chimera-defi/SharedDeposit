@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: UNLICENSED
+
 // Acts as the deposit contract for the reward receiver during normal functioning
 // 100% of recieved ETH from rewards is auto-compounded back into sgETH
 // 60% is immutably always transfered to wsgETH for staker rewards
@@ -5,12 +7,11 @@
 
 // call work() to process eth
 pragma solidity 0.8.20;
-// SPDX-License-Identifier: MIT
 
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {PaymentSplitter} from "../../lib/PaymentSplitter.sol";
 import {ISharedDeposit} from "../../interfaces/ISharedDeposit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 contract ETH2SgETHYieldRedirector is Ownable2Step, PaymentSplitter {
     address public immutable sgETH;

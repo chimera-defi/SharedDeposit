@@ -4,7 +4,7 @@
 // License-Identifier: GPL-2.0-or-later
 pragma solidity >=0.8.0;
 
-// flattened xERC4626 from fei-protocol/erc4626 
+// flattened xERC4626 from fei-protocol/erc4626
 // underlying solmate libs have been audited
 
 /// @notice Modern and gas efficient ERC20 + EIP-2612 implementation.
@@ -1057,7 +1057,6 @@ abstract contract ReentrancyGuard {
 // File contracts/v2/core/SSGEth.sol
 // License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.20;
-
 
 /// @title ssgETH - Vault token for staked sgETH. ERC20 + ERC4626
 /// @author @ChimeraDefi - sharedstake.org - based on sfrxETH

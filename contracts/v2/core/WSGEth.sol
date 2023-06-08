@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
     Mint vs Deposit
     mint() - deposit targeting a specific number of ssgETH out
     deposit() - deposit knowing a specific number of ssgETH in */
-contract SSGETH is xERC4626, ReentrancyGuard {
+contract WSGETH is xERC4626, ReentrancyGuard {
     modifier andSync() {
         if (block.timestamp >= rewardsCycleEnd) {
             syncRewards();
@@ -25,7 +25,7 @@ contract SSGETH is xERC4626, ReentrancyGuard {
 
     /* ========== CONSTRUCTOR ========== */
     constructor(ERC20 _underlying, uint32 _rewardsCycleLength)
-        ERC4626(_underlying, "Staked SharedStake Governed Ether", "ssgETH")
+        ERC4626(_underlying, "Wrapped SharedStake Governed Ether", "wsgETH")
         xERC4626(_rewardsCycleLength)
     {}
 

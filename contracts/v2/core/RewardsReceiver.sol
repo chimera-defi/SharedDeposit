@@ -7,6 +7,7 @@ pragma solidity 0.8.20;
 // Sends all recieved ETH to withdrawals contract when system is shutting down and validators are being exited
 // normal deposit contract is ETH2sgETHYR to autocompound rewards
 // call work() to process ETH
+// DAO is set as owner. must call acceptOwnership. can call flipState
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 contract RewardsReceiver is Ownable2Step {
