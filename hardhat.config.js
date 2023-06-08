@@ -7,6 +7,7 @@ require("hardhat-deploy-ethers");
 require("hardhat-gas-reporter");
 require("hardhat-contract-sizer");
 require("hardhat-abi-exporter");
+require("dotenv").config();
 
 let secrets = require("./secrets.js");
 const path = require("path");
@@ -50,6 +51,15 @@ module.exports = {
         },
       },
       {
+        version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+      {
         version: "0.8.4",
         settings: {
           optimizer: {
@@ -72,17 +82,17 @@ module.exports = {
   networks: {
     hardhat: {},
     goerli: {
-      url: secrets.INFURA_GOERLI,
-      accounts: [`0x${secrets.GOERLI_PRIVATE_KEY}`],
+      url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_GOERLI_KEY}`,
+      accounts: [`0x${process.env.GOERLIPK}`],
       chainId: chainIds.goerli,
       initialBaseFeePerGas: 1000000000,
     },
-    mainnet: {
-      url: secrets.INFURA_MAINNET,
-      accounts: [`0x${secrets.MAINNET_PRIVATE_KEY}`],
-      chainId: chainIds.mainnet,
-      initialBaseFeePerGas: 1000000000
-    }
+    // mainnet: {
+    //   url: secrets.INFURA_MAINNET,
+    //   accounts: [`0x${secrets.MAINNET_PRIVATE_KEY}`],
+    //   chainId: chainIds.mainnet,
+    //   initialBaseFeePerGas: 1000000000,
+    // },
   },
   gasReporter: {
     currency: "USD",
@@ -93,7 +103,8 @@ module.exports = {
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
-    apiKey: secrets.ETHERSCAN_API,
+    // apiKey: secrets.ETHERSCAN_API,
+    apiKey: process.env.ETHERSCAN_API,
   },
   contractSizer: {
     alphaSort: true,

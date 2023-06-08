@@ -24,6 +24,7 @@
     "@fei-protocol/erc4626": "^0.0.0",
     "@openzeppelin/contracts": "^4.8.0",
     "@openzeppelin/contracts-upgradeable": "^4.3.1",
+    "dotenv": "^16.1.4",
     "solmate": "^6.7.0"
   },
   "scripts": {
