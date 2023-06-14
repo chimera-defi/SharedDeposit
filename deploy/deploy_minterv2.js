@@ -1,10 +1,13 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
-let {DeployHelper} = require("./deploy_utils.js");
+let { DeployHelper } = require("./deploy_utils.js");
 require("dotenv").config();
 
 async function main() {
-  deployer = new ethers.Wallet(process.env.GOERLIPK, ethers.provider);
+  deployer = new ethers.Wallet(
+    network.name == 'goerli' ? process.env.GOERLIPK : process.env.LOCALPK,
+    ethers.provider
+  );
   // deployer = new ethers.Wallet(process.env.LOCALPK, ethers.provider);
 
   let address = deployer.address;
@@ -48,6 +51,35 @@ async function main() {
     return [argsObj.operator, argsObj.daoPay, argsObj.reflectionPay];
   };
 
+  let warmUpDepositWithdraw = async (amt) => {
+    await dh.getContract("SharedDepositMinterV2").deposit({ value: amt });
+    await dh.getContract("SharedDepositMinterV2").withdraw(amt / 2);
+    await dh.getContract("SharedDepositMinterV2").withdraw(amt / 2);
+    console.log("Deposit withdraw test done");
+  }
+
+  if (isUpdate) {
+    let sgEth = await dh.getContractAt("SgETH", "0x453B459249F82ba3f369651aD485Fa11C6F082F8");
+
+    await dh.deployContract("SharedDepositMinterV2", "SharedDepositMinterV2", [
+      params.numValidators,
+      params.adminFee,
+      sgEth.address,
+    ]);
+
+    console.log(await sgEth.MINTER())
+
+    console.log("minters count: ", await sgEth.getRoleMemberCount(await sgEth.MINTER()));
+    await sgEth.addMinter(dh.addressOf("SharedDepositMinterV2"))
+
+
+    console.log("Add miinter to sgETH at", dh.addressOf("SharedDepositMinterV2"), sgEth.address);
+    console.log("minters count: ", await sgEth.getRoleMemberCount(await sgEth.MINTER()));
+    await warmUpDepositWithdraw(1e12);
+    await dh.postRun();
+    return;
+  }
+
   /** Deploy core of v2 system
    * 1. Deploy sgETH
    * 2. Deploy wsgETH
@@ -60,12 +92,12 @@ async function main() {
   await dh.deployContract("WSGETH", "WSGETH", [sgETHAddrs, params.epochLen]);
   let wsgETHAddr = dh.addressOf("WSGETH");
 
-  await dh.deployContract("SharedDepositMinter", "SharedDepositMinter", [
+  await dh.deployContract("SharedDepositMinterV2", "SharedDepositMinterV2", [
     params.numValidators,
     params.adminFee,
     sgETHAddrs,
   ]);
-  let minter = dh.addressOf("SharedDepositMinter");
+  let minter = dh.addressOf("SharedDepositMinterV2");
   dh.contracts["SgETH"].contract.addMinter(minter);
   console.log("added minter");
 
@@ -100,7 +132,7 @@ async function main() {
   // pubkey is 0x01 + (11 bytes?) 20 0s + eth1 addr 20 bytes (40 characters)  ? = final length 66
   //
   let eth1Withdraw = `${withdrawalCredsPrefix}${rewardsReceiver.split("x")[1]}`;
-  dh.getContract("SharedDepositMinter").setWithdrawalCredential(eth1Withdraw);
+  dh.getContract("SharedDepositMinterV2").setWithdrawalCredential(eth1Withdraw);
 
   // dh.transact(dh.getContract("SharedDepositMinter").setWithdrawalCredential, eth1Withdraw);
   console.log(`setWithdrawalCredential ${eth1Withdraw}`);
@@ -118,15 +150,15 @@ async function main() {
   // test deposit withdraw flow
 
   let amt = 1e12;
-  await dh.getContract("SharedDepositMinter").deposit({value: amt})
+  await dh.getContract("SharedDepositMinterV2").deposit({ value: amt });
   console.log(" \n Deposited and recv'd SGETH: ", (await dh.getContract("SgETH").balanceOf(address)).toString());
   await dh.getContract("SgETH").approve(wsgETHAddr, amt);
-  await dh.getContract("WSGETH").deposit(amt/2, address);
+  await dh.getContract("WSGETH").deposit(amt / 2, address);
 
   console.log("\n Deposited sgETH to wsgETH ");
-  await dh.getContract("WSGETH").withdraw(amt/4, address, address);
+  await dh.getContract("WSGETH").withdraw(amt / 4, address, address);
 
-  await dh.getContract("SharedDepositMinter").withdraw(amt/2)
+  await dh.getContract("SharedDepositMinterV2").withdraw(amt / 2);
   console.log("Deposit withdraw test done");
 
   await dh.postRun();
