@@ -126,7 +126,7 @@ contract SharedDepositMinter is Ownable, Pausable, ReentrancyGuard, ETH2DepositW
         }
         uint256 newShareTotal = curValidatorShares.sub(amount);
 
-        require(address(this).balance > amount, "Eth2Staker:withdraw:Not enough balance in contract");
+        require(address(this).balance >= amount, "Eth2Staker:withdraw:Not enough balance in contract");
         require(BETHToken.balanceOf(msg.sender) >= amount, "Eth2Staker: Sender balance not enough");
 
         curValidatorShares = newShareTotal;
