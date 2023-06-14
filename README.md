@@ -53,12 +53,18 @@ yarn sol
 ```
 
 - Deployments and hardhat
+  Run anvil for local host deploy
+
+```
+anvil --fork-url https://mainnet.sharedtools.org/apecoinrpc
+ npx hardhat run --network ...
+```
 
 ```
 export GOERLIPK='Goerli private key'
 export ETHERSCAN_API='xx'
 export ALCHEMY_GOERLI_KEY='xx'
-// see deploy_minterv2.js or deply tasks in package.json for hardhat deploy useage
+// see deploy_minterv2.js or deploy tasks in package.json for hardhat deploy usage
 ```
 
 # Archival
