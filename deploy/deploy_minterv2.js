@@ -5,14 +5,18 @@ require("dotenv").config();
 
 async function main() {
   deployer = new ethers.Wallet(process.env.GOERLIPK, ethers.provider);
+  // deployer = new ethers.Wallet(process.env.LOCALPK, ethers.provider);
+
   let address = deployer.address;
   let dh = new DeployHelper(network.name, address);
   await dh.init(address);
 
   let withdrawalCredsPrefix = `0x010000000000000000000000`;
 
+  let isUpdate = true;
+
   let params = {
-    epochLen: 1 * 7 * 24 * 69 * 60, // 1 wk
+    epochLen: 24 * 60 * 60, // 1 day
     numValidators: 10000,
     adminFee: 0,
     multisigAddr: address, // todo: mainnet fix,
@@ -20,6 +24,28 @@ async function main() {
     sgETHVirtualPrice: "1000000000000000000",
     deployer: address,
     rolloverVirtual: "1100000000000000000",
+  };
+
+  let daoFeeSplitterDistro = {
+    founder: 1,
+    nor: 5,
+    dao: 3,
+    reflection: 91,
+  };
+  let prctGlobalToPartOfPrctLocal = (argsObj, partOf) => {
+    // call with daoFeeSplitterDistro and partOf = what perct the splitter gets. e.g. 40 if it gets 40%
+    // converts daoFeeSplitterDistro as a part of 100% of fees
+    // to args for the splitter as part of fees
+    // 6% of 100% is (6 * 5) or 30% or (6 * 100 / part) of 20%
+    // $6 = (100 * 0.3 * 0.2)
+    let scalingFactor = (100 / partOf) * 10; // 300 if partof is 20
+    argsObj = {
+      operator: (argsObj.founder + argsObj.nor) * scalingFactor,
+      daoPay: argsObj.dao * scalingFactor,
+      reflectionPay: argsObj.reflection * scalingFactor,
+    };
+    console.log(argsObj);
+    return [argsObj.operator, argsObj.daoPay, argsObj.reflectionPay];
   };
 
   /** Deploy core of v2 system
@@ -76,7 +102,7 @@ async function main() {
   let eth1Withdraw = `${withdrawalCredsPrefix}${rewardsReceiver.split("x")[1]}`;
   dh.getContract("SharedDepositMinter").setWithdrawalCredential(eth1Withdraw);
 
-  // dh.transact(dh.getContract("SharedDepositMinter").setWithdrawalCredential, rewardsReceiver);
+  // dh.transact(dh.getContract("SharedDepositMinter").setWithdrawalCredential, eth1Withdraw);
   console.log(`setWithdrawalCredential ${eth1Withdraw}`);
   /**
    * Servicing for v1
@@ -89,6 +115,19 @@ async function main() {
 
   // Todo: ownership transfers
   // transferFeeSplittertoDao();
+  // test deposit withdraw flow
+
+  let amt = 1e12;
+  await dh.getContract("SharedDepositMinter").deposit({value: amt})
+  console.log(" \n Deposited and recv'd SGETH: ", (await dh.getContract("SgETH").balanceOf(address)).toString());
+  await dh.getContract("SgETH").approve(wsgETHAddr, amt);
+  await dh.getContract("WSGETH").deposit(amt/2, address);
+
+  console.log("\n Deposited sgETH to wsgETH ");
+  await dh.getContract("WSGETH").withdraw(amt/4, address, address);
+
+  await dh.getContract("SharedDepositMinter").withdraw(amt/2)
+  console.log("Deposit withdraw test done");
 
   await dh.postRun();
 }

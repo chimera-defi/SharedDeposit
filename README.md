@@ -26,6 +26,19 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 
 # Goerli
 
+## Wed Jun 14 '23
+
+SgETH deployed to 0x453B459249F82ba3f369651aD485Fa11C6F082F8 at https://goerli.etherscan.io/address/0x453B459249F82ba3f369651aD485Fa11C6F082F8 
+WSGETH deployed to 0xbFA813C3266Af70A5Ddc15d9253655281e2bCd23 at https://goerli.etherscan.io/address/0xbFA813C3266Af70A5Ddc15d9253655281e2bCd23 
+SharedDepositMinter deployed to 0x1973C9531AC95d2D465D06F13D8D751890673168 at https://goerli.etherscan.io/address/0x1973C9531AC95d2D465D06F13D8D751890673168 
+PaymentSplitter deployed to 0xC01063EC89B210BE8037d549D618980845657994 at https://goerli.etherscan.io/address/0xC01063EC89B210BE8037d549D618980845657994 
+Withdrawals deployed to 0x765d0dA8536cE858E0D2B54025b223231db0FeAE at https://goerli.etherscan.io/address/0x765d0dA8536cE858E0D2B54025b223231db0FeAE 
+ETH2SgETHYieldRedirector deployed to 0x8253F05c5E7b76F5ff855a6D52Ea9B9B5FD666cA at https://goerli.etherscan.io/address/0x8253F05c5E7b76F5ff855a6D52Ea9B9B5FD666cA 
+RewardsReceiver deployed to 0xC9F2ddBf105ff67c2BA30b2dB968Bc564a16ca67 at https://goerli.etherscan.io/address/0xC9F2ddBf105ff67c2BA30b2dB968Bc564a16ca67 
+WithdrawalsvETH2 deployed to 0xd70201Ea40c12cFE6Bf69Dc9A2ca9FB14bb8DB0b at https://goerli.etherscan.io/address/0xd70201Ea40c12cFE6Bf69Dc9A2ca9FB14bb8DB0b 
+Rollover deployed to 0xaa93EF92Ef8663902BeE679B9B8bFB60c966d50C at https://goerli.etherscan.io/address/0xaa93EF92Ef8663902BeE679B9B8bFB60c966d50C 
+
+
 ## Wed Jun 7 '23
 
 SgETH deployed to 0xd0f593aeB7E22B1038edC398aA53A56B38435de9 at https://goerli.etherscan.io/address/0xd0f593aeB7E22B1038edC398aA53A56B38435de9
