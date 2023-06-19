@@ -29,6 +29,21 @@ contract WSGETH is xERC4626, ReentrancyGuard {
         xERC4626(_rewardsCycleLength)
     {}
 
+    /// @notice Approve and deposit() in one transaction
+    function depositWithSignature(
+        uint256 assets,
+        address receiver,
+        uint256 deadline,
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external nonReentrant returns (uint256 shares) {
+        uint256 amount = approveMax ? type(uint256).max : assets;
+        asset.permit(msg.sender, address(this), amount, deadline, v, r, s);
+        return (deposit(assets, receiver));
+    }
+
     /// @notice inlines syncRewards with deposits when able
     function deposit(uint256 assets, address receiver) public override nonReentrant andSync returns (uint256 shares) {
         return super.deposit(assets, receiver);
@@ -60,20 +75,5 @@ contract WSGETH is xERC4626, ReentrancyGuard {
     /// @notice How much sgETH is 1E18 ssgETH worth. Price is in ETH, not USD
     function pricePerShare() public view returns (uint256) {
         return convertToAssets(1e18);
-    }
-
-    /// @notice Approve and deposit() in one transaction
-    function depositWithSignature(
-        uint256 assets,
-        address receiver,
-        uint256 deadline,
-        bool approveMax,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external nonReentrant returns (uint256 shares) {
-        uint256 amount = approveMax ? type(uint256).max : assets;
-        asset.permit(msg.sender, address(this), amount, deadline, v, r, s);
-        return (deposit(assets, receiver));
     }
 }

@@ -16,14 +16,12 @@ contract ERC20MintableBurnableByMinter is ERC20Burnable, ERC20Permit, AccessCont
     bytes32 public constant MINTER = keccak256("MINTER");
 
     /* ========== CONSTRUCTOR ========== */
-    constructor(string memory _name, string memory _symbol) 
-    ERC20(_name, _symbol) ERC20Permit(_name) 
-    {}
+    constructor(string memory _name, string memory _symbol) ERC20(_name, _symbol) ERC20Permit(_name) {}
 
     /* ========== RESTRICTED FUNCTIONS ========== */
     /// @notice burnFrom Used by minters when user redeems
-    /// @param addr The address to burn from 
-    /// @param amt The amount to burn 
+    /// @param addr The address to burn from
+    /// @param amt The amount to burn
     function burnFrom(address addr, uint256 amt) public override onlyRole(MINTER) {
         super.burnFrom(addr, amt);
     }

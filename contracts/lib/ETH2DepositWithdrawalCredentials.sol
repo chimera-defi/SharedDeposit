@@ -9,14 +9,14 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 /// @dev Downstream contract needs to implement who can set the withdrawal address and set it
 contract ETH2DepositWithdrawalCredentials {
     using SafeMath for uint256;
-    event WithdrawalCredentialSet(bytes _withdrawalCredential);
 
     uint256 internal constant _depositAmount = 32 ether;
     IDepositContract internal constant depositContract =  IDepositContract(0x00000000219ab540356cBB839Cbe05303d7705Fa);
     bytes public curr_withdrawal_pubkey; // Pubkey for ETH 2.0 withdrawal creds
 
-    constructor() {}
+    event WithdrawalCredentialSet(bytes _withdrawalCredential);
 
+    constructor() {}
     /// @notice A more streamlined variant of batch deposit for use with preset withdrawal addresses 
     ///         Submit index-matching arrays that form Phase 0 DepositData objects.
     ///         Will create a deposit transaction per index of the arrays submitted.

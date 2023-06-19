@@ -13,7 +13,10 @@ contract FeeSplitter is Ownable2Step, PaymentSplitter {
     uint256[] public split;
     address[] public splitAddrs;
 
-    constructor() Ownable2Step() PaymentSplitter(splitAddrs, split) {}
+    constructor(address deployer, address dao) Ownable2Step() PaymentSplitter(splitAddrs, split) {
+        _addPayee(deployer, 60);
+        _addPayee(dao, 40);
+    }
 
     function addPayee(address account, uint256 shares_) external onlyOwner {
         _addPayee(account, shares_);
