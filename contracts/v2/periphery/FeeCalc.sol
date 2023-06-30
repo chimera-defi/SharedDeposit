@@ -32,7 +32,7 @@ contract FeeCalc {
         }
     }
 
-    function setAdminFee(uint256 amount) external onlyOwner {
+    function setAdminFee(uint256 amount) external {
         adminFee = amount;
         costPerValidator = uint256(32).mul(1e18).add(adminFee);
     }

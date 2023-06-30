@@ -48,16 +48,6 @@ interface IxERC4626 {
     /// @notice the amount of rewards distributed in a the most recent cycle
     function lastRewardAmount() external view returns (uint192);
 
-    // Takes X(n=assets) ETH and returns Y(n=shares) wsgETH
-    function deposit(uint256 assets, address receiver) external virtual returns (uint256 shares);
-
-    // Takes assets wsgETH and returns shares sgETH
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address owner
-    ) external virtual returns (uint256 assets);
-
     /*////////////////////////////////////////////////////////
                     State Changing Methods
     ////////////////////////////////////////////////////////*/

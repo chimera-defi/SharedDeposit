@@ -13,7 +13,7 @@ pragma solidity 0.8.20;
 import {IvETH2} from "../../interfaces/IvETH2.sol";
 import {IFeeCalc} from "../../interfaces/IFeeCalc.sol";
 import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.sol";
-import {IxERC4626} from "../../interfaces/IxERC4626.sol";
+import {IWSGEth} from "../../interfaces/IWSGEth.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -49,7 +49,7 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
     address public LSDTokenAddress;
     IFeeCalc public FeeCalc;
     IERC20MintableBurnable public SGETH;
-    IxERC4626 public WSGETH;
+    IWSGEth public WSGETH;
 
     constructor(
         uint256 _numValidators,
@@ -60,7 +60,7 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
     ) ETH2DepositWithdrawalCredentials() {
         FeeCalc = IFeeCalc(_feeCalculatorAddr);
         SGETH = IERC20MintableBurnable(_sgETHAddr);
-        WSGETH = IxERC4626(_wsgETHAddr);
+        WSGETH = IWSGEth(_wsgETHAddr);
 
         uint256 MAX_INT = 2**256 - 1;
         SGETH.approve(_wsgETHAddr, MAX_INT); // max approve wsgeth for deposit and stake
