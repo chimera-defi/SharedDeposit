@@ -3,7 +3,7 @@ const fs = require("fs");
 const {ethers} = hre;
 
 const log = txt => {
-  txt = txt + "\n";
+  txt = txt + "  \n";
   console.log(txt);
   fs.writeFileSync("log.txt", txt, {flag: "a"});
 };
@@ -16,7 +16,7 @@ const isMainnet = launchNetwork => {
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.utils.parseUnits("20", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("60", "gwei"),
     maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
     gasLimit: 10000000,
   };
@@ -184,10 +184,12 @@ class DeployHelper {
     this.distribution = {};
     this.multisig_address = multisig_address;
   }
-  async init(address) {
+  async init(address, deployer={}) {
     this.address = address;
     this.initialBalance = await hre.ethers.provider.getBalance(address);
     this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
+    this.deployer = deployer;
+    
     log(
       `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${
         this.currentBlockTime
@@ -220,6 +222,13 @@ class DeployHelper {
   getContract(name) {
     return _getContract(this.contracts, name);
   }
+  async getContractAt(name, address) {
+    let factory = await hre.ethers.getContractFactory(name);
+    let contract = await factory.attach(address);
+    if (this.deployer?.address) await contract.connect(this.deployer);
+    // this.contracts[name] = contract;
+    return contract;
+  }
   async _checkEnoughTokensToDistribute(token) {
     let total = Object.values(this.distribution).reduce((a, b) => a.add(b));
     let diff = (await this.getContract(token).balanceOf(this.address)).sub(total);
@@ -249,6 +258,9 @@ class DeployHelper {
   async verify() {
     await _verifyAll(this.contracts, this.launchNetwork);
   }
+  async mine() {
+    advanceTimeAndBlock(20, hre.ethers);
+  }
 
   async postRun() {
     await _postRun(this.contracts, this.launchNetwork);
@@ -261,6 +273,10 @@ class DeployHelper {
       )}. Took ${finalBlockTime - this.currentBlockTime} seconds`,
     );
     await this.verify();
+  }
+
+  log(txt) {
+    log(txt);
   }
 }
 
@@ -278,5 +294,6 @@ module.exports = {
   _sendTokens: _sendTokens,
   _transferOwnership: _transferOwnership,
   _getContract: _getContract,
+  advanceTimeAndBlock: advanceTimeAndBlock,
   DeployHelper: DeployHelper,
 };
