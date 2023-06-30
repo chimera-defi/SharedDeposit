@@ -1,13 +1,10 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
-let { DeployHelper } = require("./deploy_utils.js");
+let {DeployHelper} = require("./deploy_utils.js");
 require("dotenv").config();
 
 async function main() {
-  deployer = new ethers.Wallet(
-    network.name == 'goerli' ? process.env.GOERLIPK : process.env.LOCALPK,
-    ethers.provider
-  );
+  deployer = new ethers.Wallet(network.name == "goerli" ? process.env.GOERLIPK : process.env.LOCALPK, ethers.provider);
   // deployer = new ethers.Wallet(process.env.LOCALPK, ethers.provider);
 
   let address = deployer.address;
@@ -27,6 +24,7 @@ async function main() {
     sgETHVirtualPrice: "1000000000000000000",
     deployer: address,
     rolloverVirtual: "1100000000000000000",
+    feeCalcAddr: dh.addressOf(0), // 0x00 address since initial fees = 0
   };
 
   let daoFeeSplitterDistro = {
@@ -51,12 +49,23 @@ async function main() {
     return [argsObj.operator, argsObj.daoPay, argsObj.reflectionPay];
   };
 
-  let warmUpDepositWithdraw = async (amt) => {
-    await dh.getContract("SharedDepositMinterV2").deposit({ value: amt });
-    await dh.getContract("SharedDepositMinterV2").withdraw(amt / 2);
-    await dh.getContract("SharedDepositMinterV2").withdraw(amt / 2);
+  // do a cycle check to make sure things work right
+  // we call the fns twice as warmed up slots change gas costs and this helps set a benchmark
+  let m2name = "SharedDepositMinterV2";
+  let warmUpDeposit = async (c = m2name, amt) => {
+    await dh.getContract(c).deposit({value: amt / 2});
+    await dh.getContract(c).deposit({value: amt / 2});
+  };
+  let warmupWithdraw = async (c = m2name, amt) => {
+    await dh.getContract(c).withdraw(amt / 2);
+    await dh.getContract(c).withdraw(amt / 2);
+  };
+
+  let warmUpDepositWithdraw = async amt => {
+    await warmUpDeposit(amt);
+    await warmupWithdraw(amt);
     console.log("Deposit withdraw test done");
-  }
+  };
 
   if (isUpdate) {
     let sgEth = await dh.getContractAt("SgETH", "0x453B459249F82ba3f369651aD485Fa11C6F082F8");
@@ -67,11 +76,10 @@ async function main() {
       sgEth.address,
     ]);
 
-    console.log(await sgEth.MINTER())
+    console.log(await sgEth.MINTER());
 
     console.log("minters count: ", await sgEth.getRoleMemberCount(await sgEth.MINTER()));
-    await sgEth.addMinter(dh.addressOf("SharedDepositMinterV2"))
-
+    await sgEth.addMinter(dh.addressOf("SharedDepositMinterV2"));
 
     console.log("Add miinter to sgETH at", dh.addressOf("SharedDepositMinterV2"), sgEth.address);
     console.log("minters count: ", await sgEth.getRoleMemberCount(await sgEth.MINTER()));
@@ -95,7 +103,9 @@ async function main() {
   await dh.deployContract("SharedDepositMinterV2", "SharedDepositMinterV2", [
     params.numValidators,
     params.adminFee,
+    params.feeCalcAddr,
     sgETHAddrs,
+    wsgETHAddr,
   ]);
   let minter = dh.addressOf("SharedDepositMinterV2");
   dh.contracts["SgETH"].contract.addMinter(minter);
@@ -149,8 +159,8 @@ async function main() {
   // transferFeeSplittertoDao();
   // test deposit withdraw flow
 
-  let amt = 1e12;
-  await dh.getContract("SharedDepositMinterV2").deposit({ value: amt });
+  let amt = 1e16;
+  await dh.getContract("SharedDepositMinterV2").deposit({value: amt});
   console.log(" \n Deposited and recv'd SGETH: ", (await dh.getContract("SgETH").balanceOf(address)).toString());
   await dh.getContract("SgETH").approve(wsgETHAddr, amt);
   await dh.getContract("WSGETH").deposit(amt / 2, address);

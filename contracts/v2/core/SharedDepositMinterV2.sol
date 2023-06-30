@@ -11,6 +11,9 @@ pragma solidity 0.8.20;
 // 4. Who is allows to deposit how many validators is governed outside this contract
 // 5. The ability to provision validators for user ETH is portioned out by the DAO
 import {IvETH2} from "../../interfaces/IvETH2.sol";
+import {IFeeCalc} from "../../interfaces/IFeeCalc.sol";
+import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.sol";
+import {IxERC4626} from "../../interfaces/IxERC4626.sol";
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -41,40 +44,41 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
     uint256 public buffer;
 
     // Flash loan tokenomic protection in case of changes in admin fee with future lots
-    bool public disableWithdrawRefund; //initialized to false
+    bool public refundFeesOnWithdraw; //initialized to false
 
     address public LSDTokenAddress;
-    IvETH2 private BETHToken;
+    IFeeCalc public FeeCalc;
+    IERC20MintableBurnable public SGETH;
+    IxERC4626 public WSGETH;
 
     constructor(
         uint256 _numValidators,
         uint256 _adminFee,
-        address _BETHTokenAddress
-    ) public ETH2DepositWithdrawalCredentials() {
+        address _feeCalculatorAddr,
+        address _sgETHAddr,
+        address _wsgETHAddr
+    ) ETH2DepositWithdrawalCredentials() {
+        FeeCalc = IFeeCalc(_feeCalculatorAddr);
+        SGETH = IERC20MintableBurnable(_sgETHAddr);
+        WSGETH = IxERC4626(_wsgETHAddr);
+
+        uint256 MAX_INT = 2**256 - 1;
+        SGETH.approve(_wsgETHAddr, MAX_INT); // max approve wsgeth for deposit and stake
+
         adminFee = _adminFee; // Admin and infra fees
         numValidators = _numValidators; // The number of validators to create in this lot. Sets a max limit on deposits
 
         // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token
         buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
 
-        LSDTokenAddress = _BETHTokenAddress;
-        BETHToken = IvETH2(LSDTokenAddress);
+        LSDTokenAddress = _sgETHAddr;
 
         costPerValidator = uint256(32).mul(1e18).add(adminFee);
     }
 
-    function maxValidatorShares() public view returns (uint256) {
-        return uint256(32).mul(1e18).mul(numValidators);
-    }
-
-    function remainingSpaceInEpoch() external view returns (uint256) {
-        // Helpful view function to gauge how much the user can send to the contract when it is near full
-        uint256 remainingShares = (maxValidatorShares()).sub(curValidatorShares);
-        uint256 valBeforeAdmin = remainingShares.mul(1e18).div(
-            uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator))
-        );
-        return valBeforeAdmin;
-    }
+    /*//////////////////////////////////////////////////////////////
+                        DEPOSIT/WITHDRAWAL LOGIC
+    //////////////////////////////////////////////////////////////*/
 
     // USER INTERACTIONS
     /*
@@ -93,66 +97,40 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
         P = Z - Z*a%
     */
 
-    function _deposit() internal {
-        uint256 value = msg.value;
-        curValidatorShares = curValidatorShares.add(value);
-        BETHToken.mint(msg.sender, value);
-    }
-
-    function _withdraw(uint256 amount) internal {
-        BETHToken.burn(msg.sender, amount); // burn will revert if user does not have enough tokens
-        curValidatorShares = curValidatorShares.sub(amount);
-        address payable sender = payable(msg.sender);
-        Address.sendValue(sender, amount);
-    }
-
     function deposit() external payable nonReentrant whenNotPaused {
-        if (adminFee == 0) {
-            return _deposit();
-        }
-        // input is whole, not / 1e18 , i.e. in 1 = 1 eth send when from etherscan
-        uint256 value = msg.value;
+        SGETH.mint(msg.sender, _depositAccounting());
+    }
 
-        uint256 myAdminFee = value.mul(adminFee).div(costPerValidator);
-        uint256 valMinusAdmin = value.sub(myAdminFee);
-        uint256 newShareTotal = curValidatorShares.add(valMinusAdmin);
-
-        require(
-            newShareTotal <= buffer.add(maxValidatorShares()),
-            "Eth2Staker:deposit:Amount too large, not enough validators left"
-        );
-        curValidatorShares = newShareTotal;
-        adminFeeTotal = adminFeeTotal.add(myAdminFee);
-        BETHToken.mint(msg.sender, valMinusAdmin);
+    function depositAndStake() external payable nonReentrant whenNotPaused {
+        uint256 amt = _depositAccounting();
+        SGETH.mint(address(this), amt);
+        WSGETH.deposit(amt, msg.sender);
     }
 
     function withdraw(uint256 amount) external nonReentrant whenNotPaused {
-        if (adminFee == 0) {
-            return _withdraw(amount);
-        }
-        uint256 valBeforeAdmin;
-        if (disableWithdrawRefund) {
-            valBeforeAdmin = amount;
-        } else {
-            valBeforeAdmin = amount.mul(1e18).div(uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator)));
-        }
-        uint256 newShareTotal = curValidatorShares.sub(amount);
+        SGETH.burn(msg.sender, amount);
+        uint256 assets = _withdrawAccounting(amount);
 
-        require(address(this).balance >= amount, "Eth2Staker:withdraw:Not enough balance in contract");
-        require(BETHToken.balanceOf(msg.sender) >= amount, "Eth2Staker: Sender balance not enough");
-
-        curValidatorShares = newShareTotal;
-        adminFeeTotal = adminFeeTotal.sub(valBeforeAdmin.sub(amount));
-        BETHToken.burn(msg.sender, amount);
         address payable sender = payable(msg.sender);
-        Address.sendValue(sender, valBeforeAdmin);
+        Address.sendValue(sender, assets);
+    }
+
+    function unstakeAndWithdraw(uint256 amount) external nonReentrant whenNotPaused {
+        uint256 assets = WSGETH.redeem(amount, address(this), msg.sender);
+        SGETH.burn(address(this), assets);
+        assets = _withdrawAccounting(assets); // account for fees / update state
+
+        address payable sender = payable(msg.sender);
+        Address.sendValue(sender, assets);
     }
 
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
     function donate(uint256 shares) external payable nonReentrant {}
 
-    // OWNER ONLY FUNCTIONS
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN LOGIC
+    //////////////////////////////////////////////////////////////*/
 
     // Used to migrate state over to new contract
     function migrateShares(uint256 shares) external onlyOwner nonReentrant {
@@ -169,9 +147,8 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
         validatorsCreated = validatorsCreated.add(pubkeys.length);
     }
 
-    function setAdminFee(uint256 amount) external onlyOwner {
-        adminFee = amount;
-        costPerValidator = uint256(32).mul(1e18).add(adminFee);
+    function setFeeCalc(address _feeCalculatorAddr) external onlyOwner {
+        FeeCalc = IFeeCalc(_feeCalculatorAddr);
     }
 
     function withdrawAdminFee(uint256 amount) external onlyOwner nonReentrant {
@@ -191,5 +168,57 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
 
     function setWithdrawalCredential(bytes memory _new_withdrawal_pubkey) external onlyOwner {
         _setWithdrawalCredential(_new_withdrawal_pubkey);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ACCOUNTING LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    function remainingSpaceInEpoch() external view returns (uint256) {
+        // Helpful view function to gauge how much the user can send to the contract when it is near full
+        uint256 remainingShares = (maxValidatorShares()).sub(curValidatorShares);
+        uint256 valBeforeAdmin = remainingShares.mul(1e18).div(
+            uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator))
+        );
+        return valBeforeAdmin;
+    }
+
+    function maxValidatorShares() public view returns (uint256) {
+        return uint256(32).mul(1e18).mul(numValidators);
+    }
+
+    function _depositAccounting() internal returns (uint256 value) {
+        // input is whole, not / 1e18 , i.e. in 1 = 1 eth send when from etherscan
+        value = msg.value;
+        uint256 fee;
+
+        if (address(FeeCalc) != address(0)) {
+            (value, fee) = FeeCalc.processDeposit(value, msg.sender);
+            adminFeeTotal = adminFeeTotal.add(fee);
+        }
+
+        uint256 newShareTotal = curValidatorShares.add(value);
+
+        require(newShareTotal <= buffer.add(maxValidatorShares()), "_depositAccounting:Amt 2 lrg");
+        curValidatorShares = newShareTotal;
+    }
+
+    function _withdrawAccounting(uint256 amount) internal returns (uint256) {
+        uint256 fee;
+        if (address(FeeCalc) != address(0)) {
+            (amount, fee) = FeeCalc.processWithdraw(amount, msg.sender);
+            if (refundFeesOnWithdraw) {
+                adminFeeTotal = adminFeeTotal.sub(fee);
+            } else {
+                adminFeeTotal = adminFeeTotal.add(fee);
+            }
+        }
+
+        require(
+            address(this).balance >= amount.add(adminFeeTotal),
+            "Eth2Staker:withdraw:Not enough balance in contract"
+        );
+        curValidatorShares = curValidatorShares.sub(amount);
+        return amount;
     }
 }
