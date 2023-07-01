@@ -2,20 +2,23 @@
 
 pragma solidity 0.8.20;
 
-// v1 veth2 minter with some code removed
+/// @title SharedDepositMinterV2 - minter for ETH LSD
+/// @author @ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
+// v1 sharedstake veth2 minter with some code removed
 // user deposits eth to get minted token
 // The contract cannot move user ETH outside unless
 // 1. the user redeems 1:1
 // 2. the depositToEth2 or depositToEth2Batch fns are called which allow moving ETH to the mainnet deposit contract only
 // 3. The contract allows permissioned external actors to supply validator public keys
-// 4. Who is allows to deposit how many validators is governed outside this contract
+// 4. Who's allowed to deposit how many validators is governed outside this contract
 // 5. The ability to provision validators for user ETH is portioned out by the DAO
 import {IvETH2} from "../../interfaces/IvETH2.sol";
 import {IFeeCalc} from "../../interfaces/IFeeCalc.sol";
 import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.sol";
 import {IWSGEth} from "../../interfaces/IWSGEth.sol";
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -23,7 +26,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {ETH2DepositWithdrawalCredentials} from "../../lib/ETH2DepositWithdrawalCredentials.sol";
 
-contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
+contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
     using SafeMath for uint256;
     /* ========== STATE VARIABLES ========== */
     uint256 public adminFee;
@@ -51,6 +54,9 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
     IERC20MintableBurnable public SGETH;
     IWSGEth public WSGETH;
 
+    bytes32 public constant NOR = keccak256("NOR"); // Node operator for deploying validators
+    bytes32 public constant GOV = keccak256("GOV"); // Governance for settings - normally timelock controlled by multisig
+
     constructor(
         uint256 _numValidators,
         uint256 _adminFee,
@@ -74,6 +80,9 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
         LSDTokenAddress = _sgETHAddr;
 
         costPerValidator = uint256(32).mul(1e18).add(adminFee);
+
+        _grantRole(NOR, msg.sender);
+        _grantRole(GOV, msg.sender);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,26 +141,39 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
                             ADMIN LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // Used to migrate state over to new contract
-    function migrateShares(uint256 shares) external onlyOwner nonReentrant {
-        curValidatorShares = shares;
-    }
-
+    // Batch deposit eth to the eth2 contract with preset creds
+    // Data needs to be verified offchain to save gas
     function batchDepositToEth2(
         bytes[] calldata pubkeys,
         bytes[] calldata signatures,
         bytes32[] calldata depositDataRoots
-    ) external onlyOwner {
-        require(address(this).balance >= _depositAmount, "Eth2Staker:depositToEth2: Not enough balance"); //need at least 32 ETH
+    ) external onlyRole(NOR) {
+        require(address(this).balance >= _depositAmount.mul(pubkeys.length), "depositToEth2: Not enough balance"); //need at least 32 ETH
         _batchDeposit(pubkeys, signatures, depositDataRoots);
         validatorsCreated = validatorsCreated.add(pubkeys.length);
     }
 
-    function setFeeCalc(address _feeCalculatorAddr) external onlyOwner {
+    // Used to migrate state over to new contract
+    function migrateShares(uint256 shares) external onlyRole(GOV) nonReentrant {
+        curValidatorShares = shares;
+    }
+
+    // Slashes the onchain staked sgETH to mirror CL validator slashings
+    // modifies wsgeth virtual price
+    function slash(uint256 amt) external onlyRole(GOV) {
+        SGETH.burn(address(WSGETH), amt);
+    }
+
+    // Set fee calc address. if addr = 0 then fees are assumed to be 0
+    function setFeeCalc(address _feeCalculatorAddr) external onlyRole(GOV) {
         FeeCalc = IFeeCalc(_feeCalculatorAddr);
     }
 
-    function withdrawAdminFee(uint256 amount) external onlyOwner nonReentrant {
+    function toggleWithdrawRefund() external onlyRole(GOV) {
+        refundFeesOnWithdraw = !refundFeesOnWithdraw;
+    }
+
+    function withdrawAdminFee(uint256 amount) external onlyRole(GOV) nonReentrant {
         address payable sender = payable(msg.sender);
         if (amount == 0) {
             amount = adminFeeTotal;
@@ -161,12 +183,12 @@ contract SharedDepositMinterV2 is Ownable, Pausable, ReentrancyGuard, ETH2Deposi
         Address.sendValue(sender, amount);
     }
 
-    function setNumValidators(uint256 _numValidators) external onlyOwner {
+    function setNumValidators(uint256 _numValidators) external onlyRole(GOV) {
         require(_numValidators != 0, "Minimum 1 validator");
         numValidators = _numValidators;
     }
 
-    function setWithdrawalCredential(bytes memory _new_withdrawal_pubkey) external onlyOwner {
+    function setWithdrawalCredential(bytes memory _new_withdrawal_pubkey) external onlyRole(GOV) {
         _setWithdrawalCredential(_new_withdrawal_pubkey);
     }
 
