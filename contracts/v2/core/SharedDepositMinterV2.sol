@@ -79,7 +79,7 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
         SGETH = IERC20MintableBurnable(addresses[1]);
         WSGETH = IWSGEth(addresses[2]);
 
-        uint256 MAX_INT = 2 ** 256 - 1;
+        uint256 MAX_INT = 2**256 - 1;
         SGETH.approve(address(WSGETH), MAX_INT); // max approve wsgeth for deposit and stake
 
         adminFee = _adminFee; // Admin and infra fees
@@ -269,7 +269,11 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
         return amount;
     }
 
-    function _withdraw(uint256 amount, address origin, address dest) internal {
+    function _withdraw(
+        uint256 amount,
+        address origin,
+        address dest
+    ) internal {
         SGETH.burn(origin, amount);
         uint256 assets = _withdrawAccounting(amount);
 
