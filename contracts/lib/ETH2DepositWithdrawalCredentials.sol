@@ -17,6 +17,7 @@ contract ETH2DepositWithdrawalCredentials {
     event WithdrawalCredentialSet(bytes _withdrawalCredential);
 
     constructor() {}
+
     /// @notice A more streamlined variant of batch deposit for use with preset withdrawal addresses 
     ///         Submit index-matching arrays that form Phase 0 DepositData objects.
     ///         Will create a deposit transaction per index of the arrays submitted.
@@ -29,17 +30,14 @@ contract ETH2DepositWithdrawalCredentials {
         bytes[] calldata signatures,
         bytes32[] calldata depositDataRoots
     ) internal {
-        require(
-                pubkeys.length == signatures.length &&
-                pubkeys.length == depositDataRoots.length,
-            "DH:LMM" // Length mismatch
-        );
+        uint256 loops = pubkeys.length;
+        bytes memory withdraw_pubkey = curr_withdrawal_pubkey;
 
         // Loop through DepositData arrays submitting deposits
-        for (uint256 i = 0; i < pubkeys.length; i++) {
+        for (uint256 i = 0; i < loops; i++) {
             depositContract.deposit{value: _depositAmount}(
                 pubkeys[i],
-                curr_withdrawal_pubkey,
+                withdraw_pubkey,
                 signatures[i],
                 depositDataRoots[i]
             );
