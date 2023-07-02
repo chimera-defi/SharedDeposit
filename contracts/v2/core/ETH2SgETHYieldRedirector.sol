@@ -8,43 +8,47 @@
 // call work() to process eth
 pragma solidity 0.8.20;
 
-import {PaymentSplitter} from "../../lib/PaymentSplitter.sol";
+// import {PaymentSplitter} from "../../lib/PaymentSplitter.sol";
 import {ISharedDeposit} from "../../interfaces/ISharedDeposit.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-contract ETH2SgETHYieldRedirector is Ownable2Step, PaymentSplitter {
-    address public immutable sgETH;
+contract ETH2SgETHYieldRedirector is Ownable2Step {
+    IERC20 public immutable sgETH;
     address public immutable wsgETH;
-    address public immutable feeSplitter;
+    address public feeSplitter;
     address public immutable minter;
     uint256[] public split;
     address[] public splitAddrs;
 
     constructor(
-        address _sgETh,
+        IERC20 _sgETh,
         address _wsgETH,
         address _splitter,
         address _minter
-    ) Ownable2Step() PaymentSplitter(splitAddrs, split) {
+    ) Ownable2Step() {
         sgETH = _sgETh;
         wsgETH = _wsgETH;
         feeSplitter = _splitter;
         minter = _minter;
-
-        _addPayee(_wsgETH, 60);
-        _addPayee(_splitter, 40);
-    }
-
-    // Blocks accidentally sending ETH instead of sgETH to the addresses
-    function release(address payable account) public override {
-        release(IERC20(sgETH), account);
     }
 
     function work() external {
         // convert eth 2 sgETH
         ISharedDeposit(minter).deposit{value: address(this).balance}();
-        release(payable(wsgETH));
-        release(payable(feeSplitter));
+
+        // Calc static split
+        uint256 bal = sgETH.balanceOf(address(this));
+        uint256 part1 = (bal * 40) / 100; // 40% for DAO direction
+        uint256 part2 = bal - part1;
+
+        // Send tokens
+        SafeERC20.safeTransfer(sgETH, feeSplitter, part1);
+        SafeERC20.safeTransfer(sgETH, wsgETH, part2);
+    }
+
+    // Allows upgrading/ changing the downstream DAO fee splitter only for easier fee tier changes in the future
+    function setDAOFeeSplitter(address _feeSplitter) external onlyOwner {
+        feeSplitter = _feeSplitter;
     }
 }
