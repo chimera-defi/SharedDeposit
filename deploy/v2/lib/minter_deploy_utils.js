@@ -20,11 +20,8 @@ async function deployMinterV2(dh, params = {
   ]
 
   await dh.deployContract(name, name, args);
-  await dh.mine();
   console.log("Minter deployed");
-
-  await addMinter(dh, params);
-  console.log("New minter added");
+  return params;
 }
 
 function makeWithdrawalCred(params = {
@@ -45,7 +42,7 @@ async function setWC(dh, params = {
 }) {
   let eth1Withdraw = makeWithdrawalCred(params);
   let sc = await dh.getContract(params.names.minter);
-  sc = await sc.connect(dh.deployer);
+  // sc = await sc.connect(dh.deployer);
   await sc.setWithdrawalCredential(eth1Withdraw);
   console.log("Updated withdrawal creds");
 }
@@ -59,12 +56,13 @@ async function addMinter(dh, params = {
   let se = await dh.getContractAt("SgETH", params.sgETH);
 
   let o = await se.owner();
-  console.log('add minter fn - ', o, dh.address, dh.deployer.address)
+  console.log('add minter fn - ', o, dh.address, dh.deployer.address, params.minter)
 
-  se = await se.connect(dh.deployer);
+  // se = await se.connect(dh.deployer);
+  let minter = params.minter ? params.minter : dh.addressOf(params.names.minter);
 
-  await se.addMinter(dh.addressOf(params.names.minter));
-  console.log("added new minter");
+  await se.addMinter(minter);
+  dh.log(`Added new minter at ${minter} to ${params.sgETH}`);
 };
 
 module.exports = {

@@ -1,7 +1,8 @@
+const CHIMERA = "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
 
-function genParams(dh) {
+function genParams(dh, params = {}) {
   let addresses = {
-    multisigAddr: dh.address, // todo: mainnet fix, currently deployer addr
+    multisigAddr: CHIMERA, // todo: mainnet fix, currently deployer addr
     deployer: dh.address,
     feeCalcAddr: dh.addressOf(0), // 0x00 address since initial fees = 0
   };
@@ -13,7 +14,7 @@ function genParams(dh) {
     rewardsReceiver: "0xC9F2ddBf105ff67c2BA30b2dB968Bc564a16ca67",
   }
 
-  let params = {
+  params = {
     epochLen: 24 * 60 * 60, // 1 day
     numValidators: 10000,
     adminFee: 0,
@@ -27,13 +28,55 @@ function genParams(dh) {
       rewardsReceiver: "RewardsReceiver",
       daoFeeSplitter: "PaymentSplitter",
       yd: "YieldDirector"
-      
     },
     ...addresses,
-    ...GoerliDeployedAddresses
+    ...GoerliDeployedAddresses,
+    ...params
   };
+
+  params.daoFeeSplitterDistro = genFeeDistro(params);
+
+  console.log("Using params: ", params)
 
   return params;
 }
+
+let genFeeDistro = (params) => {
+  // 9% Fees to start. 
+  // 5% to node operator, 
+  // 1% to founder, 
+  // 3% to dao multisig, 
+  // rest reflected back to stakers
+  let daoFeeSplitterDistro = {
+    founder: 1,
+    nor: 5,
+    dao: 3,
+    reflection: 31,
+  };
+  let currentYieldPercentageReceived = 40; // max fees can go to this % of yield theoretically as its recvd by the dao fee splitter
+  daoFeeSplitterDistro.values = prctGlobalToPartOfPrctLocal(daoFeeSplitterDistro, currentYieldPercentageReceived);
+  daoFeeSplitterDistro.addresses = [
+    params.deployer,
+    params.multisigAddr,
+    params.wsgETH
+  ]
+
+  return daoFeeSplitterDistro;
+}
+
+let prctGlobalToPartOfPrctLocal = (argsObj, partOf) => {
+  // call with daoFeeSplitterDistro and partOf = what perct the splitter gets. e.g. 40 if it gets 40%
+  // converts daoFeeSplitterDistro as a part of 100% of fees
+  // to args for the splitter as part of fees
+  // 6% of 100% is (6 * 5) or 30% or (6 * 100 / part) of 20%
+  // $6 = (100 * 0.3 * 0.2)
+  let scalingFactor = (100 / partOf) * 10; // 300 if partof is 20
+  argsObj = {
+    operator: (argsObj.founder + argsObj.nor) * scalingFactor,
+    daoPay: argsObj.dao * scalingFactor,
+    reflectionPay: argsObj.reflection * scalingFactor,
+  };
+  return [argsObj.operator, argsObj.daoPay, argsObj.reflectionPay];
+};
 
 module.exports = genParams;

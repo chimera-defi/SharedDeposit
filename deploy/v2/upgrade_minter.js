@@ -15,7 +15,8 @@ async function main() {
   let oa = new OA(dh);
   let params = genParams(dh);
 
-  await deployMinterV2(dh, params);
+  params = await deployMinterV2(dh, params);
+  await addMinter(dh, params);
 
   await setWC(dh, params);
   console.log("WC set");

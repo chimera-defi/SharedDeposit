@@ -16,28 +16,6 @@ async function main() {
   let oa = new OA(dh);
   let params = genParams(dh);
 
-  let daoFeeSplitterDistro = {
-    founder: 1,
-    nor: 5,
-    dao: 3,
-    reflection: 91,
-  };
-  let prctGlobalToPartOfPrctLocal = (argsObj, partOf) => {
-    // call with daoFeeSplitterDistro and partOf = what perct the splitter gets. e.g. 40 if it gets 40%
-    // converts daoFeeSplitterDistro as a part of 100% of fees
-    // to args for the splitter as part of fees
-    // 6% of 100% is (6 * 5) or 30% or (6 * 100 / part) of 20%
-    // $6 = (100 * 0.3 * 0.2)
-    let scalingFactor = (100 / partOf) * 10; // 300 if partof is 20
-    argsObj = {
-      operator: (argsObj.founder + argsObj.nor) * scalingFactor,
-      daoPay: argsObj.dao * scalingFactor,
-      reflectionPay: argsObj.reflection * scalingFactor,
-    };
-    console.log(argsObj);
-    return [argsObj.operator, argsObj.daoPay, argsObj.reflectionPay];
-  };
-
   /** Deploy core of v2 system
    * 1. Deploy sgETH
    * 2. Deploy wsgETH
@@ -45,7 +23,7 @@ async function main() {
    * 3a. Add minter to sgETH
    */
   let sgETH = params.names.sgETH;
-  await dh.deployContract(sgETH,sgETH, []);
+  await dh.deployContract(sgETH, sgETH, []);
   let sgETHAddrs = dh.addressOf(sgETH);
   params.sgETH = sgETHAddrs;
 
@@ -55,8 +33,10 @@ async function main() {
   params.wsgETH = wsgETHAddr;
 
   await deployMinterV2(dh, params);
-  let minter = dh.addressOf("SharedDepositMinterV2");
+  let minter = dh.addressOf(params.names.minter);
   params.minter = minter;
+
+  await addMinter(dh, params);
 
   /**
    * Rewards and withdrawals processing system
@@ -66,20 +46,23 @@ async function main() {
    * 7. Deploy withdrawal pubkey - RewardsReceiver - recieves and routes all rewards and exits
    * 7a. Set the  RewardsReceiver as setWithdrawalCredential  on sgETH minter - SharedDepositMinter
    */
+
+  // update dao fee splitter addresses
+  params = genParams(dh, params);
+  console.log(params.daoFeeSplitterDistro);
+
   // todo add node op and multisig to feesplitter / use custom instead of OZ generic
-  await dh.deployContract("PaymentSplitter", "PaymentSplitter", [[params.deployer], ["20"]]);
+  await dh.deployContract("PaymentSplitter", "PaymentSplitter", [
+    params.daoFeeSplitterDistro.addresses,
+    params.daoFeeSplitterDistro.values,
+  ]);
   // await dh.deployContract("FeeSplitter", "FeeSplitter", []);
   let feeSplitter = dh.addressOf("PaymentSplitter");
 
   await dh.deployContract("Withdrawals", "Withdrawals", [sgETHAddrs, params.sgETHVirtualPrice]);
   let withdrawals = dh.addressOf("Withdrawals");
 
-  await dh.deployContract("YieldDirector", "YieldDirector", [
-    sgETHAddrs,
-    wsgETHAddr,
-    feeSplitter,
-    minter,
-  ]);
+  await dh.deployContract("YieldDirector", "YieldDirector", [sgETHAddrs, wsgETHAddr, feeSplitter, minter]);
   let converter = dh.addressOf("YieldDirector");
 
   await dh.deployContract("RewardsReceiver", "RewardsReceiver", [converter, withdrawals]);

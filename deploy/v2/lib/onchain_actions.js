@@ -40,14 +40,14 @@ class OA {
   }, amt) {
     let dh = this.dh;
     let c = params.names.minter;
-    let wsgeth = await dh.getContractAt("WSGETH", params.wsgETH);
+    let wsgeth = await dh.getContractAt(params.names.wsgETH, params.wsgETH);
     await wsgeth.approve(dh.addressOf(c), amt);
     await dh.getContract(c).unstakeAndWithdraw(amt / 2, dh.address);
     await dh.getContract(c).unstakeAndWithdraw(amt / 2, dh.address);
   };
 
   async getWSGEthBal(params) {
-    let wsgeth = await this.dh.getContractAt("WSGETH", params.wsgETH);
+    let wsgeth = await this.dh.getContractAt(params.names.wsgETH, params.wsgETH);
     let bal = await wsgeth.balanceOf(this.dh.address);
     return bal;
   }
