@@ -11,35 +11,35 @@ pragma solidity 0.8.20;
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 contract RewardsReceiver is Ownable2Step {
-    enum State {
-        Deposits,
-        Withdrawals
-    }
-    State public state;
-    address payable public immutable DEPOSITS;
-    address payable public immutable WITHDRAWALS;
+  enum State {
+    Deposits,
+    Withdrawals
+  }
+  State public state;
+  address payable public immutable DEPOSITS;
+  address payable public immutable WITHDRAWALS;
 
-    constructor(address _convertorAddr, address _withdrawalAddr) payable Ownable2Step() {
-        DEPOSITS = payable(_convertorAddr);
-        WITHDRAWALS = payable(_withdrawalAddr);
-        state = State.Deposits;
-    }
+  constructor(address _convertorAddr, address _withdrawalAddr) payable Ownable2Step() {
+    DEPOSITS = payable(_convertorAddr);
+    WITHDRAWALS = payable(_withdrawalAddr);
+    state = State.Deposits;
+  }
 
-    function work() external {
-        if (state == State.Deposits) {
-            DEPOSITS.transfer(address(this).balance);
-        } else if (state == State.Withdrawals) {
-            WITHDRAWALS.transfer(address(this).balance);
-        }
+  function work() external {
+    if (state == State.Deposits) {
+      DEPOSITS.transfer(address(this).balance);
+    } else if (state == State.Withdrawals) {
+      WITHDRAWALS.transfer(address(this).balance);
     }
+  }
 
-    function flipState() external onlyOwner {
-        if (state == State.Deposits) {
-            state = State.Withdrawals;
-        } else if (state == State.Withdrawals) {
-            state = State.Deposits;
-        }
+  function flipState() external onlyOwner {
+    if (state == State.Deposits) {
+      state = State.Withdrawals;
+    } else if (state == State.Withdrawals) {
+      state = State.Deposits;
     }
+  }
 
-    receive() external payable {} // solhint-disable-line
+  receive() external payable {} // solhint-disable-line
 }

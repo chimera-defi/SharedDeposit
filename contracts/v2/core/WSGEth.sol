@@ -24,10 +24,10 @@ contract WSGETH is xERC4626, ReentrancyGuard {
   }
 
   /* ========== CONSTRUCTOR ========== */
-  constructor(
-    ERC20 _underlying,
-    uint32 _rewardsCycleLength
-  ) ERC4626(_underlying, "Wrapped SharedStake Governed Ether", "wsgETH") xERC4626(_rewardsCycleLength) {} // solhint-disable-line
+  constructor(ERC20 _underlying, uint32 _rewardsCycleLength)
+    ERC4626(_underlying, "Wrapped SharedStake Governed Ether", "wsgETH")
+    xERC4626(_rewardsCycleLength)
+  {} // solhint-disable-line
 
   /// @notice Approve and deposit() in one transaction
   function depositWithSignature(
@@ -64,7 +64,11 @@ contract WSGETH is xERC4626, ReentrancyGuard {
   }
 
   /// @notice inlines syncRewards with redemptions when able
-  function redeem(uint256 shares, address receiver, address owner) public override andSync returns (uint256 assets) {
+  function redeem(
+    uint256 shares,
+    address receiver,
+    address owner
+  ) public override andSync returns (uint256 assets) {
     return super.redeem(shares, receiver, owner);
   }
 
