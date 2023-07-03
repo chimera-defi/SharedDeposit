@@ -61,7 +61,7 @@ contract RedemptionsBase is ReentrancyGuard {
         _redeem(amountToReturn);
     }
 
-    function _redeem(uint256 amountToReturn) internal virtual {
+    function _redeem(uint256 amountToReturn) internal virtual { // solhint-disable-line
         require(false, "implement me");
     }
 
