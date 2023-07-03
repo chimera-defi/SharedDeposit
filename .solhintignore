@@ -3,6 +3,8 @@
 build/
 dist/
 node_modules/
+flats/
+data/
 
 # files
 other_contracts/*
@@ -10,6 +12,7 @@ contracts/interfaces/*
 contracts/vEth2.sol
 contracts/masterChefGeneric_Iron.sol
 contracts/governance/VestingMerkleDistributor.sol
+deploy_log.json
 
 contracts/governance/SimpleVesting.sol
 contracts/util/SingleTokenVestingNonRevocable.sol

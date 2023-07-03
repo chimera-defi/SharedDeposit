@@ -7,7 +7,7 @@ tabWidth: 2
 trailingComma: all
 
 overrides:
-  - files: "*.sol"
+  - files: "contracts/*.sol"
     options:
       tabWidth: 4
       explicitTypes: 'always'

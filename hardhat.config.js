@@ -87,6 +87,9 @@ module.exports = {
       chainId: chainIds.goerli,
       initialBaseFeePerGas: 1000000000,
     },
+    localhost: {
+      accounts: [`0x${process.env.GOERLIPK}`]
+    }
     // mainnet: {
     //   url: secrets.INFURA_MAINNET,
     //   accounts: [`0x${secrets.MAINNET_PRIVATE_KEY}`],
