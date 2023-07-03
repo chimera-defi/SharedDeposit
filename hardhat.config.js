@@ -88,8 +88,8 @@ module.exports = {
       initialBaseFeePerGas: 1000000000,
     },
     localhost: {
-      accounts: [`0x${process.env.GOERLIPK}`]
-    }
+      accounts: [`0x${process.env.GOERLIPK}`],
+    },
     // mainnet: {
     //   url: secrets.INFURA_MAINNET,
     //   accounts: [`0x${secrets.MAINNET_PRIVATE_KEY}`],
