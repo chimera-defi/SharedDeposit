@@ -162,9 +162,9 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
     validatorsCreated = validatorsCreated.add(pubkeys.length);
   }
 
-  // Used to migrate state over to new contract
-  function migrateShares(uint256 shares) external onlyRole(GOV) {
-    curValidatorShares = shares;
+  function setWithdrawalCredential(bytes memory _newWithdrawalCreds) external onlyRole(NOR) {
+    // can only be called once
+    _setWithdrawalCredential(_newWithdrawalCreds);
   }
 
   // Slashes the onchain staked sgETH to mirror CL validator slashings
@@ -174,6 +174,11 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
       revert AmountTooHigh(); // Cannot slash more than minted
     }
     _sgeth.burn(address(_wsgeth), amt);
+  }
+
+  // Used to migrate state over to new contract
+  function migrateShares(uint256 shares) external onlyRole(GOV) {
+    curValidatorShares = shares;
   }
 
   // Set fee calc address. if addr = 0 then fees are assumed to be 0
@@ -188,11 +193,6 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
   function setNumValidators(uint256 _numValidators) external onlyRole(GOV) {
     require(_numValidators != 0, "Minimum 1 validator");
     numValidators = _numValidators;
-  }
-
-  function setWithdrawalCredential(bytes memory _newWithdrawalCreds) external onlyRole(NOR) {
-    // can only be called once
-    _setWithdrawalCredential(_newWithdrawalCreds);
   }
 
   function withdrawAdminFee(uint256 amount) external onlyRole(GOV) {
