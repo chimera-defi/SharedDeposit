@@ -24,6 +24,23 @@ async function deployMinterV2(dh, params = {
   return params;
 }
 
+async function deploy_timelock(params) {
+
+  /**
+   * Pre-req: Deploy Timelock for use as gov later
+   */
+
+  let tl = params.names.timelock;
+  await dh.deployContract(tl, tl, [
+    params.timelockParams.delay,
+    params.timelockParams.proposers, // proposers
+    params.timelockParams.executors,
+    params.timelockParams.admin,
+  ]);
+  params.timelock = dh.addressOf(tl);
+  return timelock;
+}
+
 function makeWithdrawalCred(params = {
   rewardsReceiver: 'addr'
 }) {
@@ -55,10 +72,6 @@ async function addMinter(dh, params = {
 }) {
   let se = await dh.getContractAt("SgETH", params.sgETH);
 
-  let o = await se.owner();
-  console.log('add minter fn - ', o, dh.address, dh.deployer.address, params.minter)
-
-  // se = await se.connect(dh.deployer);
   let minter = params.minter ? params.minter : dh.addressOf(params.names.minter);
 
   await se.addMinter(minter);

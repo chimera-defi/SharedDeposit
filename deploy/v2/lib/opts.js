@@ -4,6 +4,7 @@ function genParams(dh, params = {}) {
   let addresses = {
     multisigAddr: CHIMERA, // todo: mainnet fix, currently deployer addr
     deployer: dh.address,
+    nor: dh.address,
     feeCalcAddr: dh.addressOf(0), // 0x00 address since initial fees = 0
   };
 
@@ -27,7 +28,8 @@ function genParams(dh, params = {}) {
       withdrawals: "Withdrawals",
       rewardsReceiver: "RewardsReceiver",
       daoFeeSplitter: "PaymentSplitter",
-      yd: "YieldDirector"
+      yd: "YieldDirector",
+      timelock: "TimelockController",
     },
     ...addresses,
     ...GoerliDeployedAddresses,
@@ -35,10 +37,22 @@ function genParams(dh, params = {}) {
   };
 
   params.daoFeeSplitterDistro = genFeeDistro(params);
+  params.timelockParams = genTimelockParams(params);
 
   console.log("Using params: ", params)
 
   return params;
+}
+
+let genTimelockParams = (params) => {
+  let timelockParams = {
+    delay: 60,
+    proposers: [params.multisigAddr, params.deployer],
+    executors: [params.multisigAddr],
+    admin: params.multisigAddr
+  }
+
+  return timelockParams;
 }
 
 let genFeeDistro = (params) => {
