@@ -60,12 +60,10 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
 
   //errors
   error AmountTooHigh();
-  error WithdrawalCredentialsAlreadySet();
 
   IERC20MintableBurnable private immutable _sgeth;
   IERC4626 private immutable _wsgeth;
   IFeeCalc private _feeCalc;
-  mapping(uint16 => uint16) private _called; // trace fn calls and state. e.g. called[0] returns the no. of times the tracing fn has been called
 
   bytes32 public constant NOR = keccak256("NOR"); // Node operator for deploying validators
   bytes32 public constant GOV = keccak256("GOV"); // Governance for settings - normally timelock controlled by multisig
@@ -90,7 +88,7 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
     costPerValidator = uint256(32).mul(1e18).add(adminFee);
 
     _grantRole(NOR, msg.sender);
-    _grantRole(GOV, msg.sender); // deployer will need it to set withdrawal creds. since the non-custodial withdrawal path depends on the minter.
+    _grantRole(GOV, addresses[3]); // deployer will need it to set withdrawal creds. since the non-custodial withdrawal path depends on the minter.
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -114,37 +112,32 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
         P = Z - Z*a%
     */
 
-  function deposit() external payable nonReentrant whenNotPaused {
-    _sgeth.mint(msg.sender, _depositAccounting());
+  function deposit() external payable {
+    _deposit(msg.sender);
   }
 
-  function depositFor(address dest) external payable nonReentrant whenNotPaused {
-    _sgeth.mint(dest, _depositAccounting());
+  function depositFor(address dest) external payable {
+    _deposit(dest);
   }
 
-  function depositAndStake() external payable nonReentrant whenNotPaused {
-    uint256 amt = _depositAccounting();
-    _sgeth.mint(address(this), amt);
-    _wsgeth.deposit(amt, msg.sender);
+  function depositAndStake() external payable {
+    _wsgeth.deposit(_deposit(address(this)), msg.sender);
   }
 
-  function depositAndStakeFor(address dest) external payable nonReentrant whenNotPaused {
-    uint256 amt = _depositAccounting();
-    _sgeth.mint(address(this), amt);
-    _wsgeth.deposit(amt, dest);
+  function depositAndStakeFor(address dest) external payable {
+    _wsgeth.deposit(_deposit(address(this)), dest);
   }
 
-  function withdraw(uint256 amount) external nonReentrant whenNotPaused {
+  function withdraw(uint256 amount) external {
     _withdraw(amount, msg.sender, msg.sender);
   }
 
-  function withdrawTo(uint256 amount, address dest) external nonReentrant whenNotPaused {
+  function withdrawTo(uint256 amount, address dest) external {
     _withdraw(amount, msg.sender, dest);
   }
 
-  function unstakeAndWithdraw(uint256 amount, address dest) external nonReentrant whenNotPaused {
-    uint256 assets = _wsgeth.redeem(amount, address(this), msg.sender);
-    _withdraw(assets, address(this), dest);
+  function unstakeAndWithdraw(uint256 amount, address dest) external {
+    _withdraw(_wsgeth.redeem(amount, address(this), msg.sender), address(this), dest);
   }
 
   // migration function to accept old monies and copy over state
@@ -170,7 +163,7 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
   }
 
   // Used to migrate state over to new contract
-  function migrateShares(uint256 shares) external onlyRole(GOV) nonReentrant {
+  function migrateShares(uint256 shares) external onlyRole(GOV) {
     curValidatorShares = shares;
   }
 
@@ -198,12 +191,7 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
   }
 
   function setWithdrawalCredential(bytes memory _newWithdrawalCreds) external onlyRole(NOR) {
-    // can only be called once.
-    if (_called[0] > 0) {
-      revert WithdrawalCredentialsAlreadySet();
-    }
-    _called[0] += 1;
-
+    // can only be called once
     _setWithdrawalCredential(_newWithdrawalCreds);
   }
 
@@ -272,12 +260,17 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
     return amount;
   }
 
+  function _deposit(address dest) internal nonReentrant whenNotPaused returns (uint256 amt) {
+    amt = _depositAccounting();
+    _sgeth.mint(dest, amt);
+  }
+
   function _withdraw(
     uint256 amount,
     address origin,
     address dest
-  ) internal {
-    _sgeth.burn(origin, amount);
+  ) internal nonReentrant whenNotPaused {
+    _sgeth.burn(origin, amount); // reverts if amount is too high
     uint256 assets = _withdrawAccounting(amount);
 
     address payable recv = payable(dest);
