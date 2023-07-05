@@ -45,7 +45,9 @@ contract ETH2DepositWithdrawalCredentials {
             );
 
           // While loop check prevents underflow.
-            i -= 1;
+          // --i is cheaper than i--
+          // reverse while loop cheapest compared to while or for 
+            --i;
           }
       }
   }
