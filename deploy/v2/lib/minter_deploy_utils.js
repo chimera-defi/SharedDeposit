@@ -78,8 +78,22 @@ async function addMinter(dh, params = {
   dh.log(`Added new minter at ${minter} to ${params.sgETH}`);
 };
 
+async function upgradeGoerliMinter(dh, params) {
+  params = await deployMinterV2(dh, params);
+  await addMinter(dh, params);
+
+  await setWC(dh, params);
+  console.log("WC set");
+
+  await oa.e2e(params);
+  params.minter = dh.addressOf(dh.names.minter);
+  return params;
+}
+
+
 module.exports = {
   deployMinterV2: deployMinterV2,
   setWC: setWC,
-  addMinter: addMinter
+  addMinter: addMinter,
+  upgradeGoerliMinter: upgradeGoerliMinter
 }

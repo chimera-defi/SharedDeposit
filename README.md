@@ -26,6 +26,13 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 
 # Goerli
 
+## Wed jul 5 '23
+
+SharedDepositMinterV2 deployed to 0x5d03e8d58A58244DB0ad5D4CEc7DC7737F2F37a3 at https://goerli.etherscan.io/address/0x5d03e8d58A58244DB0ad5D4CEc7DC7737F2F37a3
+## Sun jul 2 '23
+
+SharedDepositMinterV2 deployed to 0x5464Eb94ECf019d5b05099A89dB302cF7ac3e863 at https://goerli.etherscan.io/address/0x5464Eb94ECf019d5b05099A89dB302cF7ac3e863
+
 ## Wed Jun 14 '23
 
 SgETH deployed to 0x453B459249F82ba3f369651aD485Fa11C6F082F8 at https://goerli.etherscan.io/address/0x453B459249F82ba3f369651aD485Fa11C6F082F8

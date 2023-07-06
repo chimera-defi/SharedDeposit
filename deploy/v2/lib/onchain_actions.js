@@ -65,10 +65,13 @@ class OA {
 
     recv = await this.getSGEthBal(params);
     console.log("starting sgeth bal", recv.toString() / 1e18);
+
     await this.deposit(params, amt);
+
     recv = await this.getSGEthBal(params);
     console.log("Deposited Eth, got sgETH:", amt / 1e18, recv.toString() / 1e18);
-    await this.withdraw(params, amt/2);
+
+    await this.withdraw(params, amt);
     recv = await this.getSGEthBal(params);
     console.log("new sgETH bal post withdraw", recv.toString() / 1e18);
     console.log("warmed up deposit/withdraw");
@@ -79,7 +82,7 @@ class OA {
     await this.depositAndStake(params, amt);
     recv = await this.getWSGEthBal(params);
     console.log("Staked Eth, got wsgETH:", amt / 1e18, recv.toString() / 1e18);
-    await this.unstakeAndWithdraw(params, amt/2);
+    await this.unstakeAndWithdraw(params, amt/2); // leave  abit int the wsgeth
     recv = await this.getWSGEthBal(params);
     console.log("Unstaked wsgETH, new wsgETH bal:", recv.toString() / 1e18);
     console.log("warmed up stake/unstake");

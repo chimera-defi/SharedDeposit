@@ -16,7 +16,7 @@ pragma solidity 0.8.20;
 // Changes
 /** 
 - Custom errors instead of revert strings
-- Granular management via AccessControlEnumerable with GOV and NOR roles. Node operator can only deploy validators
+- Granular management via AccessControl with GOV and NOR roles. Node operator can only deploy validators
 - Refactored to allow users to specify destination address for fns - for zaps
 - Added deposit+stake/unstake+withdraw combo convenience routes
 - Refactored fee calc out to external contract 
@@ -25,7 +25,7 @@ import {IFeeCalc} from "../../interfaces/IFeeCalc.sol";
 import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -33,7 +33,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {ETH2DepositWithdrawalCredentials} from "../../lib/ETH2DepositWithdrawalCredentials.sol";
 
-contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
+contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
   using SafeMath for uint256;
   /* ========== STATE VARIABLES ========== */
   uint256 public adminFee;
@@ -176,14 +176,14 @@ contract SharedDepositMinterV2 is AccessControlEnumerable, Pausable, ReentrancyG
     _sgeth.burn(address(_wsgeth), amt);
   }
 
-  // Used to migrate state over to new contract
-  function migrateShares(uint256 shares) external onlyRole(GOV) {
-    curValidatorShares = shares;
-  }
-
   // Set fee calc address. if addr = 0 then fees are assumed to be 0
   function setFeeCalc(address _feeCalculatorAddr) external onlyRole(GOV) {
     _feeCalc = IFeeCalc(_feeCalculatorAddr);
+  }
+
+  // Used to migrate state over to new contract
+  function migrateShares(uint256 shares) external onlyRole(GOV) {
+    curValidatorShares = shares;
   }
 
   function toggleWithdrawRefund() external onlyRole(GOV) {
