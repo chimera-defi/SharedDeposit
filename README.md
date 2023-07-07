@@ -3,7 +3,9 @@
 Contracts powering https://sharedstake.org / https://sharedstake.finance
 
 Ethereum liquid staking derivatives.  
-Docs: https://docs.sharedstake.finance/
+Docs: https://docs.sharedstake.finance/   
+
+V2 core auditable contracts and guidance/README in `contracts/v2/core`.   
 
 # Deployed mainnet contracts
 
