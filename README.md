@@ -26,21 +26,31 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 
 # Goerli
 
+## Fri jul 7 23
+SharedDepositMinterV2 deployed to 0x4659c07C199bd373e768b6D800223C5A5367cC56 at https://goerli.etherscan.io/address/0x4659c07C199bd373e768b6D800223C5A5367cC56   
+
+PaymentSplitter deployed to 0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D at https://goerli.etherscan.io/address/0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D   
+
+Withdrawals deployed to 0x807EB95706E365115adAbeb4884c1Eb39D062A6d at https://goerli.etherscan.io/address/0x807EB95706E365115adAbeb4884c1Eb39D062A6d   
+
+RewardsReceiver deployed to 0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b at https://goerli.etherscan.io/address/0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b   
+
 ## Wed jul 6 '23
 
-SharedDepositMinterV2 deployed to 0x711c07cbfb82d5cB6Eb665350237C25c302f4A13 at https://goerli.etherscan.io/address/0x711c07cbfb82d5cB6Eb665350237C25c302f4A13   
+SharedDepositMinterV2 deployed to 0x711c07cbfb82d5cB6Eb665350237C25c302f4A13 at https://goerli.etherscan.io/address/0x711c07cbfb82d5cB6Eb665350237C25c302f4A13
 
-PaymentSplitter deployed to 0xA64629072cb064B2F3084Ca4C2D9d1e2F5c1fe02 at https://goerli.etherscan.io/address/0xA64629072cb064B2F3084Ca4C2D9d1e2F5c1fe02   
+PaymentSplitter deployed to 0xA64629072cb064B2F3084Ca4C2D9d1e2F5c1fe02 at https://goerli.etherscan.io/address/0xA64629072cb064B2F3084Ca4C2D9d1e2F5c1fe02
 
-Withdrawals deployed to 0x01cF4caDca14a9988F9116d7701494e58E567528 at https://goerli.etherscan.io/address/0x01cF4caDca14a9988F9116d7701494e58E567528   
+Withdrawals deployed to 0x01cF4caDca14a9988F9116d7701494e58E567528 at https://goerli.etherscan.io/address/0x01cF4caDca14a9988F9116d7701494e58E567528
 
-YieldDirector deployed to 0xc539a20b49DDe9a0E86b3FF5e00CCD5519001114 at https://goerli.etherscan.io/address/0xc539a20b49DDe9a0E86b3FF5e00CCD5519001114   
+YieldDirector deployed to 0xc539a20b49DDe9a0E86b3FF5e00CCD5519001114 at https://goerli.etherscan.io/address/0xc539a20b49DDe9a0E86b3FF5e00CCD5519001114
 
-RewardsReceiver deployed to 0x3048D0A5813dFcB7aD4Dbb2f747E993aF8b70E8a at https://goerli.etherscan.io/address/0x3048D0A5813dFcB7aD4Dbb2f747E993aF8b70E8a   
+RewardsReceiver deployed to 0x3048D0A5813dFcB7aD4Dbb2f747E993aF8b70E8a at https://goerli.etherscan.io/address/0x3048D0A5813dFcB7aD4Dbb2f747E993aF8b70E8a
 
 ## Wed jul 5 '23
 
 SharedDepositMinterV2 deployed to 0x5d03e8d58A58244DB0ad5D4CEc7DC7737F2F37a3 at https://goerli.etherscan.io/address/0x5d03e8d58A58244DB0ad5D4CEc7DC7737F2F37a3
+
 ## Sun jul 2 '23
 
 SharedDepositMinterV2 deployed to 0x5464Eb94ECf019d5b05099A89dB302cF7ac3e863 at https://goerli.etherscan.io/address/0x5464Eb94ECf019d5b05099A89dB302cF7ac3e863
