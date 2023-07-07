@@ -12,16 +12,30 @@ const isMainnet = launchNetwork => {
   // some behaviours need to be tested with a mainnet fork which behaves the same as mainnet
   return launchNetwork == "localhost" || launchNetwork == "mainnet";
 };
-
+const notLocal = launchNetwork => launchNetwork !== 'localhost';
+const wait = async ms => await new Promise(resolve => setTimeout(resolve, ms));
+const printOverrides = o => {
+  return {
+    type: 2,
+    maxFeePerGas: o.maxFeePerGas.toString(),
+    maxPriorityFeePerGas: o.maxPriorityFeePerGas.toString(),
+    gasLimit: o.gasLimit,
+  };
+};
 const _getOverrides = async () => {
+
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.utils.parseUnits("60", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("20", "gwei"),
     maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
     gasLimit: 10000000,
   };
   // const gasPrice = await hre.ethers.provider.getGasPrice();
   // overridesForEIP1559.maxFeePerGas = gasPrice;
+
+  let gas = await hre.ethers.provider.getFeeData();
+  overridesForEIP1559.maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
+  overridesForEIP1559.maxFeePerGas = gas.maxFeePerGas;
 
   return overridesForEIP1559;
 };
@@ -68,8 +82,9 @@ function chunkArray(array, size) {
 const _verifyAll = async (allContracts, launchNetwork) => {
   log("starting verifyall");
   if (!launchNetwork || launchNetwork == "hardhat" || launchNetwork == "localhost") return;
-  log("Waiting 10s to make sure everything has propagated on etherscan");
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  let num = 60000; // 60s
+  log(`Waiting ${num} ms to make sure everything has propagated on etherscan`);
+  await wait(num);
   // wait 10s to make sure everything has propagated on etherscan
 
   let contractArr = [],
@@ -184,12 +199,19 @@ class DeployHelper {
     this.distribution = {};
     this.multisig_address = multisig_address;
   }
-  async init(address, deployer={}) {
+  async init(address, deployer = {}) {
     this.address = address;
+    this.hre = hre;
     this.initialBalance = await hre.ethers.provider.getBalance(address);
     this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
     this.deployer = deployer;
-    
+    this.gas = await hre.ethers.provider.getFeeData();
+    // await hre.ethers.provider.getMaxFeePerGas();
+    // 1500000016
+    // 20000000000
+    // console.log(this.gas, this.gas.maxFeePerGas.toString(), ethers.utils.parseUnits("20", "gwei").toString());
+    // return;
+
     log(
       `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${
         this.currentBlockTime
@@ -268,15 +290,27 @@ class DeployHelper {
     let finalBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
     let overrides = await this.getOverrides(this.launchNetwork);
     log(
-      `Total cost of deploys: ${this.initialBalance.sub(finalBalance).toString()} with gas settings: ${JSON.stringify(
-        overrides,
-      )}. Took ${finalBlockTime - this.currentBlockTime} seconds`,
+      `Total cost of deploys: ${
+        this.initialBalance.sub(finalBalance).toString() / 1e18
+      } with gas settings: ${JSON.stringify(printOverrides(overrides))}. Took ${
+        finalBlockTime - this.currentBlockTime
+      } seconds`,
     );
     await this.verify();
   }
 
   log(txt) {
     log(txt);
+  }
+
+  parseEther(n) {
+    return hre.ethers.utils.parseEther(n);
+  }
+
+  async waitIfNotLocalHost() {
+    if (notLocal(this.launchNetwork)) {
+      await wait(5000); // 5 sec wait
+    }
   }
 }
 

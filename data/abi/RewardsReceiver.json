@@ -54,6 +54,10 @@
     "type": "event"
   },
   {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
     "inputs": [],
     "name": "DEPOSITS",
     "outputs": [
@@ -156,7 +160,7 @@
     "inputs": [],
     "name": "work",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
     "type": "function"
   },
   {
