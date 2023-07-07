@@ -15,6 +15,11 @@
         "internalType": "address",
         "name": "_BETHTokenAddress",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_depositContractAddress",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -197,6 +202,19 @@
     "name": "deposit",
     "outputs": [],
     "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "depositContract",
+    "outputs": [
+      {
+        "internalType": "contract IDepositContract",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
