@@ -3,13 +3,14 @@
 Contracts powering https://sharedstake.org / https://sharedstake.finance
 
 Ethereum liquid staking derivatives.  
-Docs: https://docs.sharedstake.finance/   
+Docs: https://docs.sharedstake.finance/
 
-V2 core auditable contracts and guidance/README in `contracts/v2/core`.   
+V2 core auditable contracts and guidance/README in `contracts/v2/core`.
 
 # Deployed mainnet contracts
 
-// Aug 31 '21
+## Aug 31 '21
+
 NFT
 MintableNFTSale deployed to 0x926a65012C23dcfB2227af46e6135C1c6413D8Ac at https://etherscan.io/address/0x926a65012C23dcfB2227af46e6135C1c6413D8Ac
 cost: 322125589811035895 or 0.322 ETH
@@ -29,13 +30,14 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 # Goerli
 
 ## Fri jul 7 23
-SharedDepositMinterV2 deployed to 0x4659c07C199bd373e768b6D800223C5A5367cC56 at https://goerli.etherscan.io/address/0x4659c07C199bd373e768b6D800223C5A5367cC56   
 
-PaymentSplitter deployed to 0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D at https://goerli.etherscan.io/address/0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D   
+SharedDepositMinterV2 deployed to 0x1C974Ef3993152eCB53FdCF8b543b39f82122447 at https://goerli.etherscan.io/address/0x1C974Ef3993152eCB53FdCF8b543b39f82122447   
 
-Withdrawals deployed to 0x807EB95706E365115adAbeb4884c1Eb39D062A6d at https://goerli.etherscan.io/address/0x807EB95706E365115adAbeb4884c1Eb39D062A6d   
+PaymentSplitter deployed to 0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D at https://goerli.etherscan.io/address/0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D
 
-RewardsReceiver deployed to 0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b at https://goerli.etherscan.io/address/0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b   
+Withdrawals deployed to 0x807EB95706E365115adAbeb4884c1Eb39D062A6d at https://goerli.etherscan.io/address/0x807EB95706E365115adAbeb4884c1Eb39D062A6d
+
+RewardsReceiver deployed to 0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b at https://goerli.etherscan.io/address/0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b
 
 ## Wed jul 6 '23
 

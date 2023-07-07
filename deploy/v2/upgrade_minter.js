@@ -18,7 +18,7 @@ async function main() {
   params = await deployMinterV2(dh, params);
   await addMinter(dh, params);
 
-  params = await oa.deployWithdrawalsCredentialPipeline(params);
+  // params = await oa.deployWithdrawalsCredentialPipeline(params);
 
   await setWC(dh, params);
   console.log("WC set");
@@ -27,7 +27,7 @@ async function main() {
   await oa.e2e(params);
 
   await dh.waitIfNotLocalHost();
-  await oa.seedRewards(params, "0.005");
+  // await oa.seedRewards(params, "0.005");
 
   await dh.postRun();
 }

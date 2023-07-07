@@ -15,7 +15,7 @@ function genParams(dh, params = {}) {
     wsgETH: "0xbFA813C3266Af70A5Ddc15d9253655281e2bCd23",
     rewardsReceiver: "0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b",
     withdrawals: '0x807EB95706E365115adAbeb4884c1Eb39D062A6d',
-    minter: "0x4659c07C199bd373e768b6D800223C5A5367cC56",
+    minter: "0x1C974Ef3993152eCB53FdCF8b543b39f82122447",
     daoFeeSplitter: '0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D',
     depositContractAddr: GOERLIDEPOSIT
   }

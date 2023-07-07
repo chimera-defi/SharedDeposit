@@ -67,7 +67,7 @@ const _deployContract = async (name, launchNetwork = false, cArgs = []) => {
   const contract = await factory.deploy(...cArgs, overridesForEIP1559);
   await contract.deployTransaction.wait(1);
   await contract.deployed();
-  log(`\nDeployed ${name} to ${contract.address} on ${launchNetwork}`);
+  log(`\n Deployed ${name} to ${contract.address} \n on ${launchNetwork}.  `);
   return Promise.resolve({contract: contract, args: cArgs, initialized: false, srcName: name});
 };
 
@@ -148,7 +148,7 @@ const _postRun = (contracts, launchNetwork) => {
 
   Object.keys(contracts).map(k => {
     let url = prefix + contracts[k].contract.address;
-    log(`${k} deployed to ${contracts[k].contract.address} at ${url} `);
+    log(`\n ${k} deployed to ${contracts[k].contract.address} at \n ${url}  `);
   });
   fs.writeFileSync("deploy_log.json", JSON.stringify(contracts), {flag: "a"});
 };
@@ -319,14 +319,18 @@ class DeployHelper {
     return bal;
   }
   prepend0x(text) {
-    return `0x${text}`
+    return `0x${text}`;
   }
   //https://ethereum.stackexchange.com/questions/94664/arrayify-error-when-passing-a-string-as-an-argument-to-a-transaction
   web3StringToBytes32(text) {
     // text = this.prepend0x(text);
     var result = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(text));
-    while (result.length < 66) { result += '0'; }
-    if (result.length !== 66) { throw new Error(`invalid web3 implicit bytes32", ${result}, ${text}`); }
+    while (result.length < 66) {
+      result += "0";
+    }
+    if (result.length !== 66) {
+      throw new Error(`invalid web3 implicit bytes32", ${result}, ${text}`);
+    }
     return result;
   }
 }

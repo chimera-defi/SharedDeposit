@@ -1,10 +1,9 @@
-
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../deploy_utils.js");
 let OA = require("./lib/onchain_actions.js");
 let genParams = require("./lib/opts.js");
-let creds = require('./lib/goerli_deposit_data.json');
+let creds = require("./lib/goerli_deposit_data.json");
 
 require("dotenv").config();
 
@@ -18,7 +17,6 @@ async function main() {
   let params = genParams(dh);
 
   let validators = creds;
-
 
   await oa.depositEth2(params, validators);
 

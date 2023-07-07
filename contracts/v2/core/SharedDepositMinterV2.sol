@@ -26,8 +26,9 @@ import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.so
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
@@ -72,7 +73,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     uint256 _numValidators,
     uint256 _adminFee,
     address[] memory addresses
-  ) ETH2DepositWithdrawalCredentials(addresses[4]) {
+  ) AccessControl() Pausable() ReentrancyGuard() ETH2DepositWithdrawalCredentials(addresses[4]) {
     _feeCalc = IFeeCalc(addresses[0]);
     _sgeth = IERC20MintableBurnable(addresses[1]);
     _wsgeth = IERC4626(addresses[2]);
@@ -179,6 +180,15 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
   // Set fee calc address. if addr = 0 then fees are assumed to be 0
   function setFeeCalc(address _feeCalculatorAddr) external onlyRole(GOV) {
     _feeCalc = IFeeCalc(_feeCalculatorAddr);
+  }
+
+  function togglePause() external onlyRole(GOV) {
+    bool paused = paused();
+    if (paused) {
+      _unpause();
+    } else {
+      _pause();
+    }
   }
 
   // Used to migrate state over to new contract
