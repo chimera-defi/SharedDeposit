@@ -21,10 +21,9 @@
 
 - sgETH - ETH LSD - 1:1 pegged to ETH
 - wsgETH - interest bearing wrapper for sgETH. Recieves interest earned on staked eth in the form of sgETH
-- SharedDepositMinter - v1 core minter with minor modifications. Pre-set withdrawal credentials for non-custodial staking.
+- SharedDepositMinterv2 - v1 core minter with minor modifications. Pre-set withdrawal credentials for non-custodial staking.
 - FeeSplitter - OZ payment splitter - Routes fees to NOR + DAO + reflections back to wsgETH
-- ETH2SgETHYieldRedirector - converts incoming ETH into sgETH via the minter
-- RewardsReciever - acts as the withdrawal address and EL+CL rewards receiver and router for the system. Forwards ETH to the Yield redirector or withdrawals
+- RewardsReciever - acts as the withdrawal address and EL+CL rewards, converts incoming ETH into sgETH via the minter, router for the system. Forwards ETH to wsgETH and dao feesplitter or withdrawals
 - Withdrawals - Allows redemptions of sgETH for ETH at scale when validators need to be exited and regular buffers arent adequate
 - Rollover - Used to ferry vETH2 to sgETH for v1 user upgrades
 

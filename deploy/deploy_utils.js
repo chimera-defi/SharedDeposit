@@ -318,6 +318,17 @@ class DeployHelper {
     let bal = await hre.ethers.provider.getBalance(address);
     return bal;
   }
+  prepend0x(text) {
+    return `0x${text}`
+  }
+  //https://ethereum.stackexchange.com/questions/94664/arrayify-error-when-passing-a-string-as-an-argument-to-a-transaction
+  web3StringToBytes32(text) {
+    // text = this.prepend0x(text);
+    var result = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(text));
+    while (result.length < 66) { result += '0'; }
+    if (result.length !== 66) { throw new Error(`invalid web3 implicit bytes32", ${result}, ${text}`); }
+    return result;
+  }
 }
 
 module.exports = {

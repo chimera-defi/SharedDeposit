@@ -165,13 +165,13 @@ class OA {
     let _make = (validators) => {
       let _pubkeys = [], _sigs = [], _ddrs = [];
       validators.forEach(v => {
-        _pubkeys.push(v.pubkey);
-        _sigs.push(v.signature);
-        _ddrs.push(v.deposit_data_root);
+        _pubkeys.push(this.dh.prepend0x(v.pubkey));
+        _sigs.push(this.dh.prepend0x(v.signature));
+        _ddrs.push(this.dh.prepend0x(v.deposit_data_root));
       });
-      _pubkeys = arrayify(_pubkeys);
-      _sigs = arrayify(_sigs);
-      _ddrs = arrayify(_ddrs);
+      // _pubkeys = arrayify(_pubkeys);
+      // _sigs = arrayify(_sigs);
+      // _ddrs = arrayify(_ddrs);
       return {
         pubkeys: _pubkeys,
         sigs: _sigs,
@@ -181,13 +181,14 @@ class OA {
 
     let args = _make(validators);
 
-    let minter = await dh.getContractAt(params.names.minter, params.minter);
-    let bal = this.dh.getBalance(params.minter);
+    let minter = await this.dh.getContractAt(params.names.minter, params.minter);
+    let bal = await this.dh.getBalance(params.minter);
 
     await minter.batchDepositToEth2(args.pubkeys, args.sigs, args.ddrs)
-    let bal2 = this.dh.getBalance(params.minter)
 
-    console.log(`Starting Balance: ${bal.toString() / 1e18} \n Ending Balance: ${bal2.toString()}`)
+    let bal2 = await this.dh.getBalance(params.minter)
+
+    console.log(`Starting Balance: ${bal.toString() / 1e18} \n Ending Balance: ${bal2.toString() / 1e18}`)
   }
 }
 
