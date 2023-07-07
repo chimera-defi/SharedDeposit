@@ -1,10 +1,11 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../deploy_utils.js");
-let {deployMinterV2, setWC, addMinter, deployWithdrawalsCredentialPipeline} = require("./lib/minter_deploy_utils.js");
+let {deployMinterV2, setWC, addMinter} = require("./lib/minter_deploy_utils.js");
 let OA = require("./lib/onchain_actions.js");
 let genParams = require("./lib/opts.js");
 require("dotenv").config();
+
 
 async function main() {
   deployer = new ethers.Wallet(network.name == "goerli" ? process.env.GOERLIPK : process.env.LOCALPK, ethers.provider);
@@ -15,20 +16,11 @@ async function main() {
   let oa = new OA(dh);
   let params = genParams(dh);
 
-  params = await deployMinterV2(dh, params);
-  await addMinter(dh, params);
+  let amt = dh.parseEther("0.0042069");
 
-  params = await oa.deployWithdrawalsCredentialPipeline(params);
+  oa.seedRewards(params, amt);
 
-  await setWC(dh, params);
-  console.log("WC set");
-
-  await dh.waitIfNotLocalHost();
   await oa.e2e(params);
-
-  await dh.waitIfNotLocalHost();
-  await oa.seedRewards(params, "0.005")
-
   await dh.postRun();
 }
 

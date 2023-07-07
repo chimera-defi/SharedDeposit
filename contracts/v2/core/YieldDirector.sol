@@ -17,8 +17,6 @@ contract YieldDirector is Ownable2Step {
   address public immutable wsgETH;
   address public feeSplitter;
   address public immutable minter;
-  uint256[] public split;
-  address[] public splitAddrs;
 
   constructor(
     IERC20 _sgETh,
@@ -32,7 +30,7 @@ contract YieldDirector is Ownable2Step {
     minter = _minter;
   }
 
-  function work() external {
+  function work() external payable {
     // convert eth 2 sgETH
     ISharedDeposit(minter).deposit{value: address(this).balance}();
 
@@ -50,4 +48,7 @@ contract YieldDirector is Ownable2Step {
   function setDAOFeeSplitter(address _feeSplitter) external onlyOwner {
     feeSplitter = _feeSplitter;
   }
+
+  receive() external payable {} // solhint-disable-line    
+  fallback() external payable {} // solhint-disable-line
 }

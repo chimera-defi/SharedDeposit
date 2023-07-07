@@ -25,7 +25,7 @@ contract RewardsReceiver is Ownable2Step {
     state = State.Deposits;
   }
 
-  function work() external {
+  function work() external payable {
     if (state == State.Deposits) {
       DEPOSITS.transfer(address(this).balance);
     } else if (state == State.Withdrawals) {
@@ -41,5 +41,6 @@ contract RewardsReceiver is Ownable2Step {
     }
   }
 
-  receive() external payable {} // solhint-disable-line
+  receive() external payable {} // solhint-disable-line    
+  fallback() external payable {} // solhint-disable-line
 }

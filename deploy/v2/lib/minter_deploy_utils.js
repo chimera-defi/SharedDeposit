@@ -20,6 +20,7 @@ async function deployMinterV2(dh, params = {
   ]
 
   await dh.deployContract(name, name, args);
+  params.minter = dh.addressOf(name);
   console.log("Minter deployed");
   return params;
 }
@@ -95,5 +96,5 @@ module.exports = {
   deployMinterV2: deployMinterV2,
   setWC: setWC,
   addMinter: addMinter,
-  upgradeGoerliMinter: upgradeGoerliMinter
+  upgradeGoerliMinter: upgradeGoerliMinter,
 }

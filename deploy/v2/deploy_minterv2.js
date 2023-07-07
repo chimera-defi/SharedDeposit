@@ -49,7 +49,7 @@ async function main() {
 
   // update dao fee splitter addresses
   params = genParams(dh, params);
-  console.log(params.daoFeeSplitterDistro);
+  console.log('Fee splitter distro: ', params.daoFeeSplitterDistro);
 
   // todo add node op and multisig to feesplitter / use custom instead of OZ generic
   await dh.deployContract("PaymentSplitter", "PaymentSplitter", [

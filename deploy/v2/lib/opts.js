@@ -13,6 +13,9 @@ function genParams(dh, params = {}) {
     sgETH: "0x453B459249F82ba3f369651aD485Fa11C6F082F8",
     wsgETH: "0xbFA813C3266Af70A5Ddc15d9253655281e2bCd23",
     rewardsReceiver: "0xC9F2ddBf105ff67c2BA30b2dB968Bc564a16ca67",
+    minter: "0x5d03e8d58A58244DB0ad5D4CEc7DC7737F2F37a3",
+    daoFeeSplitter: '',
+    yd: '',
   }
 
   params = {
