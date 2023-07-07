@@ -27,3 +27,8 @@
 - RewardsReciever - acts as the withdrawal address and EL+CL rewards receiver and router for the system. Forwards ETH to the Yield redirector or withdrawals
 - Withdrawals - Allows redemptions of sgETH for ETH at scale when validators need to be exited and regular buffers arent adequate
 - Rollover - Used to ferry vETH2 to sgETH for v1 user upgrades
+
+# Audit guidelines
+
+Just the above components in v2/core and custom libs used in lib are under review.  
+Some libs are just copied from other sources so a full audit is not needed as the sources are audited. Likewise for opensource deps such as OZ/solmate/xERC4626

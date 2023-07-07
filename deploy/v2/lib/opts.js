@@ -1,5 +1,6 @@
 const CHIMERA = "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
-
+const GOERLIDEPOSIT = "0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b";
+const MAINNETDEPOSIT = "0x00000000219ab540356cBB839Cbe05303d7705Fa";
 function genParams(dh, params = {}) {
   let addresses = {
     multisigAddr: CHIMERA, // todo: mainnet fix, currently deployer addr
@@ -12,10 +13,11 @@ function genParams(dh, params = {}) {
     vETH2Addr: "0x0d3c0916b0df1ae387eda7fd1cb77d2e244826e6",
     sgETH: "0x453B459249F82ba3f369651aD485Fa11C6F082F8",
     wsgETH: "0xbFA813C3266Af70A5Ddc15d9253655281e2bCd23",
-    rewardsReceiver: "0xC9F2ddBf105ff67c2BA30b2dB968Bc564a16ca67",
-    minter: "0x5d03e8d58A58244DB0ad5D4CEc7DC7737F2F37a3",
-    daoFeeSplitter: '',
-    yd: '',
+    rewardsReceiver: "0x67c2F94F308F7fe6Dd1bf1bD7BF55715E1b1579b",
+    withdrawals: '0x807EB95706E365115adAbeb4884c1Eb39D062A6d',
+    minter: "0x4659c07C199bd373e768b6D800223C5A5367cC56",
+    daoFeeSplitter: '0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D',
+    depositContractAddr: GOERLIDEPOSIT
   }
 
   params = {
@@ -24,6 +26,7 @@ function genParams(dh, params = {}) {
     adminFee: 0,
     sgETHVirtualPrice: "1000000000000000000",
     rolloverVirtual: "1100000000000000000",
+    daoControlledYield: 30,
     names: {
       minter: "SharedDepositMinterV2",
       sgETH: "SgETH",
@@ -31,7 +34,6 @@ function genParams(dh, params = {}) {
       withdrawals: "Withdrawals",
       rewardsReceiver: "RewardsReceiver",
       daoFeeSplitter: "PaymentSplitter",
-      yd: "YieldDirector",
       timelock: "TimelockController",
     },
     ...addresses,

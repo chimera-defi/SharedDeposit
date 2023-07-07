@@ -27,7 +27,7 @@ async function main() {
   await oa.e2e(params);
 
   await dh.waitIfNotLocalHost();
-  await oa.seedRewards(params, "0.005")
+  await oa.seedRewards(params, "0.005");
 
   await dh.postRun();
 }

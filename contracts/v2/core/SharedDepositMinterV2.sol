@@ -72,7 +72,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     uint256 _numValidators,
     uint256 _adminFee,
     address[] memory addresses
-  ) ETH2DepositWithdrawalCredentials() {
+  ) ETH2DepositWithdrawalCredentials(addresses[4]) {
     _feeCalc = IFeeCalc(addresses[0]);
     _sgeth = IERC20MintableBurnable(addresses[1]);
     _wsgeth = IERC4626(addresses[2]);

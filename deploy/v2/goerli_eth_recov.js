@@ -33,7 +33,7 @@ async function main() {
 
   await dh.deployContract(name, name);
   await test();
-} 
+}
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.

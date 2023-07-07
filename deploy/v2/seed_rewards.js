@@ -6,7 +6,6 @@ let OA = require("./lib/onchain_actions.js");
 let genParams = require("./lib/opts.js");
 require("dotenv").config();
 
-
 async function main() {
   deployer = new ethers.Wallet(network.name == "goerli" ? process.env.GOERLIPK : process.env.LOCALPK, ethers.provider);
 
@@ -16,9 +15,10 @@ async function main() {
   let oa = new OA(dh);
   let params = genParams(dh);
 
-  let amt = dh.parseEther("0.0042069");
+  // let amt = dh.parseEther("0.0042069");
+  let amt = oa.calcSeedRewardAmt(params);
 
-  oa.seedRewards(params, amt);
+  await oa.seedRewards(params, amt);
 
   await oa.e2e(params);
   await dh.postRun();

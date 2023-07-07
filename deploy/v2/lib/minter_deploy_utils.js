@@ -16,7 +16,7 @@ async function deployMinterV2(dh, params = {
   let args = [
     params.numValidators,
     params.adminFee,
-    [params.feeCalcAddr, params.sgETH, params.wsgETH, params.multisigAddr]
+    [params.feeCalcAddr, params.sgETH, params.wsgETH, params.multisigAddr, params.depositContractAddr]
   ]
 
   await dh.deployContract(name, name, args);

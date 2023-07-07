@@ -52,8 +52,9 @@ contract SharedDepositMinter is Ownable, Pausable, ReentrancyGuard, ETH2DepositW
   constructor(
     uint256 _numValidators,
     uint256 _adminFee,
-    address _BETHTokenAddress
-  ) public ETH2DepositWithdrawalCredentials() {
+    address _BETHTokenAddress,
+    address _depositContractAddress
+  ) public ETH2DepositWithdrawalCredentials(_depositContractAddress) {
     // depositContract = IDepositContract(mainnetDepositContractAddress);
 
     adminFee = _adminFee; // Admin and infra fees

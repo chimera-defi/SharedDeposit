@@ -12,7 +12,7 @@ const isMainnet = launchNetwork => {
   // some behaviours need to be tested with a mainnet fork which behaves the same as mainnet
   return launchNetwork == "localhost" || launchNetwork == "mainnet";
 };
-const notLocal = launchNetwork => launchNetwork !== 'localhost';
+const notLocal = launchNetwork => launchNetwork !== "localhost";
 const wait = async ms => await new Promise(resolve => setTimeout(resolve, ms));
 const printOverrides = o => {
   return {
@@ -23,7 +23,6 @@ const printOverrides = o => {
   };
 };
 const _getOverrides = async () => {
-
   const overridesForEIP1559 = {
     type: 2,
     maxFeePerGas: ethers.utils.parseUnits("20", "gwei"),
@@ -174,7 +173,7 @@ const _transact = async (tx, ...args) => {
 };
 
 const _getContract = (contracts, name) => {
-  return contracts[name].contract;
+  return contracts[name]?.contract;
 };
 
 async function advanceTimeAndBlock(time, ethers) {
@@ -245,6 +244,8 @@ class DeployHelper {
     return _getContract(this.contracts, name);
   }
   async getContractAt(name, address) {
+    let try_cache = this.getContract(name);
+    if (try_cache && try_cache?.address == address) return try_cache;
     let factory = await hre.ethers.getContractFactory(name);
     let contract = await factory.attach(address);
     if (this.deployer?.address) await contract.connect(this.deployer);
@@ -311,6 +312,11 @@ class DeployHelper {
     if (notLocal(this.launchNetwork)) {
       await wait(5000); // 5 sec wait
     }
+  }
+
+  async getBalance(address) {
+    let bal = await hre.ethers.provider.getBalance(address);
+    return bal;
   }
 }
 

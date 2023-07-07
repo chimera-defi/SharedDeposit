@@ -7,12 +7,14 @@ import {IDepositContract} from "../interfaces/IDepositContract.sol";
 /// @dev Downstream contract needs to implement who can set the withdrawal address and set it
 contract ETH2DepositWithdrawalCredentials {
   uint internal constant _depositAmount = 32 ether;
-  IDepositContract internal constant depositContract =  IDepositContract(0x00000000219ab540356cBB839Cbe05303d7705Fa); // solhint-disable-line
+  IDepositContract public immutable depositContract;
   bytes public curr_withdrawal_pubkey; // Pubkey for ETH 2.0 withdrawal creds
 
   event WithdrawalCredentialSet(bytes _withdrawalCredential);
 
-  constructor() {} // solhint-disable-line
+  constructor(address _dc) {
+    depositContract = IDepositContract(_dc);
+  } 
 
   /// @notice A more streamlined variant of batch deposit for use with preset withdrawal addresses
   ///         Submit index-matching arrays that form Phase 0 DepositData objects.
@@ -30,24 +32,24 @@ contract ETH2DepositWithdrawalCredentials {
       // https://medium.com/@bloqarl/solidity-gas-optimization-tips-with-assembly-you-havent-heard-yet-1381c77ff078
       // 30m gas / block roughly, say 10m max used so 100 validators a batch max 
       // each deposit call costs roughly 128k https://etherscan.io/tx/0xa2acf6e6bde99b532125cc8026cd88eea345f296968ce732556945ab4705d03e
-
       uint i = pubkeys.length;
-      uint _amt = 32 ether;
+      uint _amt = _depositAmount;
       bytes memory wpk = curr_withdrawal_pubkey;
 
       while (i > 0) {
         unchecked {
+          // While loop check prevents underflow.
+          // --i is cheaper than i--
+          // reverse while loop cheapest compared to while or for 
+          // Since we set the upper loop bound to the arr len, we decr 1st to not hit out of bounds
+            --i;
+
             depositContract.deposit{value: _amt}(
                 pubkeys[i],
                 wpk,
                 signatures[i],
                 depositDataRoots[i]
             );
-
-          // While loop check prevents underflow.
-          // --i is cheaper than i--
-          // reverse while loop cheapest compared to while or for 
-            --i;
           }
       }
   }

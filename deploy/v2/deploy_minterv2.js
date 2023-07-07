@@ -49,7 +49,7 @@ async function main() {
 
   // update dao fee splitter addresses
   params = genParams(dh, params);
-  console.log('Fee splitter distro: ', params.daoFeeSplitterDistro);
+  console.log("Fee splitter distro: ", params.daoFeeSplitterDistro);
 
   // todo add node op and multisig to feesplitter / use custom instead of OZ generic
   await dh.deployContract("PaymentSplitter", "PaymentSplitter", [
@@ -62,8 +62,8 @@ async function main() {
   await dh.deployContract("Withdrawals", "Withdrawals", [sgETHAddrs, params.sgETHVirtualPrice]);
   let withdrawals = dh.addressOf("Withdrawals");
 
-  await dh.deployContract("YieldDirector", "YieldDirector", [sgETHAddrs, wsgETHAddr, feeSplitter, minter]);
-  let converter = dh.addressOf("YieldDirector");
+  // await dh.deployContract("YieldDirector", "YieldDirector", [sgETHAddrs, wsgETHAddr, feeSplitter, minter]);
+  // let converter = dh.addressOf("YieldDirector");
 
   await dh.deployContract("RewardsReceiver", "RewardsReceiver", [converter, withdrawals]);
   let rewardsReceiver = dh.addressOf("RewardsReceiver");

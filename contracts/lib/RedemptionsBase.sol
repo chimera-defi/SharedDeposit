@@ -76,6 +76,5 @@ contract RedemptionsBase is ReentrancyGuard {
     }
 
     receive() external payable {} // solhint-disable-line
-
     fallback() external payable {} // solhint-disable-line
 }

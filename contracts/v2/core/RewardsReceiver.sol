@@ -8,26 +8,29 @@ pragma solidity 0.8.20;
 // normal deposit contract is ETH2sgETHYR to autocompound rewards
 // call work() to process ETH
 // DAO is set as owner. must call acceptOwnership. can call flipState
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {YieldDirectorBase} from "../../lib/YieldDirectorBase.sol";
 
-contract RewardsReceiver is Ownable2Step {
+contract RewardsReceiver is Ownable, YieldDirectorBase {
   enum State {
     Deposits,
     Withdrawals
   }
   State public state;
-  address payable public immutable DEPOSITS;
   address payable public immutable WITHDRAWALS;
 
-  constructor(address _convertorAddr, address _withdrawalAddr) payable Ownable2Step() {
-    DEPOSITS = payable(_convertorAddr);
+  constructor(address _withdrawalAddr, address[] memory yieldDirectorAddresses)
+    payable
+    Ownable()
+    YieldDirectorBase(yieldDirectorAddresses)
+  {
     WITHDRAWALS = payable(_withdrawalAddr);
     state = State.Deposits;
   }
 
   function work() external payable {
     if (state == State.Deposits) {
-      DEPOSITS.transfer(address(this).balance);
+      _convertToSgETHAndTransfer();
     } else if (state == State.Withdrawals) {
       WITHDRAWALS.transfer(address(this).balance);
     }
@@ -41,6 +44,12 @@ contract RewardsReceiver is Ownable2Step {
     }
   }
 
-  receive() external payable {} // solhint-disable-line    
+  // Allows upgrading/ changing the downstream DAO fee splitter only for easier fee tier changes in the future
+  function setDAOFeeSplitter(address _feeSplitter) external onlyOwner {
+    feeSplitter = _feeSplitter;
+  }
+
+  receive() external payable {} // solhint-disable-line
+
   fallback() external payable {} // solhint-disable-line
 }
