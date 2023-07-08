@@ -58,6 +58,12 @@ class OA {
     return bal;
   }
 
+  async getSGEthTotal(params) {
+    let sgeth = await this.dh.getContractAt("SgETH", params.sgETH);
+    let bal = await sgeth.totalSupply();
+    return bal;  
+  }
+
   async e2e(params = {
     names: {
       minter: 'SharedDepositMinterV2'
@@ -93,7 +99,7 @@ class OA {
     console.log("warmed up stake/unstake");
   }
 
-  async deployWithdrawalsCredentialPipeline(params = {
+  async deployNonCustodialStakingPipeline(params = {
     sgETH: 'addr',
     daoFeeSplitterDistro: {
       addresses: [],
@@ -107,28 +113,24 @@ class OA {
     }
   }) {
     let dh = this.dh;
+
     await dh.deployContract(params.names.daoFeeSplitter, params.names.daoFeeSplitter, [
       params.daoFeeSplitterDistro.addresses,
       params.daoFeeSplitterDistro.values,
     ]);
-    let feeSplitter = dh.addressOf(params.names.daoFeeSplitter);
-    params.daoFeeSplitter = feeSplitter;
+    params.daoFeeSplitter = dh.addressOf(params.names.daoFeeSplitter);
 
     await dh.deployContract("Withdrawals", "Withdrawals", [params.sgETH, params.sgETHVirtualPrice]);
-    let withdrawals = dh.addressOf("Withdrawals");
+    params.withdrawals = dh.addressOf("Withdrawals");
 
-    // await dh.deployContract("YieldDirector", "YieldDirector", [params.sgETH, params.wsgETH, params.daoFeeSplitter, params.minter]);
-    // let yd = dh.addressOf("YieldDirector");
-    // params.yd = yd;
+    await dh.deployContract("RewardsReceiver", "RewardsReceiver", [params.withdrawals,  [params.sgETH, params.wsgETH, params.daoFeeSplitter, params.minter]]);
+    params.rewardsReceiver = dh.addressOf("RewardsReceiver");
 
-    await dh.deployContract("RewardsReceiver", "RewardsReceiver", [withdrawals,  [params.sgETH, params.wsgETH, params.daoFeeSplitter, params.minter]]);
-    let rewardsReceiver = dh.addressOf("RewardsReceiver");
-    params.rewardsReceiver = rewardsReceiver;
     return params;
   }
 
   async calcSeedRewardAmt(params) {
-    let total = await getSGEthBal(params.wsgETH)
+    let total = await getSGEthTotal(params.wsgETH)
     // convert total to expected 5% yield
     total = this.dh.parseEther(total.toString())
     total = total.dividedBy(20);
@@ -144,13 +146,8 @@ class OA {
     let daoFeeSplitter = await dh.getContractAt(params.names.daoFeeSplitter, params.daoFeeSplitter)
     let wsgETH = await dh.getContractAt(params.names.wsgETH, params.wsgETH);
     let pps = await wsgETH.pricePerShare();
-    console.log('Initial price per share:', pps.toString() / 1e18)
-    // await this.dh.deployer.sendTransaction({
-    //   to: params.rewardsReceiver,
-    //   value: amt
-    // })
+    console.log('Initial price per share:', pps.toString() / 1e18);
     await rr.work({value: amt});
-    // await yd.work();
 
     // https://github.com/ethers-io/ethers.js/discussions/2345
     // need to spec full fn sig since OZ contract has 2 release fns
@@ -161,22 +158,20 @@ class OA {
   }
 
   async depositEth2(params, validators) {
-    let arrayify = this.dh.hre.ethers.utils.arrayify;
     let _make = (validators) => {
-      let _pubkeys = [], _sigs = [], _ddrs = [];
-      validators.forEach(v => {
-        _pubkeys.push(this.dh.prepend0x(v.pubkey));
-        _sigs.push(this.dh.prepend0x(v.signature));
-        _ddrs.push(this.dh.prepend0x(v.deposit_data_root));
-      });
-      // _pubkeys = arrayify(_pubkeys);
-      // _sigs = arrayify(_sigs);
-      // _ddrs = arrayify(_ddrs);
-      return {
-        pubkeys: _pubkeys,
-        sigs: _sigs,
-        ddrs: _ddrs
+      let o = {
+        pubkeys: [],
+        sigs: [],
+        ddrs: []
       }
+
+      validators.forEach(v => {
+        o.pubkeys.push(this.dh.prepend0x(v.pubkey));
+        o.sigs.push(this.dh.prepend0x(v.signature));
+        o.ddrs.push(this.dh.prepend0x(v.deposit_data_root));
+      });
+
+      return o;
     }
 
     let args = _make(validators);

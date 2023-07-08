@@ -19,7 +19,7 @@ async function main() {
   /** Deploy core of v2 system
    * 1. Deploy sgETH
    * 2. Deploy wsgETH
-   * 3. Deploy minter for sgETH - SharedDepositMinter
+   * 3. Deploy minter for sgETH - SharedDepositMinterV2
    * 3a. Add minter to sgETH
    */
   let sgETH = params.names.sgETH;
@@ -38,44 +38,32 @@ async function main() {
 
   await addMinter(dh, params);
 
+  await dh.waitIfNotLocalHost();
+
   /**
-   * Rewards and withdrawals processing system
-   * 4. Deploy Dao payment splitter feeSplitter
-   * 5. Deploy Withdrawals processing contract
-   * 6. Deploy yield restaker - YieldDirector
-   * 7. Deploy withdrawal pubkey - RewardsReceiver - recieves and routes all rewards and exits
-   * 7a. Set the  RewardsReceiver as setWithdrawalCredential  on sgETH minter - SharedDepositMinter
+   * Rewards and withdrawals processing system for non custodial staking
+   * 1. Deploy Dao payment splitter feeSplitter
+   * 2. Deploy Withdrawals processing contract
+   * 3. Deploy withdrawal pubkey - RewardsReceiver - receives and routes all rewards and exits
+   * 4. Set the  RewardsReceiver as setWithdrawalCredential  on sgETH minter - SharedDepositMinter
    */
 
   // update dao fee splitter addresses
   params = genParams(dh, params);
   console.log("Fee splitter distro: ", params.daoFeeSplitterDistro);
 
-  // todo add node op and multisig to feesplitter / use custom instead of OZ generic
-  await dh.deployContract("PaymentSplitter", "PaymentSplitter", [
-    params.daoFeeSplitterDistro.addresses,
-    params.daoFeeSplitterDistro.values,
-  ]);
-  // await dh.deployContract("FeeSplitter", "FeeSplitter", []);
-  let feeSplitter = dh.addressOf("PaymentSplitter");
-
-  await dh.deployContract("Withdrawals", "Withdrawals", [sgETHAddrs, params.sgETHVirtualPrice]);
-  let withdrawals = dh.addressOf("Withdrawals");
-
-  // await dh.deployContract("YieldDirector", "YieldDirector", [sgETHAddrs, wsgETHAddr, feeSplitter, minter]);
-  // let converter = dh.addressOf("YieldDirector");
-
-  await dh.deployContract("RewardsReceiver", "RewardsReceiver", [converter, withdrawals]);
-  let rewardsReceiver = dh.addressOf("RewardsReceiver");
-  params.rewardsReceiver = rewardsReceiver;
+  // Setup the non-custodial staking pipeline incl 1,2,3
+  params = await oa.deployNonCustodialStakingPipeline(params);
 
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
   await setWC(dh, params);
 
+  await dh.waitIfNotLocalHost();
+
   /**
    * Servicing for v1
-   * 8. Deploy ETH Withdrawals processing contract for v1 veth2
-   * 9. Deploy veth2 to sgETH rollover contract for v1
+   * 1. Deploy ETH Withdrawals processing contract for v1 veth2
+   * 2. Deploy veth2 to sgETH rollover contract for v1
    */
   await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
 
