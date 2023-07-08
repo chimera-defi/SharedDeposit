@@ -31,7 +31,7 @@ VeSGT : 0x21b555305e9d65c8b8ae232e60fd806edc9c5d78 : https://etherscan.io/addres
 
 ## Fri jul 7 23
 
-SharedDepositMinterV2 deployed to 0x1C974Ef3993152eCB53FdCF8b543b39f82122447 at https://goerli.etherscan.io/address/0x1C974Ef3993152eCB53FdCF8b543b39f82122447   
+SharedDepositMinterV2 deployed to 0x1C974Ef3993152eCB53FdCF8b543b39f82122447 at https://goerli.etherscan.io/address/0x1C974Ef3993152eCB53FdCF8b543b39f82122447
 
 PaymentSplitter deployed to 0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D at https://goerli.etherscan.io/address/0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D
 

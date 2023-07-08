@@ -17,14 +17,13 @@ contract RewardsReceiver is Ownable, YieldDirectorBase {
     Withdrawals
   }
   State public state;
-  address payable public immutable WITHDRAWALS;
+  address payable public immutable withdrawals;
 
-  constructor(address _withdrawalAddr, address[] memory yieldDirectorAddresses)
-    payable
-    Ownable()
-    YieldDirectorBase(yieldDirectorAddresses)
-  {
-    WITHDRAWALS = payable(_withdrawalAddr);
+  constructor(
+    address _withdrawalAddr,
+    address[] memory yieldDirectorAddresses
+  ) payable Ownable() YieldDirectorBase(yieldDirectorAddresses) {
+    withdrawals = payable(_withdrawalAddr);
     state = State.Deposits;
   }
 
@@ -32,7 +31,7 @@ contract RewardsReceiver is Ownable, YieldDirectorBase {
     if (state == State.Deposits) {
       _convertToSgETHAndTransfer();
     } else if (state == State.Withdrawals) {
-      WITHDRAWALS.transfer(address(this).balance);
+      withdrawals.transfer(address(this).balance);
     }
   }
 

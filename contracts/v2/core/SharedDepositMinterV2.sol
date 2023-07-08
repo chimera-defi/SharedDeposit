@@ -78,7 +78,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     _sgeth = IERC20MintableBurnable(addresses[1]);
     _wsgeth = IERC4626(addresses[2]);
 
-    _sgeth.approve(address(_wsgeth), 2**256 - 1); // max approve wsgeth for deposit and stake
+    _sgeth.approve(address(_wsgeth), 2 ** 256 - 1); // max approve wsgeth for deposit and stake
 
     adminFee = _adminFee; // Admin and infra fees
     numValidators = _numValidators; // The number of validators to create in this lot. Sets a max limit on deposits
@@ -275,11 +275,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     _sgeth.mint(dest, amt);
   }
 
-  function _withdraw(
-    uint256 amount,
-    address origin,
-    address dest
-  ) internal nonReentrant whenNotPaused {
+  function _withdraw(uint256 amount, address origin, address dest) internal nonReentrant whenNotPaused {
     _sgeth.burn(origin, amount); // reverts if amount is too high
     uint256 assets = _withdrawAccounting(amount);
 
