@@ -54,13 +54,9 @@ async function main() {
 
   // Setup the non-custodial staking pipeline incl 1,2,3
   params = await oa.deployNonCustodialStakingPipeline(params);
-
+  await dh.waitIfNotLocalHost();
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
   await setWC(dh, params);
-
-  // Transfer ownership of any owned components to the multisig
-  await oa.transferRewardsRecvrToMultisig(params);
-  await oa.transferSgETHToMultisig(params);
 
   await dh.waitIfNotLocalHost();
 
@@ -72,6 +68,15 @@ async function main() {
   await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
 
   await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
+  
+  await dh.waitIfNotLocalHost();
+
+  // Transfer ownership of any owned components to the multisig
+  await oa.transferRewardsRecvrToMultisig(params);
+  await dh.waitIfNotLocalHost();
+
+  await oa.transferSgETHToMultisig(params);
+  await dh.waitIfNotLocalHost();
 
   // test deposit withdraw flow
   await oa.e2e(params);

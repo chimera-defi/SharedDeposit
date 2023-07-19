@@ -27,14 +27,14 @@ const _getOverrides = async () => {
     type: 2,
     maxFeePerGas: ethers.utils.parseUnits("20", "gwei"),
     maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
-    gasLimit: 10000000,
+    gasLimit: 2000000,
   };
-  // const gasPrice = await hre.ethers.provider.getGasPrice();
-  // overridesForEIP1559.maxFeePerGas = gasPrice;
+  const gasPrice = await hre.ethers.provider.getGasPrice();
+  overridesForEIP1559.maxFeePerGas = gasPrice;
 
   let gas = await hre.ethers.provider.getFeeData();
-  overridesForEIP1559.maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
-  overridesForEIP1559.maxFeePerGas = gas.maxFeePerGas;
+  // overridesForEIP1559.maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
+  // overridesForEIP1559.maxFeePerGas = gas.maxFeePerGas;
 
   return overridesForEIP1559;
 };
@@ -61,8 +61,8 @@ const _verify = async (contract, launchNetwork, cArgs) => {
   await _verifyBase(contract, launchNetwork, cArgs);
 };
 
-const _deployContract = async (name, launchNetwork = false, cArgs = []) => {
-  const overridesForEIP1559 = await _getOverrides();
+const _deployContract = async (name, launchNetwork = false, cArgs = [], cachedOverrides) => {
+  const overridesForEIP1559 = cachedOverrides ? cachedOverrides : await _getOverrides();
   const factory = await hre.ethers.getContractFactory(name);
   const contract = await factory.deploy(...cArgs, overridesForEIP1559);
   await contract.deployTransaction.wait(1);
@@ -205,20 +205,21 @@ class DeployHelper {
     this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
     this.deployer = deployer;
     this.gas = await hre.ethers.provider.getFeeData();
-    // await hre.ethers.provider.getMaxFeePerGas();
-    // 1500000016
-    // 20000000000
-    // console.log(this.gas, this.gas.maxFeePerGas.toString(), ethers.utils.parseUnits("20", "gwei").toString());
-    // return;
+    this.overrides = await this.getOverrides(); // cache the overrides inititally to reduce api calls
 
     log(
       `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${
         this.currentBlockTime
       } on network: ${this.launchNetwork}`,
     );
+
+    log(
+      `Using gas settings: ${this.overrides.maxFeePerGas} & bribe: ${this.overrides.maxPriorityFeePerGas}`
+    );
   }
   async deployContract(name, ctrctName, args) {
-    this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args);
+    this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args, this.overrides);
+    await this.waitIfNotLocalHost();
   }
   async deployInitializableContract(name, ctrctName, args) {
     this.contracts[name] = await _deployInitializableContract(ctrctName, this.launchNetwork, args);
@@ -298,6 +299,18 @@ class DeployHelper {
       } seconds`,
     );
     await this.verify();
+    this.genDeployJson();
+  }
+
+  genDeployJson() {
+    // Helper fn to deploy a json of the deployed contracts and addresses for porting to the frontend
+    let o = {};
+    for (let key in this.contracts) {
+      o[key] = this.addressOf(key);
+    }
+    log("All deployed contracts in JSON:");
+    log(JSON.stringify(o))
+    console.log(o);
   }
 
   log(txt) {
@@ -310,7 +323,9 @@ class DeployHelper {
 
   async waitIfNotLocalHost() {
     if (notLocal(this.launchNetwork)) {
-      await wait(5000); // 5 sec wait
+      let t = 15 * 1000; // 15 secs
+      await wait(t);
+      log(`Waiting ${t} ms for non-local deploy for rate limit risks`);
     }
   }
 
@@ -332,6 +347,12 @@ class DeployHelper {
       throw new Error(`invalid web3 implicit bytes32", ${result}, ${text}`);
     }
     return result;
+  }
+  addToParams(params, name) {
+    let realname = params.names[name];
+    params[name] = this.addressOf(realname);
+    params.contracts[name] = this.getContract(realname);
+    return params;
   }
 }
 

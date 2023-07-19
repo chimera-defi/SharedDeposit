@@ -1,13 +1,26 @@
 const CHIMERA = "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
 const GOERLIDEPOSIT = "0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b";
 const MAINNETDEPOSIT = "0x00000000219ab540356cBB839Cbe05303d7705Fa";
+const NOR='0xa1feaF41d843d53d0F6bEd86a8cF592cE21C409e';
 function genParams(dh, params = {}) {
+  let defaults = {
+    feeCalcAddr: dh.addressOf(0) // 0x00 address since initial fees = 0
+  }
   let addresses = {
     multisigAddr: CHIMERA, // todo: mainnet fix, currently deployer addr
-    deployer: dh.address,
     nor: dh.address,
-    feeCalcAddr: dh.addressOf(0), // 0x00 address since initial fees = 0
+    deployer: dh.address,
+    ...defaults
   };
+
+  let MainnetDeployedAddresses = {
+    vETH2Addr: '0x898bad2774eb97cf6b94605677f43b41871410b1',
+    depositContractAddr: MAINNETDEPOSIT,
+    multisigAddr: '0xebc37f4c20c7f8336e81fb3adf82f6372bef777e',
+    nor: NOR,
+    deployer: CHIMERA,
+    ...defaults
+  }
 
   let GoerliDeployedAddresses = {
     vETH2Addr: "0x0d3c0916b0df1ae387eda7fd1cb77d2e244826e6",
@@ -36,15 +49,17 @@ function genParams(dh, params = {}) {
       daoFeeSplitter: "PaymentSplitter",
       timelock: "TimelockController",
     },
-    ...addresses,
-    ...GoerliDeployedAddresses,
+    ...MainnetDeployedAddresses,
+    // ...addresses,
+    // ...GoerliDeployedAddresses,
     ...params
   };
 
   params.daoFeeSplitterDistro = genFeeDistro(params);
   params.timelockParams = genTimelockParams(params);
 
-  console.log("Using params: ", params)
+  dh.log(`Using params: ${JSON.stringify(params)}`)
+  console.log(params)
 
   return params;
 }
