@@ -7,12 +7,12 @@ import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 contract SGTv2 is ERC20Burnable, ERC20Permit {
-    constructor(
-        string memory name,
-        string memory symbol,
-        uint256 initialSupply,
-        address owner
-    ) ERC20(name, symbol) ERC20Permit(name) {
-        _mint(owner, initialSupply);
-    }
+  constructor(
+    string memory name,
+    string memory symbol,
+    uint256 initialSupply,
+    address owner
+  ) ERC20(name, symbol) ERC20Permit(name) {
+    _mint(owner, initialSupply);
+  }
 }
