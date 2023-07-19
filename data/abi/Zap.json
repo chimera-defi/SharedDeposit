@@ -35,7 +35,14 @@
   },
   {
     "inputs": [],
-    "name": "SGETH",
+    "name": "depositAndStake",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "sgeth",
     "outputs": [
       {
         "internalType": "contract IERC20MintableBurnable",
@@ -44,26 +51,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "WSGETH",
-    "outputs": [
-      {
-        "internalType": "contract IWSGEth",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "depositAndStake",
-    "outputs": [],
-    "stateMutability": "payable",
     "type": "function"
   },
   {
@@ -77,6 +64,19 @@
     "name": "unstakeAndWithdraw",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "wsgeth",
+    "outputs": [
+      {
+        "internalType": "contract IWSGEth",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

@@ -593,6 +593,13 @@
   },
   {
     "inputs": [],
+    "name": "togglePause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "toggleWithdrawRefund",
     "outputs": [],
     "stateMutability": "nonpayable",
