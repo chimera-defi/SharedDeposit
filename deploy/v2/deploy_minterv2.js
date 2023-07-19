@@ -15,6 +15,7 @@ async function main() {
 
   let oa = new OA(dh);
   let params = genParams(dh);
+  dh.multisig_address = params.multisigAddr;
 
   /** Deploy core of v2 system
    * 1. Deploy sgETH
@@ -36,8 +37,6 @@ async function main() {
   let minter = dh.addressOf(params.names.minter);
   params.minter = minter;
 
-  await addMinter(dh, params);
-
   await dh.waitIfNotLocalHost();
 
   /**
@@ -54,9 +53,6 @@ async function main() {
 
   // Setup the non-custodial staking pipeline incl 1,2,3
   params = await oa.deployNonCustodialStakingPipeline(params);
-  await dh.waitIfNotLocalHost();
-  // Set the withdrawal contract now that we have it - i.e the rewards recvr
-  await setWC(dh, params);
 
   await dh.waitIfNotLocalHost();
 
@@ -71,19 +67,36 @@ async function main() {
 
   await dh.waitIfNotLocalHost();
 
-  // Transfer ownership of any owned components to the multisig
+  // // Transfer ownership of any owned components to the multisig
+  // await oa.transferRewardsRecvrToMultisig(params);
+  // await dh.waitIfNotLocalHost();
+
+  // await oa.transferSgETHToMultisig(params);
+  // await dh.waitIfNotLocalHost();
+
+  // // test deposit withdraw flow 
+  // // await oa.e2e(params);
+
+  // await dh.waitIfNotLocalHost();
+
+  await dh.postRun();
+
+  // put the txs after so contracts can be verified properly
+  // run the followup script if any of these txs fail
+  await dh.waitIfNotLocalHost();
+
+  await addMinter(dh, params);
+  // Set the withdrawal contract now that we have it - i.e the rewards recvr
+  await setWC(dh, params);
+  
   await oa.transferRewardsRecvrToMultisig(params);
   await dh.waitIfNotLocalHost();
 
   await oa.transferSgETHToMultisig(params);
   await dh.waitIfNotLocalHost();
 
-  // test deposit withdraw flow
+  // test deposit withdraw flow 
   await oa.e2e(params);
-
-  await dh.waitIfNotLocalHost();
-
-  await dh.postRun();
 }
 
 // We recommend this pattern to be able to use async/await everywhere

@@ -10,7 +10,7 @@ class OA {
   }, amt) {
     let dh = this.dh;
     let c = params.names.minter;
-    await dh.getContract(c).deposit({ value: amt });
+    await dh.getContract(c).deposit({ value: amt, ...dh.overrides });
   };
 
   async withdraw(params = {
@@ -20,7 +20,7 @@ class OA {
   }, amt) {
     let dh = this.dh;
     let c = params.names.minter;
-    await dh.getContract(c).withdraw(amt);
+    await dh.getContract(c).withdraw(amt,  dh.overrides);
   };
 
   async depositAndStake(params = {
@@ -30,7 +30,7 @@ class OA {
   }, amt) {
     let dh = this.dh;
     let c = params.names.minter;
-    await dh.getContract(c).depositAndStake({ value: amt });
+    await dh.getContract(c).depositAndStake({ value: amt, ...dh.overrides });
   };
 
   async unstakeAndWithdraw(params = {
@@ -43,7 +43,7 @@ class OA {
     let c = params.names.minter;
     let wsgeth = await dh.getContractAt(params.names.wsgETH, params.wsgETH);
     await wsgeth.approve(dh.addressOf(c), amt);
-    await dh.getContract(c).unstakeAndWithdraw(amt, dh.address);
+    await dh.getContract(c).unstakeAndWithdraw(amt, dh.address,  dh.overrides);
   };
 
   async getWSGEthBal(params) {
@@ -137,8 +137,7 @@ class OA {
     multisigAddr: '0xaddr'
   }) {
     let dh = this.dh;
-    let rr = await dh.getContractAt(params.names.rewardsReceiver, params.rewardsReceiver)
-    await rr.transferOwnership(params.multisigAddr);
+    await dh.transferOwnershipToMultisig(params.names.rewardsReceiver)
     dh.log(`Ownership for ${params.names.rewardsReceiver} transferred to Multisig at: ${params.multisigAddr}`);
     return params;
   }
@@ -151,8 +150,7 @@ class OA {
     multisigAddr: '0xaddr'
   }) {
     let dh = this.dh;
-    let sgeth = await dh.getContractAt(params.names.sgETH, params.sgETH)
-    await sgeth.transferOwnership(params.multisigAddr);
+    await dh.transferOwnershipToMultisig(params.names.sgETH)
     dh.log(`Ownership for ${params.names.sgETH} transferred to Multisig at: ${params.multisigAddr}`);
     return params;
   }

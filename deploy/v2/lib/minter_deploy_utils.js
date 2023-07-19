@@ -61,7 +61,8 @@ async function setWC(dh, params = {
   let eth1Withdraw = makeWithdrawalCred(params);
   let sc = await dh.getContract(params.names.minter);
   // sc = await sc.connect(dh.deployer);
-  await sc.setWithdrawalCredential(eth1Withdraw);
+  // await dh.transact(sc.setWithdrawalCredential, eth1Withdraw);
+  await sc.setWithdrawalCredential(eth1Withdraw, dh.overrides);
   console.log("Updated withdrawal creds");
 }
 
@@ -75,7 +76,8 @@ async function addMinter(dh, params = {
 
   let minter = params.minter ? params.minter : dh.addressOf(params.names.minter);
 
-  await se.addMinter(minter);
+  // await dh.transact(se.addMinter, minter);
+  await se.addMinter(minter, dh.overrides);
   dh.log(`Added new minter at ${minter} to ${params.sgETH}`);
 };
 

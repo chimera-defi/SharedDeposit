@@ -9,6 +9,34 @@ V2 core auditable contracts and guidance/README in `contracts/v2/core`.
 
 # Deployed mainnet contracts
 
+## Jul 19 2023
+SharedDeposit mainnet RC1 deployed. 
+Feat. minting Eth liquid staking derivative, rollovers to v2 from v1, withdrawals
+
+ SgETH deployed to 0x9e52dB44d62A8c9762FA847Bd2eBa9d0585782d1 at 
+ https://etherscan.io/address/0x9e52dB44d62A8c9762FA847Bd2eBa9d0585782d1    
+
+ WSGETH deployed to 0x31AA035313b1D2109e61Ee0E3662A86A8615fF1d at 
+ https://etherscan.io/address/0x31AA035313b1D2109e61Ee0E3662A86A8615fF1d    
+
+ SharedDepositMinterV2 deployed to 0x85Bc06f4e3439d41f610a440Ba0FbE333736B310 at 
+ https://etherscan.io/address/0x85Bc06f4e3439d41f610a440Ba0FbE333736B310    
+
+ PaymentSplitter deployed to 0x11017593C9BfD1E173ac0c59E2fCca260b10d467 at 
+ https://etherscan.io/address/0x11017593C9BfD1E173ac0c59E2fCca260b10d467    
+
+ Withdrawals deployed to 0xB4AAd1Fe1AD6153525bAf687e1f200183a030E30 at 
+ https://etherscan.io/address/0xB4AAd1Fe1AD6153525bAf687e1f200183a030E30    
+
+ RewardsReceiver deployed to 0x4B9BF4DcA2fbF2C6D5266d51254638820243bFaD at 
+ https://etherscan.io/address/0x4B9BF4DcA2fbF2C6D5266d51254638820243bFaD    
+
+ WithdrawalsvETH2 deployed to 0xed4e21BD620F3C1Fd1853b1C52A9D023C33D83d4 at 
+ https://etherscan.io/address/0xed4e21BD620F3C1Fd1853b1C52A9D023C33D83d4    
+
+ Rollover deployed to 0x68a31dfD0c81A411C5adadc8A40225425777466C at 
+ https://etherscan.io/address/0x68a31dfD0c81A411C5adadc8A40225425777466C    
+
 ## Aug 31 '21
 
 NFT

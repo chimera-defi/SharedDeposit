@@ -90,12 +90,11 @@ module.exports = {
     localhost: {
       accounts: [`0x${process.env.GOERLIPK}`],
     },
-    // mainnet: {
-    //   url: secrets.INFURA_MAINNET,
-    //   accounts: [`0x${secrets.MAINNET_PRIVATE_KEY}`],
-    //   chainId: chainIds.mainnet,
-    //   initialBaseFeePerGas: 1000000000,
-    // },
+    mainnet: {
+      url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`,
+      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY}`],
+      chainId: chainIds.mainnet,
+    },
   },
   gasReporter: {
     currency: "USD",

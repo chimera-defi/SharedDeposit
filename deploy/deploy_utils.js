@@ -25,16 +25,28 @@ const printOverrides = o => {
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.utils.parseUnits("20", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("1", "gwei"),
-    gasLimit: 2000000,
+    maxFeePerGas: ethers.utils.parseUnits("25", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("2", "gwei"),
+    gasLimit: 2500000,
   };
-  const gasPrice = await hre.ethers.provider.getGasPrice();
-  overridesForEIP1559.maxFeePerGas = gasPrice;
+  // const gasPrice = await hre.ethers.provider.getGasPrice();
+  // overridesForEIP1559.maxFeePerGas = gasPrice;
+
 
   let gas = await hre.ethers.provider.getFeeData();
-  // overridesForEIP1559.maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
-  // overridesForEIP1559.maxFeePerGas = gas.maxFeePerGas;
+  // todo we want to keep waiting for gas to drop. or some max time. 
+  // manually set expected max gas
+  // check and wait if gas spike is hit
+  let omfpg = overridesForEIP1559.maxFeePerGas;
+  let mfpg = gas.maxFeePerGas;
+  if (mfpg.gte(omfpg)) {
+    await wait(15000);
+    console.log('gas spike hit?!', mfpg.toString())
+    gas = await hre.ethers.provider.getFeeData();
+  }
+  overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas.gte(gas.maxPriorityFeePerGas) ? gas.maxPriorityFeePerGas : overridesForEIP1559.maxPriorityFeePerGas;
+  
+  overridesForEIP1559.maxFeePerGas = gas.maxFeePerGas;
 
   return overridesForEIP1559;
 };
@@ -113,8 +125,8 @@ const _verifyAll = async (allContracts, launchNetwork) => {
         verifyAttemtLog[contract.name].verifified = res;
       }),
     );
-    log("Waiting 2 s for Etherscan API limit of 5 calls/s");
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    log("Waiting 2 + 2 s for Etherscan API limit of 5 calls/s");
+    await new Promise(resolve => setTimeout(resolve, 4000));
   }
   fs.writeFileSync("verify_attempt_log.json", JSON.stringify(verifyAttemtLog));
   log(`Verifications finished: ${verificationsPassed} / ${verificationsFailed + verificationsPassed} `);
@@ -167,6 +179,7 @@ const _transferOwnership = async (name, contract, to) => {
 
 const _transact = async (tx, ...args) => {
   let overrides = await _getOverrides();
+  console.log(...args)
   let trace = await tx(...args, overrides);
   await trace.wait(); // throws on tx failure
   return trace;
@@ -270,7 +283,7 @@ class DeployHelper {
 
   // ownership transfer
   async transferOwnershipToMultisig(name) {
-    await _transferOwnership(name, getContract(name), this.multisig_address);
+    await _transferOwnership(name, this.getContract(name), this.multisig_address);
   }
   async transferOwnershipToMultisigMultiple(arrOfNames) {
     for (let name of arrOfNames) {
@@ -321,7 +334,7 @@ class DeployHelper {
 
   async waitIfNotLocalHost() {
     if (notLocal(this.launchNetwork)) {
-      let t = 15 * 1000; // 15 secs
+      let t = 10 * 1000; // 15 secs
       await wait(t);
       log(`Waiting ${t} ms for non-local deploy for rate limit risks`);
     }

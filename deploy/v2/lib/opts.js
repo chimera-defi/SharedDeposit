@@ -14,6 +14,15 @@ function genParams(dh, params = {}) {
   };
 
   let MainnetDeployedAddresses = {
+    sgETH: '0x9e52dB44d62A8c9762FA847Bd2eBa9d0585782d1',
+    wsgETH: '0x31AA035313b1D2109e61Ee0E3662A86A8615fF1d',
+    minter: '0x85Bc06f4e3439d41f610a440Ba0FbE333736B310',
+    daoFeeSplitter: '0x11017593C9BfD1E173ac0c59E2fCca260b10d467',
+    rewardsReceiver: '0x4B9BF4DcA2fbF2C6D5266d51254638820243bFaD',
+    withdrawals: '0xB4AAd1Fe1AD6153525bAf687e1f200183a030E30',
+    withdrawalsVeth2: '0xed4e21BD620F3C1Fd1853b1C52A9D023C33D83d4',
+    rollover: '0x68a31dfD0c81A411C5adadc8A40225425777466C',
+
     vETH2Addr: '0x898bad2774eb97cf6b94605677f43b41871410b1',
     depositContractAddr: MAINNETDEPOSIT,
     multisigAddr: '0xebc37f4c20c7f8336e81fb3adf82f6372bef777e',
@@ -39,7 +48,6 @@ function genParams(dh, params = {}) {
     adminFee: 0,
     sgETHVirtualPrice: "1000000000000000000",
     rolloverVirtual: "1100000000000000000",
-    daoControlledYield: 30,
     names: {
       minter: "SharedDepositMinterV2",
       sgETH: "SgETH",
