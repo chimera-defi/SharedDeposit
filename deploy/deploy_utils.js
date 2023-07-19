@@ -213,9 +213,7 @@ class DeployHelper {
       } on network: ${this.launchNetwork}`,
     );
 
-    log(
-      `Using gas settings: ${this.overrides.maxFeePerGas} & bribe: ${this.overrides.maxPriorityFeePerGas}`
-    );
+    log(`Using gas settings: ${this.overrides.maxFeePerGas} & bribe: ${this.overrides.maxPriorityFeePerGas}`);
   }
   async deployContract(name, ctrctName, args) {
     this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args, this.overrides);
@@ -309,7 +307,7 @@ class DeployHelper {
       o[key] = this.addressOf(key);
     }
     log("All deployed contracts in JSON:");
-    log(JSON.stringify(o))
+    log(JSON.stringify(o));
     console.log(o);
   }
 

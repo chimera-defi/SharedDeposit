@@ -68,7 +68,7 @@ async function main() {
   await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
 
   await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
-  
+
   await dh.waitIfNotLocalHost();
 
   // Transfer ownership of any owned components to the multisig
