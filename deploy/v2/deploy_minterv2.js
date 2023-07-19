@@ -58,6 +58,10 @@ async function main() {
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
   await setWC(dh, params);
 
+  // Transfer ownership of any owned components to the multisig
+  await oa.transferRewardsRecvrToMultisig(params);
+  await oa.transferSgETHToMultisig(params);
+
   await dh.waitIfNotLocalHost();
 
   /**
@@ -69,11 +73,10 @@ async function main() {
 
   await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
 
-  // Todo: ownership transfers
-  // transferFeeSplittertoDao();
-
   // test deposit withdraw flow
   await oa.e2e(params);
+
+  await dh.waitIfNotLocalHost();
 
   await dh.postRun();
 }

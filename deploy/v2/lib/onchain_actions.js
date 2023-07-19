@@ -129,6 +129,34 @@ class OA {
     return params;
   }
 
+  async transferRewardsRecvrToMultisig(params = {
+    names: {
+      rewardsReceiver: ''
+    },
+    rewardsReceiver: '0xaddr',
+    multisigAddr: '0xaddr'
+  }) {
+    let dh = this.dh;
+    let rr = await dh.getContractAt(params.names.rewardsReceiver, params.rewardsReceiver)
+    await rr.transferOwnership(params.multisigAddr);
+    dh.log(`Ownership for ${params.names.rewardsReceiver} transferred to Multisig at: ${params.multisigAddr}`);
+    return params;
+  }
+
+  async transferSgETHToMultisig(params = {
+    names: {
+      sgeth: ''
+    },
+    sgeth: '0xaddr',
+    multisigAddr: '0xaddr'
+  }) {
+    let dh = this.dh;
+    let sgeth = await dh.getContractAt(params.names.sgETH, params.sgETH)
+    await sgeth.transferOwnership(params.multisigAddr);
+    dh.log(`Ownership for ${params.names.sgETH} transferred to Multisig at: ${params.multisigAddr}`);
+    return params;
+  }
+
   async calcSeedRewardAmt(params) {
     let total = await getSGEthTotal(params.wsgETH)
     // convert total to expected 5% yield
