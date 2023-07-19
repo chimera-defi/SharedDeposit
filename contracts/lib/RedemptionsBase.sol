@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-// SPDX-License-Identifier: MIT
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -13,8 +13,6 @@ Users call deposit(amt) to stake their ERC20 and signal intent to exit
 When the contract has enough ETH to service the users debt
 Users call redeem() to redem for ETH = deposited shares * virtualPrice
 The user can further call withdraw() if they change their mind about redeeming for ETH
-TODO Docs
-Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
 **/
 contract RedemptionsBase is ReentrancyGuard {
   using SafeMath for uint256;

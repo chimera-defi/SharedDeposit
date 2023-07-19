@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: MIT
 
 // Cloned from fei/rari ERC4626 impl https://github.com/fei-protocol/ERC4626/blob/main/src/interfaces/IxERC4626.sol
@@ -22,7 +21,7 @@ import {IxERC4626} from "../interfaces/IxERC4626.sol";
 
     Operates on "cycles" which distribute the rewards surplus over the internal balance to users linearly over the remainder of the cycle window.
 */
-  abstract contract xERC4626 is IxERC4626, ERC4626 {
+abstract contract xERC4626 is IxERC4626, ERC4626 {
   using SafeCastLib for *;
 
   /// @notice the maximum length of a rewards cycle

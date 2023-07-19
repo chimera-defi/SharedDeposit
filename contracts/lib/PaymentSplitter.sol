@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: MIT
+
 // OZ paymentsplitter with minor changes
 // private function _addPayee made internal for better inheritance flow
 // 0 payee chck in constructor removed to allow empty setup
 
-// SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.8.0) (finance/PaymentSplitter.sol)
 
 pragma solidity ^0.8.0;

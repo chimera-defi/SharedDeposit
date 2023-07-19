@@ -1,3 +1,4 @@
+//SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.20;
 
 import {IDepositContract} from "../interfaces/IDepositContract.sol";
@@ -15,7 +16,7 @@ contract ETH2DepositWithdrawalCredentials {
 
   constructor(address _dc) {
     depositContract = IDepositContract(_dc);
-  } 
+  }
 
   /// @notice A more streamlined variant of batch deposit for use with preset withdrawal addresses
   ///         Submit index-matching arrays that form Phase 0 DepositData objects.
