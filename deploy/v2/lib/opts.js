@@ -47,7 +47,7 @@ function genParams(dh, params = {}) {
     numValidators: 10000,
     adminFee: 0,
     sgETHVirtualPrice: "1000000000000000000",
-    rolloverVirtual: "1100000000000000000",
+    rolloverVirtual: "1080000000000000000",
     names: {
       minter: "SharedDepositMinterV2",
       sgETH: "SgETH",

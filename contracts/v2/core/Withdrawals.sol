@@ -13,12 +13,15 @@ import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../../lib/Redemption
     The user can further call withdraw() if they change their mind about redeeming for ETH
 **/
 contract Withdrawals is RedemptionsBase {
+  event Redemption(address indexed _from, uint256 val);
+
   constructor(address _underlying, uint256 _virtualPrice) payable RedemptionsBase(_underlying, _virtualPrice) {} // solhint-disable-line
 
   function _redeem(uint256 amountToReturn) internal override {
     if (amountToReturn > address(this).balance) {
       revert ContractBalanceTooLow();
     }
+    emit Redemption(msg.sender, amountToReturn);
 
     payable(msg.sender).transfer(amountToReturn);
   }
