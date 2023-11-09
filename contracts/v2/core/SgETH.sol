@@ -9,20 +9,20 @@ contract SgETH is ERC20MintableBurnableByMinter {
   }
 
   // Adds whitelisted minters - only callable by DEFAULT_ADMIN_ROLE enforced in OZ dep
-  function addMinter(address minterAddress) external {
+  function addMinter(address minterAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(minterAddress != address(0), "Zero address detected");
     grantRole(MINTER, minterAddress);
   }
 
   // Remove a minter - only callable by DEFAULT_ADMIN_ROLE enforced internally
-  function removeMinter(address minterAddress) external {
+  function removeMinter(address minterAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
     // oz uses maps so 0 address will return true but does not break anything
     revokeRole(MINTER, minterAddress);
   }
 
   // Transfer ownership of who can add/rm minters
-  function transferOwnership(address newOwner) external {
-    _grantRole(DEFAULT_ADMIN_ROLE, newOwner);
+  function transferOwnership(address newOwner) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    grantRole(DEFAULT_ADMIN_ROLE, newOwner);
     renounceRole(DEFAULT_ADMIN_ROLE, msg.sender); // permission gaurded via revert if called lacks role
   }
 }
