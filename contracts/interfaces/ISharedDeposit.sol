@@ -8,4 +8,5 @@ interface ISharedDeposit {
     function deposit() payable external;
 
     function remainingSpaceInEpoch() external;
+    function depositAndStakeFor(address dest) external payable;
 }

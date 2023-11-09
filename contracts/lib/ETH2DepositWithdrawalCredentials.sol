@@ -40,10 +40,10 @@ contract ETH2DepositWithdrawalCredentials {
 
     while (i > 0) {
       unchecked {
-      // While loop check prevents underflow.
-      // --i is cheaper than i--
-      // reverse while loop cheapest compared to while or for 
-      // Since we set the upper loop bound to the arr len, we decr 1st to not hit out of bounds
+        // While loop check prevents underflow.
+        // --i is cheaper than i--
+        // reverse while loop cheapest compared to while or for 
+        // Since we set the upper loop bound to the arr len, we decr 1st to not hit out of bounds
         --i;
 
         depositContract.deposit{value: _amt}(

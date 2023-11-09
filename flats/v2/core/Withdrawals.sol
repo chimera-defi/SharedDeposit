@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIXED
 
-// File @openzeppelin/contracts/utils/math/SafeMath.sol@v4.9.0
+// File @openzeppelin/contracts/utils/math/SafeMath.sol@v4.9.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.9.0) (utils/math/SafeMath.sol)
 
@@ -217,7 +217,7 @@ library SafeMath {
     }
 }
 
-// File @openzeppelin/contracts/token/ERC20/IERC20.sol@v4.9.0
+// File @openzeppelin/contracts/token/ERC20/IERC20.sol@v4.9.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.9.0) (token/ERC20/IERC20.sol)
 
@@ -297,7 +297,7 @@ interface IERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
-// File @openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol@v4.9.0
+// File @openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol@v4.9.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.9.0) (token/ERC20/extensions/IERC20Permit.sol)
 
@@ -359,7 +359,7 @@ interface IERC20Permit {
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 }
 
-// File @openzeppelin/contracts/utils/Address.sol@v4.9.0
+// File @openzeppelin/contracts/utils/Address.sol@v4.9.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.9.0) (utils/Address.sol)
 
@@ -605,9 +605,9 @@ library Address {
     }
 }
 
-// File @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol@v4.9.0
+// File @openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol@v4.9.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.9.0) (token/ERC20/utils/SafeERC20.sol)
+// OpenZeppelin Contracts (last updated v4.9.3) (token/ERC20/utils/SafeERC20.sol)
 
 pragma solidity ^0.8.0;
 
@@ -682,8 +682,8 @@ library SafeERC20 {
 
     /**
      * @dev Set the calling contract's allowance toward `spender` to `value`. If `token` returns no value,
-     * non-reverting calls are assumed to be successful. Compatible with tokens that require the approval to be set to
-     * 0 before setting it to a non-zero value.
+     * non-reverting calls are assumed to be successful. Meant to be used with tokens that require the approval
+     * to be set to zero before setting it to a non-zero value, such as USDT.
      */
     function forceApprove(IERC20 token, address spender, uint256 value) internal {
         bytes memory approvalCall = abi.encodeWithSelector(token.approve.selector, spender, value);
@@ -748,11 +748,167 @@ library SafeERC20 {
     }
 }
 
+// File @openzeppelin/contracts/security/ReentrancyGuard.sol@v4.9.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.9.0) (security/ReentrancyGuard.sol)
+
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Contract module that helps prevent reentrant calls to a function.
+ *
+ * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
+ * available, which can be applied to functions to make sure there are no nested
+ * (reentrant) calls to them.
+ *
+ * Note that because there is a single `nonReentrant` guard, functions marked as
+ * `nonReentrant` may not call one another. This can be worked around by making
+ * those functions `private`, and then adding `external` `nonReentrant` entry
+ * points to them.
+ *
+ * TIP: If you would like to learn more about reentrancy and alternative ways
+ * to protect against it, check out our blog post
+ * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
+ */
+abstract contract ReentrancyGuard {
+    // Booleans are more expensive than uint256 or any type that takes up a full
+    // word because each write operation emits an extra SLOAD to first read the
+    // slot's contents, replace the bits taken up by the boolean, and then write
+    // back. This is the compiler's defense against contract upgrades and
+    // pointer aliasing, and it cannot be disabled.
+
+    // The values being non-zero value makes deployment a bit more expensive,
+    // but in exchange the refund on every call to nonReentrant will be lower in
+    // amount. Since refunds are capped to a percentage of the total
+    // transaction's gas, it is best to keep them low in cases like this one, to
+    // increase the likelihood of the full refund coming into effect.
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and making it call a
+     * `private` function that does the actual work.
+     */
+    modifier nonReentrant() {
+        _nonReentrantBefore();
+        _;
+        _nonReentrantAfter();
+    }
+
+    function _nonReentrantBefore() private {
+        // On the first call to nonReentrant, _status will be _NOT_ENTERED
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+    }
+
+    function _nonReentrantAfter() private {
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
+    }
+
+    /**
+     * @dev Returns true if the reentrancy guard is currently set to "entered", which indicates there is a
+     * `nonReentrant` function in the call stack.
+     */
+    function _reentrancyGuardEntered() internal view returns (bool) {
+        return _status == _ENTERED;
+    }
+}
+
+// File contracts/lib/RedemptionsBase.sol
+// License-Identifier: MIT
+pragma solidity 0.8.20;
+
+
+
+/// @title RedemptionsBase - ERC20 token redemption base
+/// @author @ChimeraDefi - sharedstake.org
+/// @notice RedemptionsBase accepts an underlying ERC20 and redeems it for - child impl
+/** @dev Deployer chooses static virtual price at launch in 1e18 and the underlying ERC20 token
+Users call deposit(amt) to stake their ERC20 and signal intent to exit
+When the contract has enough ETH to service the users debt
+Users call redeem() to redem for ETH = deposited shares * virtualPrice
+The user can further call withdraw() if they change their mind about redeeming for ETH
+**/
+contract RedemptionsBase is ReentrancyGuard {
+  using SafeMath for uint256;
+  using SafeERC20 for IERC20;
+
+  error ContractBalanceTooLow();
+  error UserAmountIsZero();
+  struct UserEntry {
+    uint256 amount;
+  }
+
+  mapping(address => UserEntry) public userEntries;
+  uint256 public totalOut;
+  uint256 public immutable virtualPrice;
+  IERC20 public immutable vEth2Token;
+
+  constructor(address _underlying, uint256 _virtualPrice) payable {
+    vEth2Token = IERC20(_underlying);
+    virtualPrice = _virtualPrice;
+  }
+
+  function deposit(uint256 amount) external nonReentrant {
+    // vEth2 transfer from returns true otherwise reverts
+    if (vEth2Token.transferFrom(msg.sender, address(this), amount)) {
+      _stakeForWithdrawal(msg.sender, amount);
+    }
+  }
+
+  function withdraw() external nonReentrant {
+    uint256 amt = userEntries[msg.sender].amount;
+    delete userEntries[msg.sender];
+
+    vEth2Token.transferFrom(address(this), msg.sender, amt);
+  }
+
+  function redeem() external nonReentrant {
+    address usr = msg.sender;
+    uint256 amountToReturn = _getAmountGivenShares(userEntries[usr].amount, virtualPrice);
+    if (amountToReturn == 0) {
+      revert UserAmountIsZero();
+    }
+    delete userEntries[usr];
+    totalOut += amountToReturn;
+    _redeem(amountToReturn);
+  }
+
+  function _redeem(uint256 amountToReturn) internal virtual { // solhint-disable-line
+    require(false, "implement me");
+  }
+
+  function _stakeForWithdrawal(address sender, uint256 amount) internal {
+    UserEntry memory ue = userEntries[sender];
+    ue.amount = ue.amount.add(amount);
+    userEntries[sender] = ue;
+  }
+
+  function _getAmountGivenShares(uint256 shares, uint256 _vp) internal pure returns (uint256) {
+    return shares.mul(_vp).div(1e18);
+  }
+
+  receive() external payable {} // solhint-disable-line
+  fallback() external payable {} // solhint-disable-line
+}
+
 // File contracts/v2/core/Withdrawals.sol
 pragma solidity 0.8.20;
 
 // License-Identifier: MIT
-
 
 /// @title Withdrawals - ERC20 token to ETH redemption contract
 /// @author @ChimeraDefi - sharedstake.org
@@ -762,70 +918,18 @@ pragma solidity 0.8.20;
     When the contract has enough ETH to service the users debt
     Users call redeem() to redem for ETH = deposited shares * virtualPrice
     The user can further call withdraw() if they change their mind about redeeming for ETH
-    TODO Docs
-    Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
 **/
-contract Withdrawals {
-    using SafeMath for uint256;
-    using SafeERC20 for IERC20;
+contract Withdrawals is RedemptionsBase {
+  event Redemption(address indexed _from, uint256 val);
 
-    error ContractBalanceTooLow();
-    error UserAmountIsZero();
-    struct UserEntry {
-        uint256 amount;
+  constructor(address _underlying, uint256 _virtualPrice) payable RedemptionsBase(_underlying, _virtualPrice) {} // solhint-disable-line
+
+  function _redeem(uint256 amountToReturn) internal override {
+    if (amountToReturn > address(this).balance) {
+      revert ContractBalanceTooLow();
     }
+    emit Redemption(msg.sender, amountToReturn);
 
-    mapping(address => UserEntry) public userEntries;
-    uint256 public totalOut;
-    uint256 public immutable virtualPrice;
-    IERC20 public immutable vEth2Token;
-
-    constructor(address _underlying, uint256 _virtualPrice) payable {
-        vEth2Token = IERC20(_underlying);
-        virtualPrice = _virtualPrice;
-    }
-
-    function deposit(uint256 amount) external {
-        // vEth2 transfer from returns true otherwise reverts
-        if (vEth2Token.transferFrom(msg.sender, address(this), amount)) {
-            _stakeForWithdrawal(msg.sender, amount);
-        }
-    }
-
-    function withdraw() external {
-        uint256 amt = userEntries[msg.sender].amount;
-        delete userEntries[msg.sender];
-
-        vEth2Token.transferFrom(address(this), msg.sender, amt);
-    }
-
-    function redeem() external {
-        // make sure user has tokens to redeem offchain first by looking at userEntries otherwise this will just waste gas
-        address usr = msg.sender;
-        uint256 amountToReturn = _getAmountGivenShares(userEntries[usr].amount, virtualPrice);
-        if (amountToReturn == 0) {
-            revert UserAmountIsZero();
-        }
-        if (amountToReturn > address(this).balance) {
-            revert ContractBalanceTooLow();
-        }
-        delete userEntries[usr];
-        totalOut += amountToReturn;
-
-        payable(usr).transfer(amountToReturn);
-    }
-
-    function _stakeForWithdrawal(address sender, uint256 amount) internal {
-        UserEntry memory ue = userEntries[sender];
-        ue.amount = ue.amount.add(amount);
-        userEntries[sender] = ue;
-    }
-
-    function _getAmountGivenShares(uint256 shares, uint256 _vp) internal pure returns (uint256) {
-        return shares.mul(_vp).div(1e18);
-    }
-
-    receive() external payable {} // solhint-disable-line
-
-    fallback() external payable {} // solhint-disable-line
+    payable(msg.sender).transfer(amountToReturn);
+  }
 }

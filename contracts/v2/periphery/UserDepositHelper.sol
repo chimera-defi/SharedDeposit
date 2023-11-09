@@ -2,6 +2,7 @@ pragma solidity 0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISharedDeposit} from "../../interfaces/ISharedDeposit.sol";
+
 // User contract
 // Fires events on user deposits to assits attribution of rewards
 // Calls proper flow to retrieve interest bearing staked eth
@@ -18,7 +19,7 @@ contract UserDepositHelper {
   }
 
   function multicall(address[] memory addrs, bytes32[] memory bytesToBroadcast) external payable {
-    uint i = addrs.length;
+    uint256 i = addrs.length;
     while (i > 0) {
       unchecked {
         i--;
@@ -30,11 +31,11 @@ contract UserDepositHelper {
       }
     }
 
-    uint k = bytesToBroadcast.length;
+    uint256 k = bytesToBroadcast.length;
     while (k > 0) {
       unchecked {
         k--;
-        emit ExtraDepositData(msg.sender, msg.value, bytesToBroadcast[i]); 
+        emit ExtraDepositData(msg.sender, msg.value, bytesToBroadcast[i]);
       }
     }
 

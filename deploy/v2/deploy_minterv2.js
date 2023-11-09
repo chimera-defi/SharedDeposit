@@ -74,7 +74,7 @@ async function main() {
   // await oa.transferSgETHToMultisig(params);
   // await dh.waitIfNotLocalHost();
 
-  // // test deposit withdraw flow 
+  // // test deposit withdraw flow
   // // await oa.e2e(params);
 
   // await dh.waitIfNotLocalHost();
@@ -88,14 +88,14 @@ async function main() {
   await addMinter(dh, params);
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
   await setWC(dh, params);
-  
+
   await oa.transferRewardsRecvrToMultisig(params);
   await dh.waitIfNotLocalHost();
 
   await oa.transferSgETHToMultisig(params);
   await dh.waitIfNotLocalHost();
 
-  // test deposit withdraw flow 
+  // test deposit withdraw flow
   await oa.e2e(params);
 }
 

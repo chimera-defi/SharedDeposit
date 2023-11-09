@@ -7,7 +7,7 @@ async function main() {
   let dh = new DeployHelper(network.name, address);
   await dh.init(address);
 
-  // Args:    
+  // Args:
   /** 
   string memory _name,
   string memory _symbol,
@@ -22,7 +22,7 @@ async function main() {
     "20000000000000000",
     200,
     20,
-    "0x713f723aD1d3EeA7174f0733b50265a41A40aa29"
+    "0x713f723aD1d3EeA7174f0733b50265a41A40aa29",
   ]);
   await dh.postRun();
 }
@@ -36,4 +36,4 @@ main()
     process.exit(1);
   });
 
-  // Goerli test at: https://goerli.etherscan.io/address/0x1d6A21dF197Ae3fdABd310DEC04198e580CEbd4D#code
+// Goerli test at: https://goerli.etherscan.io/address/0x1d6A21dF197Ae3fdABd310DEC04198e580CEbd4D#code

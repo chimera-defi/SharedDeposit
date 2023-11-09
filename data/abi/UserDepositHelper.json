@@ -8,11 +8,6 @@
       },
       {
         "internalType": "address",
-        "name": "_wsgETH",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "_minter",
         "type": "address"
       }
@@ -115,32 +110,6 @@
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "MAX",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "MAX_INT",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -164,16 +133,21 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "sgETH",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
+        "internalType": "address[]",
+        "name": "addrs",
+        "type": "address[]"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "bytesToBroadcast",
+        "type": "bytes32[]"
       }
     ],
-    "stateMutability": "view",
+    "name": "multicall",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   }
 ]

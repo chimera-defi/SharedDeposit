@@ -43,11 +43,7 @@ library SafeMath {
      * Requirements:
      * - Addition cannot overflow.
      */
-    function add(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function add(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         uint256 c = a + b;
         require(c >= a, errorMessage);
 
@@ -74,11 +70,7 @@ library SafeMath {
      * Requirements:
      * - Subtraction cannot underflow.
      */
-    function sub(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         require(b <= a, errorMessage);
         uint256 c = a - b;
 
@@ -115,11 +107,7 @@ library SafeMath {
      * Requirements:
      * - Multiplication cannot overflow.
      */
-    function mul(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function mul(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
         // benefit is lost if 'b' is also tested.
         // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
@@ -159,11 +147,7 @@ library SafeMath {
      * Requirements:
      * - The divisor cannot be zero.
      */
-    function div(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         // Solidity only automatically asserts when dividing by 0
         require(b > 0, errorMessage);
         uint256 c = a / b;
@@ -198,11 +182,7 @@ library SafeMath {
      * Requirements:
      * - The divisor cannot be zero.
      */
-    function mod(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
         require(b != 0, errorMessage);
         return a % b;
     }
@@ -288,11 +268,7 @@ contract vEth2 {
      * @param minter_ The account with minting ability
      * @param mintingAllowedAfter_ The timestamp after which minting may occur
      */
-    constructor(
-        address account,
-        address minter_,
-        uint256 mintingAllowedAfter_
-    ) {
+    constructor(address account, address minter_, uint256 mintingAllowedAfter_) {
         require(mintingAllowedAfter_ >= block.timestamp, "vETH2::constructor: minting can only begin after deployment");
 
         balances[account] = uint96(totalSupply);
@@ -457,11 +433,7 @@ contract vEth2 {
      * @param rawAmount The number of tokens to transfer
      * @return Whether or not the transfer succeeded
      */
-    function transferFrom(
-        address src,
-        address dst,
-        uint256 rawAmount
-    ) external returns (bool) {
+    function transferFrom(address src, address dst, uint256 rawAmount) external returns (bool) {
         address spender = msg.sender;
         uint96 spenderAllowance = allowances[src][spender];
         uint96 amount = safe96(rawAmount, "vETH2::approve: amount exceeds 96 bits");
@@ -498,14 +470,7 @@ contract vEth2 {
      * @param r Half of the ECDSA signature pair
      * @param s Half of the ECDSA signature pair
      */
-    function delegateBySig(
-        address delegatee,
-        uint256 nonce,
-        uint256 expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) public {
+    function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) public {
         bytes32 domainSeparator = keccak256(
             abi.encode(DOMAIN_TYPEHASH, keccak256(bytes(name)), getChainId(), address(this))
         );
@@ -579,11 +544,7 @@ contract vEth2 {
         _moveDelegates(currentDelegate, delegatee, delegatorBalance);
     }
 
-    function _transferTokens(
-        address src,
-        address dst,
-        uint96 amount
-    ) internal {
+    function _transferTokens(address src, address dst, uint96 amount) internal {
         require(src != address(0), "vETH2::_transferTokens: cannot transfer from the zero address");
         require(dst != address(0), "vETH2::_transferTokens: cannot transfer to the zero address");
 
@@ -594,11 +555,7 @@ contract vEth2 {
         _moveDelegates(delegates[src], delegates[dst], amount);
     }
 
-    function _moveDelegates(
-        address srcRep,
-        address dstRep,
-        uint96 amount
-    ) internal {
+    function _moveDelegates(address srcRep, address dstRep, uint96 amount) internal {
         if (srcRep != dstRep && amount > 0) {
             if (srcRep != address(0)) {
                 uint32 srcRepNum = numCheckpoints[srcRep];
@@ -616,12 +573,7 @@ contract vEth2 {
         }
     }
 
-    function _writeCheckpoint(
-        address delegatee,
-        uint32 nCheckpoints,
-        uint96 oldVotes,
-        uint96 newVotes
-    ) internal {
+    function _writeCheckpoint(address delegatee, uint32 nCheckpoints, uint96 oldVotes, uint96 newVotes) internal {
         uint32 blockNumber = safe32(block.number, "vETH2::_writeCheckpoint: block number exceeds 32 bits");
 
         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
@@ -635,30 +587,22 @@ contract vEth2 {
     }
 
     function safe32(uint256 n, string memory errorMessage) internal pure returns (uint32) {
-        require(n < 2**32, errorMessage);
+        require(n < 2 ** 32, errorMessage);
         return uint32(n);
     }
 
     function safe96(uint256 n, string memory errorMessage) internal pure returns (uint96) {
-        require(n < 2**96, errorMessage);
+        require(n < 2 ** 96, errorMessage);
         return uint96(n);
     }
 
-    function add96(
-        uint96 a,
-        uint96 b,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
+    function add96(uint96 a, uint96 b, string memory errorMessage) internal pure returns (uint96) {
         uint96 c = a + b;
         require(c >= a, errorMessage);
         return c;
     }
 
-    function sub96(
-        uint96 a,
-        uint96 b,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
+    function sub96(uint96 a, uint96 b, string memory errorMessage) internal pure returns (uint96) {
         require(b <= a, errorMessage);
         return a - b;
     }

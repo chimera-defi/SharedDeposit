@@ -32,20 +32,21 @@ const _getOverrides = async () => {
   // const gasPrice = await hre.ethers.provider.getGasPrice();
   // overridesForEIP1559.maxFeePerGas = gasPrice;
 
-
   let gas = await hre.ethers.provider.getFeeData();
-  // todo we want to keep waiting for gas to drop. or some max time. 
+  // todo we want to keep waiting for gas to drop. or some max time.
   // manually set expected max gas
   // check and wait if gas spike is hit
   let omfpg = overridesForEIP1559.maxFeePerGas;
   let mfpg = gas.maxFeePerGas;
   if (mfpg.gte(omfpg)) {
     await wait(15000);
-    console.log('gas spike hit?!', mfpg.toString())
+    console.log("gas spike hit?!", mfpg.toString());
     gas = await hre.ethers.provider.getFeeData();
   }
-  overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas.gte(gas.maxPriorityFeePerGas) ? gas.maxPriorityFeePerGas : overridesForEIP1559.maxPriorityFeePerGas;
-  
+  overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas.gte(gas.maxPriorityFeePerGas)
+    ? gas.maxPriorityFeePerGas
+    : overridesForEIP1559.maxPriorityFeePerGas;
+
   overridesForEIP1559.maxFeePerGas = gas.maxFeePerGas;
 
   return overridesForEIP1559;
@@ -179,7 +180,7 @@ const _transferOwnership = async (name, contract, to) => {
 
 const _transact = async (tx, ...args) => {
   let overrides = await _getOverrides();
-  console.log(...args)
+  console.log(...args);
   let trace = await tx(...args, overrides);
   await trace.wait(); // throws on tx failure
   return trace;
