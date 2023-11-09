@@ -20,3 +20,4 @@ deploy_log.json
 contracts/governance/VestingMerkleDistributor.sol
 contracts/governance/SimpleVesting.sol
 contracts/util/SingleTokenVestingNonRevocable.sol
+contracts/drafts/*
