@@ -106,7 +106,12 @@ module.exports = {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
     // apiKey: secrets.ETHERSCAN_API,
-    apiKey: process.env.ETHERSCAN_API,
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API,
+      goerli: process.env.ETHERSCAN_API
+    },
+    customChains: []
+
   },
   contractSizer: {
     alphaSort: true,
