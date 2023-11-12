@@ -9,6 +9,10 @@ V2 core auditable contracts and guidance/README in `contracts/v2/core`.
 
 # Deployed mainnet contracts
 
+## Nov 12 2023
+
+See deploy_log.md for new deployed contract addresses
+
 ## Jul 19 2023
 
 SharedDeposit mainnet RC1 deployed.
