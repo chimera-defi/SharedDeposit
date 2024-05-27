@@ -196,19 +196,15 @@ async function main() {
   let overrides = await _getOverrides();
   if (!isMainnet(launchNetwork)) {
     let faucet = "Faucet";
-    let faucet_args = [sgtv2_addr, ethers.utils.parseEther((10 ** 3).toString())];
+    let faucet_args = [sgtv2_addr, ethers.parseEther((10 ** 3).toString())];
     await deployContract(faucet, faucet_args);
 
     contracts["FaucetOldToken"] = await _deployContract(faucet, launchNetwork, [
       contracts["SGTv1"].contract.address,
-      ethers.utils.parseEther((10 ** 3).toString()),
+      ethers.parseEther((10 ** 3).toString()),
     ]);
 
-    await contracts[sgtv2].contract.transfer(
-      addressOf(faucet),
-      ethers.utils.parseEther((1 * 10 ** 6).toString()),
-      overrides,
-    );
+    await contracts[sgtv2].contract.transfer(addressOf(faucet), ethers.parseEther((1 * 10 ** 6).toString()), overrides);
 
     await contracts["SGTv1"].contract.transfer(addressOf("FaucetOldToken"), maxSupply.div(2).toString(), overrides);
     log("Deployed faucets");

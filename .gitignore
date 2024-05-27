@@ -1,5 +1,6 @@
 node_modules
 .openzeppelin
+data
 
 #Hardhat files
 cache
@@ -8,3 +9,5 @@ artifacts
 secrets.js
 deploy_log.json
 logs.txt
+
+.env
