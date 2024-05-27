@@ -92,7 +92,7 @@ module.exports = {
     },
     mainnet: {
       url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`,
-      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY}`],
+      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : process.env.GOERLIPK}`],
       chainId: chainIds.mainnet,
     },
   },
