@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 
 pragma solidity ^0.8.7;
-import "./VoteEscrow.sol";
+import "./voteEscrow.sol";
 import "../interfaces/IVotingEscrow.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
