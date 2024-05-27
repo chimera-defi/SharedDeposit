@@ -25,8 +25,8 @@ const printOverrides = o => {
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.parseUnits("25", "gwei"),
-    maxPriorityFeePerGas: ethers.parseUnits("2", "gwei"),
+    maxFeePerGas: ethers.utils.parseUnits("25", "gwei"),
+    maxPriorityFeePerGas: ethers.utils.parseUnits("2", "gwei"),
     gasLimit: 2500000,
   };
   // const gasPrice = await hre.ethers.provider.getGasPrice();
@@ -330,7 +330,7 @@ class DeployHelper {
   }
 
   parseEther(n) {
-    return hre.ethers.parseEther(n);
+    return hre.ethers.utils.parseEther(n);
   }
 
   async waitIfNotLocalHost() {
@@ -351,7 +351,7 @@ class DeployHelper {
   //https://ethereum.stackexchange.com/questions/94664/arrayify-error-when-passing-a-string-as-an-argument-to-a-transaction
   web3StringToBytes32(text) {
     // text = this.prepend0x(text);
-    var result = ethers.hexlify(ethers.toUtf8Bytes(text));
+    var result = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(text));
     while (result.length < 66) {
       result += "0";
     }
