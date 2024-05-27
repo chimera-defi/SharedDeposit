@@ -8,3 +8,5 @@ artifacts
 secrets.js
 deploy_log.json
 logs.txt
+
+.env

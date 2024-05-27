@@ -9,7 +9,7 @@ require("hardhat-contract-sizer");
 require("hardhat-abi-exporter");
 require("dotenv").config();
 
-let secrets = require("./secrets.js");
+// let secrets = require("./secrets.js");
 const path = require("path");
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -92,7 +92,7 @@ module.exports = {
     },
     mainnet: {
       url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`,
-      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY}`],
+      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : process.env.GOERLIPK}`],
       chainId: chainIds.mainnet,
     },
   },
@@ -108,10 +108,9 @@ module.exports = {
     // apiKey: secrets.ETHERSCAN_API,
     apiKey: {
       mainnet: process.env.ETHERSCAN_API,
-      goerli: process.env.ETHERSCAN_API
+      goerli: process.env.ETHERSCAN_API,
     },
-    customChains: []
-
+    customChains: [],
   },
   contractSizer: {
     alphaSort: true,
