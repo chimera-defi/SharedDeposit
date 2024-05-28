@@ -69,7 +69,7 @@ describe("SgETH.sol", () => {
       feeCalc, // fee calculator
       sgEth.address, // sgETH address
       wsgETH.address, // wsgETH address
-      ethers.constants.AddressZero, // using dummy address
+      ethers.constants.AddressZero, // government address
       ethers.constants.AddressZero, // deposit contract
     ];
 
