@@ -78,10 +78,15 @@ describe("SgETH.sol", () => {
     await minter.deployed();
 
     // revoke deployer minter rights
+    // actually don't need to do this because deployer doesn't have minter role
     await sgEth.removeMinter(deployer.address);
     // add secondary owner
     // revoke deployer admin rights
-    await sgEth.transferOwnership(minter.address);
+    await expect(sgEth.transferOwnership(minter.address))
+      .to.be.emit(sgEth, "RoleGranted")
+      .withArgs(ethers.constants.HashZero, minter.address, deployer.address)
+      .and.to.be.emit(sgEth, "RoleRevoked")
+      .withArgs(ethers.constants.HashZero, deployer.address, deployer.address);
 
     // check auth invariants are preserved. i.e ex owner and outsiders cannot interact with the contract
     await expect(sgEth.connect(deployer).transferOwnership(alice.address)).to.be.revertedWith(
