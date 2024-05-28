@@ -1,5 +1,6 @@
 const {ethers} = require("hardhat");
 const {expect} = require("chai");
+const {parseEther} = require("ethers/lib/utils");
 
 describe("SgETH.sol", () => {
   let sgEth, deployer, alice;
@@ -65,11 +66,11 @@ describe("SgETH.sol", () => {
     const adminFee = 0;
 
     const addresses = [
-      feeCalc,
-      sgEth.address,
-      wsgETH.address,
+      feeCalc, // fee calculator
+      sgEth.address, // sgETH address
+      wsgETH.address, // wsgETH address
       ethers.constants.AddressZero, // using dummy address
-      ethers.constants.AddressZero, // using dummy address
+      ethers.constants.AddressZero, // deposit contract
     ];
 
     // add secondary minter contract / eoa
@@ -77,8 +78,23 @@ describe("SgETH.sol", () => {
     const minter = await Minter.deploy(numValidators, adminFee, addresses);
     await minter.deployed();
 
-    // revoke deployer minter rights
-    // actually don't need to do this because deployer doesn't have minter role
+    // deployer can't mint
+    await expect(sgEth.connect(deployer).mint(deployer.address, parseEther("1"))).to.be.revertedWith(
+      `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${MINTER_ROLE}`,
+    );
+    // no one can't mint
+    await expect(sgEth.connect(alice).mint(alice.address, parseEther("1"))).to.be.revertedWith(
+      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${MINTER_ROLE}`,
+    );
+    // add minter
+    await expect(sgEth.connect(deployer).addMinter(deployer.address))
+      .to.be.emit(sgEth, "RoleGranted")
+      .withArgs(MINTER_ROLE, deployer.address, deployer.address);
+    // minter can mint
+    await expect(sgEth.connect(deployer).mint(deployer.address, parseEther("1")))
+      .to.be.emit(sgEth, "Transfer")
+      .withArgs(ethers.constants.AddressZero, deployer.address, parseEther("1"));
+
     await sgEth.removeMinter(deployer.address);
     // add secondary owner
     // revoke deployer admin rights
