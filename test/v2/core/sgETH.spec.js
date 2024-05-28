@@ -55,6 +55,7 @@ describe("SgETH.sol", () => {
   });
 
   it("e2e test", async () => {
+    // deploy sgeth
     const WSGETH = await ethers.getContractFactory("WSGETH");
     const wsgETH = await WSGETH.deploy(sgEth.address, 24 * 60 * 60);
     await wsgETH.deployed();
@@ -71,13 +72,18 @@ describe("SgETH.sol", () => {
       ethers.constants.AddressZero, // using dummy address
     ];
 
+    // add secondary minter contract / eoa
     const Minter = await ethers.getContractFactory("SharedDepositMinterV2");
     const minter = await Minter.deploy(numValidators, adminFee, addresses);
     await minter.deployed();
 
+    // revoke deployer minter rights
     await sgEth.removeMinter(deployer.address);
+    // add secondary owner
+    // revoke deployer admin rights
     await sgEth.transferOwnership(minter.address);
 
+    // check auth invariants are preserved. i.e ex owner and outsiders cannot interact with the contract
     await expect(sgEth.connect(deployer).transferOwnership(alice.address)).to.be.revertedWith(
       `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${ethers.constants.HashZero}`,
     );
