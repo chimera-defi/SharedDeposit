@@ -10,3 +10,7 @@ deploy_log.json
 logs.txt
 
 .env
+
+# coverage
+coverage/*
+coverage.json

@@ -7,6 +7,8 @@ require("hardhat-deploy-ethers");
 require("hardhat-gas-reporter");
 require("hardhat-contract-sizer");
 require("hardhat-abi-exporter");
+require('solidity-coverage')
+
 require("dotenv").config();
 
 // Environment sourced variables
