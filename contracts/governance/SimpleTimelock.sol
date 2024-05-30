@@ -17,55 +17,55 @@ Previously reviewed by certik and immunefi
 */
 
 contract SimpleTimelock is TokenTimelock, ReentrancyGuard {
-  mapping(address => bool) internal _transferAllowed;
+    mapping(address => bool) internal _transferAllowed;
 
-  constructor(
-    IERC20 token,
-    address beneficiary,
-    uint256 releaseTime
-  ) public TokenTimelock(token, beneficiary, releaseTime) {}
+    constructor(
+        IERC20 token,
+        address beneficiary,
+        uint256 releaseTime
+    ) public TokenTimelock(token, beneficiary, releaseTime) {}
 
-  event ClaimToken(IERC20 token, uint256 amount);
-  event ClaimEther(uint256 amount);
+    event ClaimToken(IERC20 token, uint256 amount);
+    event ClaimEther(uint256 amount);
 
-  /**
-   * @notice Claim ERC20-compliant tokens other than locked token.
-   * @param tokenToClaim Token to claim balance of.
-   */
-  function claimToken(IERC20 tokenToClaim) external onlyOwner nonReentrant {
-    require(address(tokenToClaim) != address(token()), "smart-timelock/no-locked-token-claim");
-    uint256 preAmount = token().balanceOf(address(this));
+    /**
+     * @notice Claim ERC20-compliant tokens other than locked token.
+     * @param tokenToClaim Token to claim balance of.
+     */
+    function claimToken(IERC20 tokenToClaim) external onlyOwner nonReentrant {
+        require(address(tokenToClaim) != address(token()), "smart-timelock/no-locked-token-claim");
+        uint256 preAmount = token().balanceOf(address(this));
 
-    uint256 claimableTokenAmount = tokenToClaim.balanceOf(address(this));
-    require(claimableTokenAmount > 0, "smart-timelock/no-token-balance-to-claim");
+        uint256 claimableTokenAmount = tokenToClaim.balanceOf(address(this));
+        require(claimableTokenAmount > 0, "smart-timelock/no-token-balance-to-claim");
 
-    tokenToClaim.transfer(beneficiary(), claimableTokenAmount);
+        tokenToClaim.transfer(beneficiary(), claimableTokenAmount);
 
-    uint256 postAmount = token().balanceOf(address(this));
-    require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
+        uint256 postAmount = token().balanceOf(address(this));
+        require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
 
-    emit ClaimToken(tokenToClaim, claimableTokenAmount);
-  }
+        emit ClaimToken(tokenToClaim, claimableTokenAmount);
+    }
 
-  /**
-   * @notice Claim Ether in contract.
-   */
-  function claimEther() external onlyOwner nonReentrant {
-    uint256 preAmount = token().balanceOf(address(this));
+    /**
+     * @notice Claim Ether in contract.
+     */
+    function claimEther() external onlyOwner nonReentrant {
+        uint256 preAmount = token().balanceOf(address(this));
 
-    uint256 etherToTransfer = address(this).balance;
-    require(etherToTransfer > 0, "smart-timelock/no-ether-balance-to-claim");
+        uint256 etherToTransfer = address(this).balance;
+        require(etherToTransfer > 0, "smart-timelock/no-ether-balance-to-claim");
 
-    payable(beneficiary()).transfer(etherToTransfer);
+        payable(beneficiary()).transfer(etherToTransfer);
 
-    uint256 postAmount = token().balanceOf(address(this));
-    require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
+        uint256 postAmount = token().balanceOf(address(this));
+        require(postAmount >= preAmount, "smart-timelock/locked-balance-check");
 
-    emit ClaimEther(etherToTransfer);
-  }
+        emit ClaimEther(etherToTransfer);
+    }
 
-  /**
-   * @notice Allow timelock to receive Ether
-   */
-  receive() external payable {}
+    /**
+     * @notice Allow timelock to receive Ether
+     */
+    receive() external payable {}
 }

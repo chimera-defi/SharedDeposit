@@ -21,13 +21,14 @@ See deploy_log.md for new deployed contract addresses
 ```
 yarn install
 yarn sol
+yarn test
 ```
 
 - Deployments and hardhat
   Run anvil for local host deploy
 
 ```
-anvil --fork-url https://mainnet.sharedtools.org/apecoinrpc
+anvil --fork-url https://rpc.sharedtools.org/rpc
  npx hardhat run --network ...
 ```
 
