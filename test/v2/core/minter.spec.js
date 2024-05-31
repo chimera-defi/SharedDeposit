@@ -2,7 +2,7 @@ const {ethers} = require("hardhat");
 const {expect} = require("chai");
 const {parseEther} = require("ethers/lib/utils");
 
-describe.only("SharedDepositMinterV2", () => {
+describe("SharedDepositMinterV2", () => {
   let sgEth, paymentSplitter, minter, withdrawals, wsgEth, deployer, alice, multiSig;
 
   beforeEach(async () => {
