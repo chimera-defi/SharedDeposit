@@ -1,12 +1,13 @@
 const {ethers} = require("hardhat");
 const {expect} = require("chai");
+const {parseEther} = require("ethers/lib/utils");
 
 describe("SgETH.sol", () => {
-  let sgEth, deployer, alice;
+  let sgEth, deployer, alice, multiSig;
   let MINTER_ROLE;
 
   beforeEach(async () => {
-    const [owner, addr1] = await ethers.getSigners();
+    const [owner, addr1, addr2] = await ethers.getSigners();
 
     const SgETH = await ethers.getContractFactory("SgETH");
     sgEth = await SgETH.deploy([]);
@@ -14,6 +15,7 @@ describe("SgETH.sol", () => {
 
     deployer = owner;
     alice = addr1;
+    multiSig = addr2;
 
     MINTER_ROLE = await sgEth.MINTER();
   });
