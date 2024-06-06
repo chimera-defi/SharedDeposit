@@ -40,12 +40,13 @@ describe("SharedDepositMinterV2", () => {
     const numValidators = 1000;
     const adminFee = 0;
 
-    const FeeCalc = await ethers.getContractFactory("FeeCalc");
-    const feeCalc = await FeeCalc.deploy(parseEther("0"), parseEther("0"));
-    await feeCalc.deployed();
+    // const FeeCalc = await ethers.getContractFactory("FeeCalc");
+    // const feeCalc = await FeeCalc.deploy(parseEther("0"), parseEther("0"));
+    // await feeCalc.deployed();
 
     const addresses = [
-      feeCalc.address, // fee splitter
+      ethers.constants.AddressZero,
+      //feeCalc.address, // fee splitter
       sgEth.address, // sgETH address
       wsgEth.address, // wsgETH address
       multiSig.address, // government address

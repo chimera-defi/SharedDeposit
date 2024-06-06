@@ -42,7 +42,7 @@ describe("e2e test", () => {
     const adminFee = 0;
 
     const addresses = [
-      paymentSplitter.address, // fee splitter
+      ethers.constants.AddressZero, // fee splitter
       sgEth.address, // sgETH address
       wsgETH.address, // wsgETH address
       multiSig.address, // government address
