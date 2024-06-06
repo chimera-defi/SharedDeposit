@@ -12,43 +12,43 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {YieldDirectorBase} from "../../lib/YieldDirectorBase.sol";
 
 contract RewardsReceiver is Ownable, YieldDirectorBase {
-  enum State {
-    Deposits,
-    Withdrawals
-  }
-  State public state;
-  address payable public immutable withdrawals;
-
-  constructor(
-    address _withdrawalAddr,
-    address[] memory yieldDirectorAddresses
-  ) payable Ownable() YieldDirectorBase(yieldDirectorAddresses) {
-    withdrawals = payable(_withdrawalAddr);
-    state = State.Deposits;
-  }
-
-  function work() external payable {
-    if (state == State.Deposits) {
-      _convertToSgETHAndTransfer();
-    } else if (state == State.Withdrawals) {
-      withdrawals.transfer(address(this).balance);
+    enum State {
+        Deposits,
+        Withdrawals
     }
-  }
+    State public state;
+    address payable public immutable withdrawals;
 
-  function flipState() external onlyOwner {
-    if (state == State.Deposits) {
-      state = State.Withdrawals;
-    } else if (state == State.Withdrawals) {
-      state = State.Deposits;
+    constructor(
+        address _withdrawalAddr,
+        address[] memory yieldDirectorAddresses
+    ) payable Ownable() YieldDirectorBase(yieldDirectorAddresses) {
+        withdrawals = payable(_withdrawalAddr);
+        state = State.Deposits;
     }
-  }
 
-  // Allows upgrading/ changing the downstream DAO fee splitter only for easier fee tier changes in the future
-  function setDAOFeeSplitter(address _feeSplitter) external onlyOwner {
-    feeSplitter = _feeSplitter;
-  }
+    function work() external payable {
+        if (state == State.Deposits) {
+            _convertToSgETHAndTransfer();
+        } else if (state == State.Withdrawals) {
+            withdrawals.transfer(address(this).balance);
+        }
+    }
 
-  receive() external payable {} // solhint-disable-line
+    function flipState() external onlyOwner {
+        if (state == State.Deposits) {
+            state = State.Withdrawals;
+        } else if (state == State.Withdrawals) {
+            state = State.Deposits;
+        }
+    }
 
-  fallback() external payable {} // solhint-disable-line
+    // Allows upgrading/ changing the downstream DAO fee splitter only for easier fee tier changes in the future
+    function setDAOFeeSplitter(address _feeSplitter) external onlyOwner {
+        feeSplitter = _feeSplitter;
+    }
+
+    receive() external payable {} // solhint-disable-line
+
+    fallback() external payable {} // solhint-disable-line
 }

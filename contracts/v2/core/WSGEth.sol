@@ -16,60 +16,60 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
     mint() - deposit targeting a specific number of ssgETH out
     deposit() - deposit knowing a specific number of ssgETH in */
 contract WSGETH is xERC4626, ReentrancyGuard {
-  modifier andSync() {
-    if (block.timestamp >= rewardsCycleEnd) {
-      syncRewards();
+    modifier andSync() {
+        if (block.timestamp >= rewardsCycleEnd) {
+            syncRewards();
+        }
+        _;
     }
-    _;
-  }
 
-  /* ========== CONSTRUCTOR ========== */
-  constructor(
-    ERC20 _underlying,
-    uint32 _rewardsCycleLength
-  ) ERC4626(_underlying, "Wrapped SharedStake Governed Ether", "wsgETH") xERC4626(_rewardsCycleLength) {} // solhint-disable-line
+    /* ========== CONSTRUCTOR ========== */
+    constructor(
+        ERC20 _underlying,
+        uint32 _rewardsCycleLength
+    ) ERC4626(_underlying, "Wrapped SharedStake Governed Ether", "wsgETH") xERC4626(_rewardsCycleLength) {} // solhint-disable-line
 
-  /// @notice Approve and deposit() in one transaction
-  function depositWithSignature(
-    uint256 assets,
-    address receiver,
-    uint256 deadline,
-    bool approveMax,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) external returns (uint256 shares) {
-    uint256 amount = approveMax ? type(uint256).max : assets;
-    asset.permit(msg.sender, address(this), amount, deadline, v, r, s);
-    return (deposit(assets, receiver));
-  }
+    /// @notice Approve and deposit() in one transaction
+    function depositWithSignature(
+        uint256 assets,
+        address receiver,
+        uint256 deadline,
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256 shares) {
+        uint256 amount = approveMax ? type(uint256).max : assets;
+        asset.permit(msg.sender, address(this), amount, deadline, v, r, s);
+        return (deposit(assets, receiver));
+    }
 
-  /// @notice inlines syncRewards with deposits when able
-  function deposit(uint256 assets, address receiver) public override nonReentrant andSync returns (uint256 shares) {
-    return super.deposit(assets, receiver);
-  }
+    /// @notice inlines syncRewards with deposits when able
+    function deposit(uint256 assets, address receiver) public override nonReentrant andSync returns (uint256 shares) {
+        return super.deposit(assets, receiver);
+    }
 
-  /// @notice inlines syncRewards with mints when able
-  function mint(uint256 shares, address receiver) public override nonReentrant andSync returns (uint256 assets) {
-    return super.mint(shares, receiver);
-  }
+    /// @notice inlines syncRewards with mints when able
+    function mint(uint256 shares, address receiver) public override nonReentrant andSync returns (uint256 assets) {
+        return super.mint(shares, receiver);
+    }
 
-  /// @notice inlines syncRewards with withdrawals when able
-  function withdraw(
-    uint256 assets,
-    address receiver,
-    address owner
-  ) public override nonReentrant andSync returns (uint256 shares) {
-    return super.withdraw(assets, receiver, owner);
-  }
+    /// @notice inlines syncRewards with withdrawals when able
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public override nonReentrant andSync returns (uint256 shares) {
+        return super.withdraw(assets, receiver, owner);
+    }
 
-  /// @notice inlines syncRewards with redemptions when able
-  function redeem(uint256 shares, address receiver, address owner) public override andSync returns (uint256 assets) {
-    return super.redeem(shares, receiver, owner);
-  }
+    /// @notice inlines syncRewards with redemptions when able
+    function redeem(uint256 shares, address receiver, address owner) public override andSync returns (uint256 assets) {
+        return super.redeem(shares, receiver, owner);
+    }
 
-  /// @notice How much sgETH is 1E18 ssgETH worth. Price is in ETH, not USD
-  function pricePerShare() public view returns (uint256) {
-    return convertToAssets(1e18);
-  }
+    /// @notice How much sgETH is 1E18 ssgETH worth. Price is in ETH, not USD
+    function pricePerShare() public view returns (uint256) {
+        return convertToAssets(1e18);
+    }
 }

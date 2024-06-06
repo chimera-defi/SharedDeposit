@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.20;
 
-// SPDX-License-Identifier: MIT
 import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../../lib/RedemptionsBase.sol";
 
 /// @title Rollover - ERC20 token to ETH redemption contract
@@ -15,25 +15,25 @@ import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../../lib/Redemption
     Test on goerli deployed at https://goerli.etherscan.io/address/0x4db116ad5cca33ba5d2956dba80d56f27b6b2455
 **/
 contract Rollover is RedemptionsBase {
-  using SafeMath for uint256;
-  using SafeERC20 for IERC20;
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
-  IERC20 public immutable newToken;
+    IERC20 public immutable newToken;
 
-  constructor(
-    address _underlying,
-    address _newToken,
-    uint256 _virtualPrice
-  ) payable RedemptionsBase(_underlying, _virtualPrice) {
-    newToken = IERC20(_newToken);
-  }
-
-  function _redeem(uint256 amountToReturn) internal override {
-    // make sure user has tokens to redeem offchain first by looking at userEntries otherwise this will just waste gas
-    if (amountToReturn > newToken.balanceOf(address(this))) {
-      revert ContractBalanceTooLow();
+    constructor(
+        address _underlying,
+        address _newToken,
+        uint256 _virtualPrice
+    ) payable RedemptionsBase(_underlying, _virtualPrice) {
+        newToken = IERC20(_newToken);
     }
 
-    newToken.transfer(msg.sender, amountToReturn);
-  }
+    function _redeem(uint256 amountToReturn) internal override {
+        // make sure user has tokens to redeem offchain first by looking at userEntries otherwise this will just waste gas
+        if (amountToReturn > newToken.balanceOf(address(this))) {
+            revert ContractBalanceTooLow();
+        }
+
+        newToken.transfer(msg.sender, amountToReturn);
+    }
 }
