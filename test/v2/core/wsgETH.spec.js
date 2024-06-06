@@ -1,13 +1,14 @@
 const {ethers} = require("hardhat");
 const {expect} = require("chai");
-const {parseEther} = require("ethers/lib/utils");
+const {parseEther, formatEther} = require("ethers/lib/utils");
+const {time} = require("@nomicfoundation/hardhat-network-helpers");
 
 describe.only("WsgETH.sol", () => {
-  let sgEth, wsgEth, deployer, alice;
+  let sgEth, wsgEth, deployer, alice, multiSig;
   let MINTER_ROLE;
 
   beforeEach(async () => {
-    const [owner, addr1] = await ethers.getSigners();
+    const [owner, addr1, addr2] = await ethers.getSigners();
 
     const SgETH = await ethers.getContractFactory("SgETH");
     sgEth = await SgETH.deploy([]);
@@ -15,6 +16,7 @@ describe.only("WsgETH.sol", () => {
 
     deployer = owner;
     alice = addr1;
+    multiSig = addr2;
 
     MINTER_ROLE = await sgEth.MINTER();
 
@@ -56,7 +58,7 @@ describe.only("WsgETH.sol", () => {
 
     await expect(wsgEth.withdraw(parseEther("1"), alice.address, alice.address)).to.be.revertedWith(""); // panic revert by insufficient balance
 
-    // mint wsgEth to alice
+    // approve sgEth to alice
     await sgEth.approve(wsgEth.address, parseEther("1"));
     await wsgEth.deposit(parseEther("1"), alice.address);
 
@@ -71,7 +73,7 @@ describe.only("WsgETH.sol", () => {
 
     await expect(wsgEth.redeem(parseEther("1"), alice.address, alice.address)).to.be.revertedWith(""); // panic revert by insufficient balance
 
-    // mint wsgEth to alice
+    // approve sgEth to alice
     await sgEth.approve(wsgEth.address, parseEther("1"));
     await wsgEth.deposit(parseEther("1"), alice.address);
 
@@ -118,5 +120,79 @@ describe.only("WsgETH.sol", () => {
     await expect(wsgEth.connect(alice).depositWithSignature(parseEther("1"), alice.address, deadline, false, v, r, s))
       .to.be.emit(wsgEth, "Transfer")
       .withArgs(ethers.constants.AddressZero, alice.address, parseEther("1"));
+  });
+
+  it("price per share", async () => {
+    const splitterAddresses = [deployer.address, multiSig.address, wsgEth.address];
+    const splitterValues = [6, 3, 31];
+
+    const PaymentSplitter = await ethers.getContractFactory("PaymentSplitter");
+    const paymentSplitter = await PaymentSplitter.deploy(splitterAddresses, splitterValues);
+    await paymentSplitter.deployed();
+
+    const rolloverVirtual = "1080000000000000000";
+    const vETH2Addr = "0x898bad2774eb97cf6b94605677f43b41871410b1";
+
+    const Withdrawals = await ethers.getContractFactory("Withdrawals");
+    const withdrawals = await Withdrawals.deploy(vETH2Addr, rolloverVirtual);
+    await withdrawals.deployed();
+
+    const numValidators = 1000;
+    const adminFee = 0;
+
+    const addresses = [
+      ethers.constants.AddressZero, // fee splitter
+      sgEth.address, // sgETH address
+      wsgEth.address, // wsgETH address
+      multiSig.address, // government address
+      ethers.constants.AddressZero, // deposit contract address - can't find deposit contract - using dummy address
+    ];
+
+    // add secondary minter contract / eoa
+    const Minter = await ethers.getContractFactory("SharedDepositMinterV2");
+    const minter = await Minter.deploy(numValidators, adminFee, addresses);
+    await minter.deployed();
+
+    const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
+    const rewardsReceiver = await RewardsReceiver.deploy(withdrawals.address, [
+      sgEth.address,
+      wsgEth.address,
+      paymentSplitter.address,
+      minter.address,
+    ]);
+    await rewardsReceiver.deployed();
+
+    await sgEth.addMinter(minter.address);
+
+    // approve sgEth to alice
+    await sgEth.approve(wsgEth.address, parseEther("2"));
+    await wsgEth.deposit(parseEther("2"), alice.address);
+
+    console.log(formatEther(await wsgEth.pricePerShare()));
+
+    await expect(wsgEth.connect(alice).redeem(parseEther("0.5"), alice.address, alice.address))
+      .to.be.emit(wsgEth, "Withdraw")
+      .withArgs(alice.address, alice.address, alice.address, parseEther("0.5"), parseEther("0.5"));
+
+    // deposit to rewardReceiver to simulate reward
+    await deployer.sendTransaction({
+      to: rewardsReceiver.address,
+      value: parseEther("1"),
+    });
+    // sends 60% of sgEth to WSGEth contract - so current rate is 1.5/2.1
+    console.log(await rewardsReceiver.state());
+    await rewardsReceiver.work();
+
+    await expect(wsgEth.syncRewards()).to.be.revertedWith("SyncError()");
+    // increase time by reward cycle
+    await time.increase(24 * 60 * 60);
+    await wsgEth.syncRewards();
+
+    await time.increase(24 * 60 * 60);
+
+    // redeem will get 1.1 sgEth
+    await expect(wsgEth.connect(alice).redeem(parseEther("0.5"), alice.address, alice.address))
+      .to.be.emit(wsgEth, "Withdraw")
+      .withArgs(alice.address, alice.address, alice.address, parseEther("0.7"), parseEther("0.5"));
   });
 });
