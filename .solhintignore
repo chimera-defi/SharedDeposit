@@ -16,3 +16,8 @@ deploy_log.json
 
 contracts/governance/SimpleVesting.sol
 contracts/util/SingleTokenVestingNonRevocable.sol
+contracts/v2/periphery/*.sol
+./**/*.js
+test/**/*
+./**/*.md
+./**/*.json

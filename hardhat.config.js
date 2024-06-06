@@ -7,20 +7,33 @@ require("hardhat-deploy-ethers");
 require("hardhat-gas-reporter");
 require("hardhat-contract-sizer");
 require("hardhat-abi-exporter");
+require('solidity-coverage')
+
 require("dotenv").config();
 
-// let secrets = require("./secrets.js");
+// Environment sourced variables
+const GOERLIPK = process.env.GOERLIPK
+  ? process.env.GOERLIPK
+  : "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // default pk 0 from anvil
+
+const ALCHEMY_GOERLI_KEY = process.env.ALCHEMY_GOERLI_KEY
+  ? process.env.ALCHEMY_GOERLI_KEY
+  : console.log("Please export a ALCHEMY_GOERLI_KEY for alchemy api access");
+const GOERLI_RPC_URL = `https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_GOERLI_KEY}`;
+
+const ALCHEMY_KEY = process.env.ALCHEMY_KEY ? process.env.ALCHEMY_KEY : ALCHEMY_GOERLI_KEY;
+const MAINNET_RPC_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+
+const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : GOERLIPK;
+
+// Your API key for Etherscan
+// Obtain one at https://etherscan.io/
+// apiKey: secrets.ETHERSCAN_API,
+const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
+
+// END required user input
+
 const path = require("path");
-
-// This is a sample Hardhat task. To learn how to create your own go to
-// https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async () => {
-  const accounts = await ethers.getSigners();
-
-  for (const account of accounts) {
-    console.log(account.address);
-  }
-});
 
 const chainIds = {
   ganache: 1337,
@@ -38,7 +51,8 @@ let maxRunsOnEtherscan = 1000000;
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
-module.exports = {
+// final exported hardhat config
+config = {
   solidity: {
     compilers: [
       {
@@ -82,17 +96,17 @@ module.exports = {
   networks: {
     hardhat: {},
     goerli: {
-      url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_GOERLI_KEY}`,
-      accounts: [`0x${process.env.GOERLIPK}`],
+      url: GOERLI_RPC_URL,
+      accounts: [`0x${GOERLIPK}`],
       chainId: chainIds.goerli,
       initialBaseFeePerGas: 1000000000,
     },
     localhost: {
-      accounts: [`0x${process.env.GOERLIPK}`],
+      accounts: [`0x${GOERLIPK}`],
     },
     mainnet: {
-      url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`,
-      accounts: [`0x${process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : process.env.GOERLIPK}`],
+      url: MAINNET_RPC_URL,
+      accounts: [`0x${MAINNET_PRIVATE_KEY}`],
       chainId: chainIds.mainnet,
     },
   },
@@ -101,16 +115,6 @@ module.exports = {
     gasPrice: 50,
     enabled: true,
     src: "./contracts",
-  },
-  etherscan: {
-    // Your API key for Etherscan
-    // Obtain one at https://etherscan.io/
-    // apiKey: secrets.ETHERSCAN_API,
-    apiKey: {
-      mainnet: process.env.ETHERSCAN_API,
-      goerli: process.env.ETHERSCAN_API,
-    },
-    customChains: [],
   },
   contractSizer: {
     alphaSort: true,
@@ -125,6 +129,16 @@ module.exports = {
     spacing: 2,
   },
 };
+
+if (ETHERSCAN_API) {
+  config["etherscan"] = {
+    apiKey: {
+      mainnet: ETHERSCAN_API,
+      goerli: ETHERSCAN_API,
+    },
+    customChains: [],
+  };
+}
 
 // imported from https://github.com/boringcrypto/dictator-dao/blob/main/hardhat.config.js
 
@@ -193,13 +207,7 @@ subtask("flat:get-flattened-sources", "Returns all contracts and their dependenc
     flattened = `// SPDX-License-Identifier: MIXED\n\n${flattened}`;
 
     // Remove every line started with "pragma experimental ABIEncoderV2;" except the first one
-    flattened = flattened.replace(
-      /pragma experimental ABIEncoderV2;\n/gm,
-      (
-        i => m =>
-          !i++ ? m : ""
-      )(0),
-    );
+    flattened = flattened.replace(/pragma experimental ABIEncoderV2;\n/gm, (i => m => (!i++ ? m : ""))(0));
 
     flattened = flattened.trim();
     if (output) {
@@ -259,3 +267,15 @@ task("flattenAll", "Flatten all files we care about").setAction(async ({}, {run}
     }),
   );
 });
+
+// This is a sample Hardhat task. To learn how to create your own go to
+// https://hardhat.org/guides/create-task.html
+task("accounts", "Prints the list of accounts", async () => {
+  const accounts = await ethers.getSigners();
+
+  for (const account of accounts) {
+    console.log(account.address);
+  }
+});
+
+module.exports = config;
