@@ -38,7 +38,7 @@ contract WSGETH is xERC4626, ReentrancyGuard {
     uint8 v,
     bytes32 r,
     bytes32 s
-  ) external nonReentrant returns (uint256 shares) {
+  ) external returns (uint256 shares) {
     uint256 amount = approveMax ? type(uint256).max : assets;
     asset.permit(msg.sender, address(this), amount, deadline, v, r, s);
     return (deposit(assets, receiver));

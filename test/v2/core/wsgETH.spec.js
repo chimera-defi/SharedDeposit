@@ -115,8 +115,8 @@ describe.only("WsgETH.sol", () => {
 
     const {r, s, v} = ethers.utils.splitSignature(signature);
 
-    // await expect(wsgEth.connect(alice).depositWithSignature(parseEther("1"), alice.address, deadline, false, v, r, s))
-    //   .to.be.emit(wsgEth, "Transfer")
-    //   .withArgs(ethers.constants.AddressZero, alice.address, parseEther("1"));
+    await expect(wsgEth.connect(alice).depositWithSignature(parseEther("1"), alice.address, deadline, false, v, r, s))
+      .to.be.emit(wsgEth, "Transfer")
+      .withArgs(ethers.constants.AddressZero, alice.address, parseEther("1"));
   });
 });
