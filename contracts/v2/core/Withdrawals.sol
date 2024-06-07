@@ -1,7 +1,7 @@
 pragma solidity 0.8.20;
 
 // SPDX-License-Identifier: MIT
-import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../../lib/RedemptionsBase.sol";
+import {RedemptionsBase} from "../../lib/RedemptionsBase.sol";
 
 /// @title Withdrawals - ERC20 token to ETH redemption contract
 /// @author @ChimeraDefi - sharedstake.org

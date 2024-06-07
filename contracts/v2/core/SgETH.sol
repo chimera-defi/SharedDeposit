@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-
 pragma solidity 0.8.20;
-import {ERC20, ERC20MintableBurnableByMinter} from "../../lib/ERC20MintableBurnableByMinter.sol";
+import {ERC20MintableBurnableByMinter} from "../../lib/ERC20MintableBurnableByMinter.sol";
+import {Errors} from "../../lib/Errors.sol";
 
 contract SgETH is ERC20MintableBurnableByMinter {
     constructor() ERC20MintableBurnableByMinter("SharedStake Governed Staked Ether", "sgETH") {
@@ -11,8 +11,11 @@ contract SgETH is ERC20MintableBurnableByMinter {
 
     // Adds whitelisted minters - only callable by DEFAULT_ADMIN_ROLE enforced in OZ dep
     function addMinter(address minterAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(minterAddress != address(0), "Zero address detected");
-        grantRole(MINTER, minterAddress);
+        if (minterAddress != address(0)) {
+            grantRole(MINTER, minterAddress);
+        } else {
+            revert Errors.ZeroAddress();
+        }
     }
 
     // Remove a minter - only callable by DEFAULT_ADMIN_ROLE enforced internally
