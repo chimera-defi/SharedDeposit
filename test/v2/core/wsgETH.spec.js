@@ -168,8 +168,6 @@ describe.only("WsgETH.sol", () => {
     await sgEth.approve(wsgEth.address, parseEther("2"));
     await wsgEth.deposit(parseEther("2"), alice.address);
 
-    console.log(formatEther(await wsgEth.pricePerShare()));
-
     await expect(wsgEth.connect(alice).redeem(parseEther("0.5"), alice.address, alice.address))
       .to.be.emit(wsgEth, "Withdraw")
       .withArgs(alice.address, alice.address, alice.address, parseEther("0.5"), parseEther("0.5"));
@@ -180,7 +178,6 @@ describe.only("WsgETH.sol", () => {
       value: parseEther("1"),
     });
     // sends 60% of sgEth to WSGEth contract - so current rate is 1.5/2.1
-    console.log(await rewardsReceiver.state());
     await rewardsReceiver.work();
 
     await expect(wsgEth.syncRewards()).to.be.revertedWith("SyncError()");
