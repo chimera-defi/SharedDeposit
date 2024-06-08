@@ -187,7 +187,7 @@ describe.only("WsgETH.sol", () => {
 
     await time.increase(24 * 60 * 60);
 
-    // redeem will get 1.1 sgEth
+    // redeem will get 0.7 = 2.1/1.5*0.5 sgEth
     await expect(wsgEth.connect(alice).redeem(parseEther("0.5"), alice.address, alice.address))
       .to.be.emit(wsgEth, "Withdraw")
       .withArgs(alice.address, alice.address, alice.address, parseEther("0.7"), parseEther("0.5"));
