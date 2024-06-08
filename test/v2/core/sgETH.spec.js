@@ -25,7 +25,7 @@ describe("SgETH.sol", () => {
       `AccessControl: account ${alice.address.toLowerCase()} is missing role ${ethers.constants.HashZero}`,
     );
     await expect(sgEth.connect(deployer).addMinter(ethers.constants.AddressZero)).to.be.revertedWith(
-      "Error: VM Exception while processing transaction: reverted with custom error 'ZeroAddress()'",
+      "VM Exception while processing transaction: reverted with custom error 'ZeroAddress()'",
     );
 
     await expect(sgEth.connect(deployer).addMinter(alice.address))
