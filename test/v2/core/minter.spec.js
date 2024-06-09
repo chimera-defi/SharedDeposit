@@ -1,12 +1,13 @@
 const {ethers} = require("hardhat");
 const {expect} = require("chai");
 const {parseEther} = require("ethers/lib/utils");
+const {time} = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("SharedDepositMinterV2", () => {
-  let sgEth, paymentSplitter, minter, withdrawals, wsgEth, deployer, alice, multiSig;
+  let sgEth, paymentSplitter, minter, withdrawals, wsgEth, rewardsReceiver, deployer, alice, bob, multiSig;
 
   beforeEach(async () => {
-    const [owner, addr1, addr2] = await ethers.getSigners();
+    const [owner, addr1, addr2, addr3] = await ethers.getSigners();
 
     const SgETH = await ethers.getContractFactory("SgETH");
     sgEth = await SgETH.deploy([]);
@@ -14,7 +15,8 @@ describe("SharedDepositMinterV2", () => {
 
     deployer = owner;
     alice = addr1;
-    multiSig = addr2;
+    bob = addr2;
+    multiSig = addr3;
 
     MINTER_ROLE = await sgEth.MINTER();
 
@@ -58,155 +60,207 @@ describe("SharedDepositMinterV2", () => {
     minter = await Minter.deploy(numValidators, adminFee, addresses);
     await minter.deployed();
 
-    // const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
-    // rewardsReceiver = await RewardsReceiver.deploy(withdrawals.address, [
-    //   sgEth.address,
-    //   wsgEth.address,
-    //   paymentSplitter.address,
-    //   minter.address,
-    // ]);
-    // await rewardsReceiver.deployed();
+    const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
+    rewardsReceiver = await RewardsReceiver.deploy(withdrawals.address, [
+      sgEth.address,
+      wsgEth.address,
+      paymentSplitter.address,
+      minter.address,
+    ]);
+    await rewardsReceiver.deployed();
 
     await sgEth.addMinter(minter.address);
   });
 
-  it("deposit", async () => {
-    const prevBalance = await sgEth.balanceOf(alice.address);
-    await minter.connect(alice).deposit({
-      value: parseEther("1"),
+  describe("functionality", () => {
+    it("deposit", async () => {
+      const prevBalance = await sgEth.balanceOf(alice.address);
+      await minter.connect(alice).deposit({
+        value: parseEther("1"),
+      });
+      const afterBalance = await sgEth.balanceOf(alice.address);
+      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
     });
-    const afterBalance = await sgEth.balanceOf(alice.address);
-    expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
-  });
 
-  it("depositFor", async () => {
-    const prevBalance = await sgEth.balanceOf(alice.address);
-    await minter.depositFor(alice.address, {
-      value: parseEther("1"),
+    it("depositFor", async () => {
+      // alice deposit for bob
+      const prevBalance = await sgEth.balanceOf(bob.address);
+      await minter.connect(alice).depositFor(bob.address, {
+        value: parseEther("1"),
+      });
+      const afterBalance = await sgEth.balanceOf(bob.address);
+      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
     });
-    const afterBalance = await sgEth.balanceOf(alice.address);
-    expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
-  });
 
-  it("depositAndStake", async () => {
-    const prevStake = await wsgEth.maxRedeem(deployer.address);
-    const prevBalance = await sgEth.balanceOf(wsgEth.address);
-    await minter.depositAndStake({
-      value: parseEther("1"),
+    it("depositAndStake", async () => {
+      const prevStake = await wsgEth.maxRedeem(deployer.address);
+      const prevBalance = await sgEth.balanceOf(wsgEth.address);
+      await minter.depositAndStake({
+        value: parseEther("1"),
+      });
+      const afterBalance = await sgEth.balanceOf(wsgEth.address);
+      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
+
+      const afterStake = await wsgEth.maxRedeem(deployer.address);
+      expect(afterStake).to.eq(prevStake.add(parseEther("1")));
     });
-    const afterBalance = await sgEth.balanceOf(wsgEth.address);
-    expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
 
-    const afterStake = await wsgEth.maxRedeem(deployer.address);
-    expect(afterStake).to.eq(prevStake.add(parseEther("1")));
-  });
+    it("depositAndStakeFor", async () => {
+      // alice deposit and stake for bob
+      const prevStake = await wsgEth.maxRedeem(bob.address);
+      const prevBalance = await sgEth.balanceOf(wsgEth.address);
+      await minter.connect(alice).depositAndStakeFor(bob.address, {
+        value: parseEther("1"),
+      });
+      const afterBalance = await sgEth.balanceOf(wsgEth.address);
+      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
 
-  it("depositAndStakeFor", async () => {
-    const prevStake = await wsgEth.maxRedeem(alice.address);
-    const prevBalance = await sgEth.balanceOf(wsgEth.address);
-    await minter.depositAndStakeFor(alice.address, {
-      value: parseEther("1"),
+      const afterStake = await wsgEth.maxRedeem(bob.address);
+      expect(afterStake).to.eq(prevStake.add(parseEther("1")));
     });
-    const afterBalance = await sgEth.balanceOf(wsgEth.address);
-    expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
 
-    const afterStake = await wsgEth.maxRedeem(alice.address);
-    expect(afterStake).to.eq(prevStake.add(parseEther("1")));
-  });
+    it("withdraw, withdrawTo", async () => {
+      await minter.connect(alice).deposit({
+        value: parseEther("1"),
+      });
+      await expect(minter.connect(alice).withdraw(parseEther("1.1"))).to.be.revertedWith("");
 
-  it("withdraw, withdrawTo", async () => {
-    await minter.connect(alice).deposit({
-      value: parseEther("1"),
+      let prevBalance = await sgEth.balanceOf(alice.address);
+      await minter.connect(alice).withdraw(parseEther("0.5"));
+      let afterBalance = await sgEth.balanceOf(alice.address);
+
+      expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
+
+      prevBalance = await sgEth.balanceOf(alice.address);
+      await minter.connect(alice).withdrawTo(parseEther("0.5"), bob.address);
+      afterBalance = await sgEth.balanceOf(alice.address);
+
+      expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
     });
-    await expect(minter.connect(alice).withdraw(parseEther("1.1"))).to.be.revertedWith("");
 
-    let prevBalance = await sgEth.balanceOf(alice.address);
-    await minter.connect(alice).withdraw(parseEther("0.5"));
-    let afterBalance = await sgEth.balanceOf(alice.address);
+    it("unstakeAndWithdraw", async () => {
+      await minter.connect(alice).depositAndStake({
+        value: parseEther("1"),
+      });
+      await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("1.1"), alice.address)).to.be.revertedWith("");
+      await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address)).to.be.revertedWith("");
 
-    expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
+      await wsgEth.connect(alice).approve(minter.address, ethers.constants.MaxUint256);
+      let prevBalance = await wsgEth.balanceOf(alice.address);
+      await minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address);
+      let afterBalance = await wsgEth.balanceOf(alice.address);
 
-    prevBalance = await sgEth.balanceOf(alice.address);
-    await minter.connect(alice).withdrawTo(parseEther("0.5"), alice.address);
-    afterBalance = await sgEth.balanceOf(alice.address);
-
-    expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
-  });
-
-  it("unstakeAndWithdraw", async () => {
-    await minter.connect(alice).depositAndStake({
-      value: parseEther("1"),
+      expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
     });
-    await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("1.1"), alice.address)).to.be.revertedWith("");
-    await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address)).to.be.revertedWith("");
 
-    await wsgEth.connect(alice).approve(minter.address, ethers.constants.MaxUint256);
-    let prevBalance = await wsgEth.balanceOf(alice.address);
-    await minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address);
-    let afterBalance = await wsgEth.balanceOf(alice.address);
+    it("slash", async () => {
+      await minter.connect(alice).depositAndStake({
+        value: parseEther("10"),
+      });
+      expect(await wsgEth.maxWithdraw(alice.address)).to.eq(parseEther("10"));
 
-    expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
-  });
+      // deposit to rewardReceiver to simulate reward
+      await deployer.sendTransaction({
+        to: rewardsReceiver.address,
+        value: parseEther("1"),
+      });
+      // sends 60% of sgEth to WSGEth contract
+      await rewardsReceiver.work();
 
-  it("setWithdrawalCredential", async () => {
-    const NOR_ROLE = await minter.NOR();
-    await expect(minter.connect(alice).setWithdrawalCredential("0x")).to.be.revertedWith(
-      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${NOR_ROLE}`,
-    );
+      // slash 0.1 eth from reward amount, so currently reward is 0.5
+      await expect(minter.connect(multiSig).slash(parseEther("0.1")))
+        .to.be.emit(sgEth, "Transfer")
+        .withArgs(wsgEth.address, ethers.constants.AddressZero, parseEther("0.1"));
 
-    await minter.setWithdrawalCredential("0x");
-  });
+      // max withdrawal amount is not changed yet because didn't called syncReward of WsgEth
+      expect(await wsgEth.maxWithdraw(alice.address)).to.eq(parseEther("10"));
 
-  it("slash", async () => {
-    const GOV_ROLE = await minter.GOV();
-    await expect(minter.connect(alice).slash(parseEther("0.1"))).to.be.revertedWith(
-      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
-    );
+      await time.increase(24 * 60 * 60);
 
-    await expect(minter.connect(multiSig).slash(parseEther("0.1"))).to.be.revertedWith("AmountTooHigh()");
+      // deposit more to call syncReward, rewards increases by linear from this moment
+      await minter.connect(alice).depositAndStake({
+        value: parseEther("1"),
+      });
 
-    await minter.connect(alice).depositAndStake({
-      value: parseEther("10"),
+      await time.increase(24 * 60 * 60);
+
+      // deposit more to call syncReward. can test with full reward
+      await minter.connect(alice).depositAndStake({
+        value: parseEther("1"),
+      });
+
+      // currently withdrawal amount is 10 + 1 + 1 + 0.6 - 0.1 = 12.5
+      expect(await wsgEth.maxWithdraw(alice.address)).to.eq(parseEther("12.5"));
     });
-    await expect(minter.connect(multiSig).slash(parseEther("0.1")))
-      .to.be.emit(sgEth, "Transfer")
-      .withArgs(wsgEth.address, ethers.constants.AddressZero, parseEther("0.1"));
   });
 
-  it("togglePause", async () => {
-    const GOV_ROLE = await minter.GOV();
-    await expect(minter.connect(alice).togglePause()).to.be.revertedWith(
-      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
-    );
+  describe("access control", async () => {
+    it("setWithdrawalCredential", async () => {
+      // only NOR Role can call this function
+      const NOR_ROLE = await minter.NOR();
+      await expect(minter.connect(alice).setWithdrawalCredential("0x")).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${NOR_ROLE}`,
+      );
 
-    await expect(minter.connect(multiSig).togglePause()).to.be.emit(minter, "Paused").withArgs(multiSig.address);
-  });
+      await minter.setWithdrawalCredential("0x");
+    });
 
-  it("migrateShares", async () => {
-    const GOV_ROLE = await minter.GOV();
-    await expect(minter.connect(alice).migrateShares(parseEther("0.1"))).to.be.revertedWith(
-      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
-    );
+    it("slash", async () => {
+      // only GOV Role can call this function
+      const GOV_ROLE = await minter.GOV();
+      await expect(minter.connect(alice).slash(parseEther("0.1"))).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
+      );
 
-    await minter.connect(multiSig).migrateShares(parseEther("0.1"));
-  });
+      await expect(minter.connect(multiSig).slash(parseEther("0.1"))).to.be.revertedWith("AmountTooHigh()");
 
-  it("toggleWithdrawRefund", async () => {
-    const GOV_ROLE = await minter.GOV();
-    await expect(minter.connect(alice).toggleWithdrawRefund()).to.be.revertedWith(
-      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
-    );
+      await minter.connect(alice).depositAndStake({
+        value: parseEther("10"),
+      });
+      await expect(minter.connect(multiSig).slash(parseEther("0.1")))
+        .to.be.emit(sgEth, "Transfer")
+        .withArgs(wsgEth.address, ethers.constants.AddressZero, parseEther("0.1"));
+    });
 
-    await minter.connect(multiSig).toggleWithdrawRefund();
-  });
+    it("togglePause", async () => {
+      // only GOV Role can call this function
+      const GOV_ROLE = await minter.GOV();
+      await expect(minter.connect(alice).togglePause()).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
+      );
 
-  it("setNumValidators", async () => {
-    const GOV_ROLE = await minter.GOV();
-    await expect(minter.connect(alice).setNumValidators(1)).to.be.revertedWith(
-      `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
-    );
-    await expect(minter.connect(multiSig).setNumValidators(0)).to.be.revertedWith("Minimum 1 validator");
+      await expect(minter.connect(multiSig).togglePause()).to.be.emit(minter, "Paused").withArgs(multiSig.address);
+    });
 
-    await minter.connect(multiSig).setNumValidators(1);
+    it("migrateShares", async () => {
+      // only GOV Role can call this function
+      const GOV_ROLE = await minter.GOV();
+      await expect(minter.connect(alice).migrateShares(parseEther("0.1"))).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
+      );
+
+      await minter.connect(multiSig).migrateShares(parseEther("0.1"));
+    });
+
+    it("toggleWithdrawRefund", async () => {
+      // only GOV Role can call this function
+      const GOV_ROLE = await minter.GOV();
+      await expect(minter.connect(alice).toggleWithdrawRefund()).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
+      );
+
+      await minter.connect(multiSig).toggleWithdrawRefund();
+    });
+
+    it("setNumValidators", async () => {
+      // only GOV Role can call this function
+      const GOV_ROLE = await minter.GOV();
+      await expect(minter.connect(alice).setNumValidators(1)).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
+      );
+      await expect(minter.connect(multiSig).setNumValidators(0)).to.be.revertedWith("Minimum 1 validator");
+
+      await minter.connect(multiSig).setNumValidators(1);
+    });
   });
 });
