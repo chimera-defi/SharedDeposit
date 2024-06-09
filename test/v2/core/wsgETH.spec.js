@@ -183,13 +183,19 @@ describe.only("WsgETH.sol", () => {
     await expect(wsgEth.syncRewards()).to.be.revertedWith("SyncError()");
     // increase time by reward cycle
     await time.increase(24 * 60 * 60);
-    await wsgEth.syncRewards();
+    // await wsgEth.syncRewards();
+    // reward rate is not updated yet
+    // after call this functions, reward rate is increasing linearly from 1 to 1.0/(2.1-0.5) = 1.0/1.6
+    await expect(wsgEth.connect(alice).redeem(parseEther("0.5"), alice.address, alice.address))
+      .to.be.emit(wsgEth, "Withdraw")
+      .withArgs(alice.address, alice.address, alice.address, parseEther("0.5"), parseEther("0.5"));
 
     await time.increase(24 * 60 * 60);
 
-    // redeem will get 0.7 = 2.1/1.5*0.5 sgEth
+    // after reward cycle, reward rate is updated with new rate
+    // redeem will get 0.8 = 1.6/1.0*0.5 sgEth
     await expect(wsgEth.connect(alice).redeem(parseEther("0.5"), alice.address, alice.address))
       .to.be.emit(wsgEth, "Withdraw")
-      .withArgs(alice.address, alice.address, alice.address, parseEther("0.7"), parseEther("0.5"));
+      .withArgs(alice.address, alice.address, alice.address, parseEther("0.8"), parseEther("0.5"));
   });
 });
