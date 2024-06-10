@@ -3,7 +3,7 @@ const {expect} = require("chai");
 const {parseEther, formatEther} = require("ethers/lib/utils");
 const {time} = require("@nomicfoundation/hardhat-network-helpers");
 
-describe.only("WsgETH.sol", () => {
+describe("WsgETH.sol", () => {
   let sgEth, wsgEth, deployer, alice, multiSig;
   let MINTER_ROLE;
 
@@ -85,7 +85,7 @@ describe.only("WsgETH.sol", () => {
   it("depositWithSignature", async () => {
     await sgEth.transfer(alice.address, parseEther("1"));
     const nonce = await sgEth.nonces(alice.address);
-    const deadline = Math.floor(Date.now() / 1000) + 1000;
+    const deadline = Math.floor(Date.now() / 1000) + 1000000;
     const approveData = {
       owner: alice.address,
       spender: wsgEth.address,
