@@ -29,13 +29,11 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {ETH2DepositWithdrawalCredentials} from "../../lib/ETH2DepositWithdrawalCredentials.sol";
 
 contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
-    using SafeMath for uint256;
     /* ========== STATE VARIABLES ========== */
     uint256 public adminFee;
     uint256 public numValidators;
@@ -58,16 +56,16 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     bool public refundFeesOnWithdraw; //initialized to false
 
     // NEW
-
-    //errors
-    error AmountTooHigh();
-
-    IERC20MintableBurnable private immutable _sgeth;
-    IERC4626 private immutable _wsgeth;
+    IERC20MintableBurnable private immutable _SGETH;
+    IERC4626 private immutable _WSGETH;
     IFeeCalc private _feeCalc;
 
     bytes32 public constant NOR = keccak256("NOR"); // Node operator for deploying validators
     bytes32 public constant GOV = keccak256("GOV"); // Governance for settings - normally timelock controlled by multisig
+
+    //errors
+    error AmountTooHigh();
+    error NoValidators();
 
     constructor(
         uint256 _numValidators,
@@ -75,18 +73,18 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         address[] memory addresses
     ) AccessControl() Pausable() ReentrancyGuard() ETH2DepositWithdrawalCredentials(addresses[4]) {
         _feeCalc = IFeeCalc(addresses[0]);
-        _sgeth = IERC20MintableBurnable(addresses[1]);
-        _wsgeth = IERC4626(addresses[2]);
+        _SGETH = IERC20MintableBurnable(addresses[1]);
+        _WSGETH = IERC4626(addresses[2]);
 
-        _sgeth.approve(address(_wsgeth), 2 ** 256 - 1); // max approve wsgeth for deposit and stake
+        _SGETH.approve(address(_WSGETH), 2 ** 256 - 1); // max approve wsgeth for deposit and stake
 
         adminFee = _adminFee; // Admin and infra fees
         numValidators = _numValidators; // The number of validators to create in this lot. Sets a max limit on deposits
 
         // Eth in the buffer cannot be withdrawn by an admin, only by burning the underlying token
-        buffer = uint256(10).mul(1e18); // roughly equal to 10 eth.
+        buffer = 10 * 1e18; // roughly equal to 10 eth.
 
-        costPerValidator = uint256(32).mul(1e18).add(adminFee);
+        costPerValidator = (32 * 1e18) + adminFee;
 
         _grantRole(NOR, msg.sender);
         _grantRole(GOV, addresses[3]); // deployer will need it to set withdrawal creds. since the non-custodial withdrawal path depends on the minter.
@@ -122,11 +120,11 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     }
 
     function depositAndStake() external payable {
-        _wsgeth.deposit(_deposit(address(this)), msg.sender);
+        _WSGETH.deposit(_deposit(address(this)), msg.sender);
     }
 
     function depositAndStakeFor(address dest) external payable {
-        _wsgeth.deposit(_deposit(address(this)), dest);
+        _WSGETH.deposit(_deposit(address(this)), dest);
     }
 
     function withdraw(uint256 amount) external {
@@ -138,7 +136,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     }
 
     function unstakeAndWithdraw(uint256 amount, address dest) external {
-        _withdraw(_wsgeth.redeem(amount, address(this), msg.sender), address(this), dest);
+        _withdraw(_WSGETH.redeem(amount, address(this), msg.sender), address(this), dest);
     }
 
     // migration function to accept old monies and copy over state
@@ -156,11 +154,11 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         bytes[] calldata signatures,
         bytes32[] calldata depositDataRoots
     ) external onlyRole(NOR) {
-        if (address(this).balance < _depositAmount.mul(pubkeys.length)) {
+        if (address(this).balance < (_depositAmount * pubkeys.length)) {
             revert AmountTooHigh(); // Not enough bal in contract to deploy all validators
         }
         _batchDeposit(pubkeys, signatures, depositDataRoots);
-        validatorsCreated = validatorsCreated.add(pubkeys.length);
+        validatorsCreated = validatorsCreated + pubkeys.length;
     }
 
     function setWithdrawalCredential(bytes memory _newWithdrawalCreds) external onlyRole(NOR) {
@@ -174,7 +172,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         if (amt > curValidatorShares) {
             revert AmountTooHigh(); // Cannot slash more than minted
         }
-        _sgeth.burn(address(_wsgeth), amt);
+        _SGETH.burn(address(_WSGETH), amt);
     }
 
     // Set fee calc address. if addr = 0 then fees are assumed to be 0
@@ -201,8 +199,11 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     }
 
     function setNumValidators(uint256 _numValidators) external onlyRole(GOV) {
-        require(_numValidators != 0, "Minimum 1 validator");
-        numValidators = _numValidators;
+        if (_numValidators > 0) {
+            numValidators = _numValidators;
+        } else {
+            revert NoValidators();
+        }
     }
 
     function withdrawAdminFee(uint256 amount) external onlyRole(GOV) {
@@ -213,7 +214,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         if (amount > adminFeeTotal) {
             revert AmountTooHigh();
         }
-        adminFeeTotal = adminFeeTotal.sub(amount);
+        adminFeeTotal = adminFeeTotal - amount;
         Address.sendValue(sender, amount);
     }
 
@@ -223,15 +224,13 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
 
     function remainingSpaceInEpoch() external view returns (uint256) {
         // Helpful view function to gauge how much the user can send to the contract when it is near full
-        uint256 remainingShares = (maxValidatorShares()).sub(curValidatorShares);
-        uint256 valBeforeAdmin = remainingShares.mul(1e18).div(
-            uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator))
-        );
+        uint256 remainingShares = maxValidatorShares() - curValidatorShares;
+        uint256 valBeforeAdmin = (remainingShares * 1e18) / (((1 * 1e18) - (adminFee * 1e18) / costPerValidator));
         return valBeforeAdmin;
     }
 
     function maxValidatorShares() public view returns (uint256) {
-        return uint256(32).mul(1e18).mul(numValidators);
+        return 32 * 1e18 * numValidators;
     }
 
     function _depositAccounting() internal returns (uint256 value) {
@@ -241,12 +240,12 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
 
         if (address(_feeCalc) != address(0)) {
             (value, fee) = _feeCalc.processDeposit(value, msg.sender);
-            adminFeeTotal = adminFeeTotal.add(fee);
+            adminFeeTotal = adminFeeTotal + fee;
         }
 
-        uint256 newShareTotal = curValidatorShares.add(value);
+        uint256 newShareTotal = curValidatorShares + value;
 
-        if (newShareTotal > buffer.add(maxValidatorShares())) {
+        if (newShareTotal > buffer + maxValidatorShares()) {
             revert AmountTooHigh();
         }
         curValidatorShares = newShareTotal;
@@ -257,26 +256,26 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         if (address(_feeCalc) != address(0)) {
             (amount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
             if (refundFeesOnWithdraw) {
-                adminFeeTotal = adminFeeTotal.sub(fee);
+                adminFeeTotal = adminFeeTotal - fee;
             } else {
-                adminFeeTotal = adminFeeTotal.add(fee);
+                adminFeeTotal = adminFeeTotal + fee;
             }
         }
-        if (address(this).balance < amount.add(adminFeeTotal)) {
+        if (address(this).balance < (amount + adminFeeTotal)) {
             revert AmountTooHigh();
         }
 
-        curValidatorShares = curValidatorShares.sub(amount);
+        curValidatorShares = curValidatorShares - amount;
         return amount;
     }
 
     function _deposit(address dest) internal nonReentrant whenNotPaused returns (uint256 amt) {
         amt = _depositAccounting();
-        _sgeth.mint(dest, amt);
+        _SGETH.mint(dest, amt);
     }
 
     function _withdraw(uint256 amount, address origin, address dest) internal nonReentrant whenNotPaused {
-        _sgeth.burn(origin, amount); // reverts if amount is too high
+        _SGETH.burn(origin, amount); // reverts if amount is too high
         uint256 assets = _withdrawAccounting(amount);
 
         address payable recv = payable(dest);

@@ -17,7 +17,7 @@ import {Eth2DepositHelperUpgradeable} from "../util/Eth2DepositHelperUpgradeable
 import {VaultWithSharesAndCapUpgradeable} from "../util/VaultWithSharesAndCapUpgradeable.sol";
 import {WithdrawQueueUpgradeable} from "../util/WithdrawQueueUpgradeable.sol";
 
-contract SharedDepositV2 is
+contract SharedDepositV2Upgradeable is
   OwnershipRolesTemplate,
   Eth2DepositHelperUpgradeable,
   VaultWithSharesAndCapUpgradeable,
