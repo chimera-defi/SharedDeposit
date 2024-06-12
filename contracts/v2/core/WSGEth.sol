@@ -2,7 +2,7 @@
 pragma solidity 0.8.20;
 
 import {ERC20, ERC4626, xERC4626} from "../../lib/xERC4626.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /// @title ssgETH - Vault token for staked sgETH. ERC20 + ERC4626
 /// @author @ChimeraDefi - sharedstake.org - based on sfrxETH
@@ -38,7 +38,7 @@ contract WSGETH is xERC4626, ReentrancyGuard {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external nonReentrant returns (uint256 shares) {
+    ) external returns (uint256 shares) {
         uint256 amount = approveMax ? type(uint256).max : assets;
         asset.permit(msg.sender, address(this), amount, deadline, v, r, s);
         return (deposit(assets, receiver));

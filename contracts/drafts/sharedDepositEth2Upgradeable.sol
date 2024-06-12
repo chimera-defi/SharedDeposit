@@ -8,7 +8,7 @@ import {SafeMathUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/mat
 import {IERC20MintableBurnable} from "../interfaces/IERC20MintableBurnable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 
-contract SharedDepositEth2 is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgradeable {
+contract SharedDepositEth2Upgradeable is VaultWithAdminFeeUpgradeable, Eth2DepositHelperUpgradeable {
   using SafeMathUpgradeable for uint256;
 
   /* ========== STATE VARIABLES ========== */

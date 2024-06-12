@@ -18,22 +18,22 @@ contract Rollover is RedemptionsBase {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 public immutable newToken;
+    IERC20 public immutable NEW_TOKEN;
 
     constructor(
         address _underlying,
         address _newToken,
         uint256 _virtualPrice
     ) payable RedemptionsBase(_underlying, _virtualPrice) {
-        newToken = IERC20(_newToken);
+        NEW_TOKEN = IERC20(_newToken);
     }
 
     function _redeem(uint256 amountToReturn) internal override {
         // make sure user has tokens to redeem offchain first by looking at userEntries otherwise this will just waste gas
-        if (amountToReturn > newToken.balanceOf(address(this))) {
+        if (amountToReturn > NEW_TOKEN.balanceOf(address(this))) {
             revert ContractBalanceTooLow();
         }
 
-        newToken.transfer(msg.sender, amountToReturn);
+        NEW_TOKEN.transfer(msg.sender, amountToReturn);
     }
 }
