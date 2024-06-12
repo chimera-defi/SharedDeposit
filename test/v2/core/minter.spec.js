@@ -258,7 +258,7 @@ describe("SharedDepositMinterV2", () => {
       await expect(minter.connect(alice).setNumValidators(1)).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
       );
-      await expect(minter.connect(multiSig).setNumValidators(0)).to.be.revertedWith("Minimum 1 validator");
+      await expect(minter.connect(multiSig).setNumValidators(0)).to.be.revertedWith("VM Exception while processing transaction: reverted with custom error 'NoValidators()'");
 
       await minter.connect(multiSig).setNumValidators(1);
     });
