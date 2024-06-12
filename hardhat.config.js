@@ -16,20 +16,25 @@ const GOERLIPK = process.env.GOERLIPK
   ? process.env.GOERLIPK
   : "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // default pk 0 from anvil
 
-const ALCHEMY_GOERLI_KEY = process.env.ALCHEMY_GOERLI_KEY
-  ? process.env.ALCHEMY_GOERLI_KEY
-  : console.log("Please export a ALCHEMY_GOERLI_KEY for alchemy api access");
-const GOERLI_RPC_URL = `https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_GOERLI_KEY}`;
+// const ALCHEMY_GOERLI_KEY = process.env.ALCHEMY_GOERLI_KEY
+//   ? process.env.ALCHEMY_GOERLI_KEY
+//   : console.log("Please export a ALCHEMY_GOERLI_KEY for alchemy api access");
+// const GOERLI_RPC_URL = `https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_GOERLI_KEY}`;
 
-const ALCHEMY_KEY = process.env.ALCHEMY_KEY ? process.env.ALCHEMY_KEY : ALCHEMY_GOERLI_KEY;
+const ALCHEMY_KEY = process.env.ALCHEMY_KEY;
 const MAINNET_RPC_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
 
 const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : GOERLIPK;
-
 // Your API key for Etherscan
 // Obtain one at https://etherscan.io/
 // apiKey: secrets.ETHERSCAN_API,
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
+
+sepolia = {}
+const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : '';
+const SEPOLIA_RPC_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
+
+SEPOLIA_PRIVATE_KEY =  process.env.SEPOLIA_PRIVATE_KEY ?  process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
 
 // END required user input
 
@@ -43,6 +48,7 @@ const chainIds = {
   mainnet: 1,
   rinkeby: 4,
   ropsten: 3,
+  sepolia: 11155111,
 };
 
 // You need to export an object to set up your config
@@ -95,12 +101,6 @@ config = {
   },
   networks: {
     hardhat: {},
-    goerli: {
-      url: GOERLI_RPC_URL,
-      accounts: [`0x${GOERLIPK}`],
-      chainId: chainIds.goerli,
-      initialBaseFeePerGas: 1000000000,
-    },
     localhost: {
       accounts: [`0x${GOERLIPK}`],
     },
@@ -108,6 +108,11 @@ config = {
       url: MAINNET_RPC_URL,
       accounts: [`0x${MAINNET_PRIVATE_KEY}`],
       chainId: chainIds.mainnet,
+    },
+    sepolia: {
+      url: SEPOLIA_RPC_URL,
+      accounts: [`0x${SEPOLIA_PRIVATE_KEY}`],
+      chainId: chainIds.sepolia,
     },
   },
   gasReporter: {
