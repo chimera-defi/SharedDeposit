@@ -4,90 +4,79 @@ pragma solidity ^0.8.20;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {ERC4626, ERC20} from "solmate/src/mixins/ERC4626.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
-    using Address for address payable;
+    SharedDepositMinterV2 public immutable MINTER;
+    address public immutable SGETH;
+    address public immutable WSGETH;
 
-    struct Queue {
-        address to;
-        uint256 amount;
-        address token;
-        uint256 tokenAmount;
+    // This code snippet is incomplete pseudocode used for example only and is no way intended to be used in production or guaranteed to be secure
+    mapping(address => uint256) public pendingRedeemRequest;
+
+    mapping(address => uint256) public claimableRedeemRequest;
+
+    mapping(address requester => mapping(address operator => bool)) public isOperator;
+
+    event RedeemRequest(
+        address indexed requester,
+        address indexed owner,
+        uint256 indexed requestId,
+        address operator,
+        uint256 assets
+    );
+    event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
+    event OperatorSet(address indexed owner, address indexed operator, bool value);
+
+    constructor(address _minter, address _sgEth, address _wsgEth) {
+        MINTER = SharedDepositMinterV2(_minter);
+        SGETH = _sgEth;
+        WSGETH = _wsgEth;
+
+        uint256 maxUint256 = 2 ** 256 - 1;
+
+        IERC20(WSGETH).approve(_minter, maxUint256);
+        IERC20(SGETH).approve(_minter, maxUint256);
     }
 
-    address public immutable sgEth;
-    address public immutable wsgEth;
-    SharedDepositMinterV2 public immutable minter;
+    function requestRedeem(uint256 shares, address requester, address owner) external returns (uint256 requestId) {
+        require(shares != 0);
+        require(owner == msg.sender || isOperator[owner][msg.sender]);
 
-    uint256 public constant CHUNK_SIZE = 32 ether;
+        requestId = 0; // no requestId associated with this request
 
-    uint256 private front;
-    uint256 private end;
-    uint256 private lockedFront;
-    uint256 private lockedAmount;
+        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
-    mapping(uint256 => Queue) public queue;
+        pendingRedeemRequest[requester] += shares;
 
-    error NoAvailableQueue();
-
-    constructor(address _sgEth, address _wsgEth, address _minter) {
-        grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-
-        sgEth = _sgEth;
-        wsgEth = _wsgEth;
-        minter = SharedDepositMinterV2(_minter);
+        emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
+        return requestId;
     }
 
-    function push(address to) external payable {
-        _push(to, msg.value, address(0), msg.value);
+    /**
+     * Include some arbitrary transition logic here from Pending to Claimable
+     */
+
+    function redeem(uint256 shares, address receiver, address requester) external returns (uint256 assets) {
+        require(shares != 0);
+        require(requester == msg.sender || isOperator[requester][msg.sender]);
+
+        claimableRedeemRequest[requester] -= shares; // underflow would revert if not enough claimable shares
+
+        assets = IERC4626(WSGETH).previewRedeem(shares);
+
+        MINTER.unstakeAndWithdraw(shares, receiver);
+
+        emit Redeem(requester, receiver, shares, assets);
     }
 
-    function pushSgEth(address to, uint256 amount) external {
-        ERC20(sgEth).transferFrom(msg.sender, address(this), amount);
-        _push(to, amount, sgEth, amount);
-    }
-
-    function pushWsgEth(address to, uint256 amount) external {
-        ERC20(wsgEth).transferFrom(msg.sender, address(this), amount);
-
-        uint256 redeemable = ERC4626(wsgEth).previewRedeem(amount);
-        _push(to, redeemable, wsgEth, amount);
-    }
-
-    function _push(address to, uint256 amount, address token, uint256 tokenAmount) internal nonReentrant {
-        Queue memory newWithdraw = Queue({to: to, amount: msg.value, token: token, tokenAmount: tokenAmount});
-
-        queue[end] = newWithdraw;
-        lockedAmount += msg.value;
-        end++;
-
-        if (lockedAmount >= CHUNK_SIZE) {
-            lockedAmount = 0;
-            lockedFront = end;
-        }
-    }
-
-    function processWithdraw() external nonReentrant {
-        if (lockedFront == front) {
-            revert NoAvailableQueue();
-        }
-
-        for (uint256 i = front; i < lockedFront; ) {
-            if (queue[i].token == sgEth) {
-                minter.withdraw(queue[i].tokenAmount);
-            } else if (queue[i].token == wsgEth) {
-                minter.unstakeAndWithdraw(queue[i].tokenAmount, address(this));
-            }
-
-            payable(queue[i].to).sendValue(queue[i].amount);
-
-            unchecked {
-                ++i;
-            }
-        }
+    function setOperator(address operator, bool approved) public returns (bool) {
+        isOperator[msg.sender][operator] = approved;
+        emit OperatorSet(msg.sender, operator, approved);
+        return true;
     }
 }
