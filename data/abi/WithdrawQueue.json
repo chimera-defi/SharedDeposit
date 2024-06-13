@@ -1,6 +1,22 @@
 [
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_sgEth",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_wsgEth",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_minter",
+        "type": "address"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
@@ -199,6 +215,19 @@
   },
   {
     "inputs": [],
+    "name": "minter",
+    "outputs": [
+      {
+        "internalType": "contract SharedDepositMinterV2",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "paused",
     "outputs": [
       {
@@ -233,6 +262,42 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "pushSgEth",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "pushWsgEth",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
@@ -248,6 +313,16 @@
       {
         "internalType": "uint256",
         "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenAmount",
         "type": "uint256"
       }
     ],
@@ -291,6 +366,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "sgEth",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes4",
@@ -304,6 +392,19 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "wsgEth",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
