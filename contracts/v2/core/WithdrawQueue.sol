@@ -15,9 +15,10 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
     address public immutable SGETH;
     address public immutable WSGETH;
 
+    uint256 public constant REDEEM_THRESOLD = 32 ether;
+
     // This code snippet is incomplete pseudocode used for example only and is no way intended to be used in production or guaranteed to be secure
     mapping(address => uint256) public pendingRedeemRequest;
-
     mapping(address => uint256) public claimableRedeemRequest;
 
     mapping(address requester => mapping(address operator => bool)) public isOperator;
@@ -52,6 +53,12 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
         IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
         pendingRedeemRequest[requester] += shares;
+
+        uint256 assets = IERC4626(WSGETH).previewRedeem(shares);
+        if (assets >= REDEEM_THRESOLD) {
+            claimableRedeemRequest[requester] += pendingRedeemRequest[requester];
+            pendingRedeemRequest[requester] = 0;
+        }
 
         emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
         return requestId;
