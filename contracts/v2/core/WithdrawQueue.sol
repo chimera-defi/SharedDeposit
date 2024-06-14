@@ -6,7 +6,6 @@ import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
@@ -33,6 +32,16 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
     event OperatorSet(address indexed owner, address indexed operator, bool value);
 
+    error InvalidAmount();
+    error PermissionDenied();
+
+    modifier onlyOwnerOrOperator(address owner) {
+        if (owner != msg.sender && !isOperator[owner][msg.sender]) {
+            revert PermissionDenied();
+        }
+        _;
+    }
+
     constructor(address _minter, address _sgEth, address _wsgEth) {
         MINTER = SharedDepositMinterV2(_minter);
         SGETH = _sgEth;
@@ -44,9 +53,14 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
         IERC20(SGETH).approve(_minter, maxUint256);
     }
 
-    function requestRedeem(uint256 shares, address requester, address owner) external returns (uint256 requestId) {
-        require(shares != 0);
-        require(owner == msg.sender || isOperator[owner][msg.sender]);
+    function requestRedeem(
+        uint256 shares,
+        address requester,
+        address owner
+    ) external onlyOwnerOrOperator(owner) returns (uint256 requestId) {
+        if (shares == 0) {
+            revert InvalidAmount();
+        }
 
         requestId = 0; // no requestId associated with this request
 
@@ -68,9 +82,14 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
      * Include some arbitrary transition logic here from Pending to Claimable
      */
 
-    function redeem(uint256 shares, address receiver, address requester) external returns (uint256 assets) {
-        require(shares != 0);
-        require(requester == msg.sender || isOperator[requester][msg.sender]);
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address requester
+    ) external onlyOwnerOrOperator(requester) returns (uint256 assets) {
+        if (shares == 0) {
+            revert InvalidAmount();
+        }
 
         claimableRedeemRequest[requester] -= shares; // underflow would revert if not enough claimable shares
 
