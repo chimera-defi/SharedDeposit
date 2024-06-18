@@ -8,17 +8,17 @@
       },
       {
         "internalType": "address",
-        "name": "_sgEth",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "_wsgEth",
         "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientBalance",
+    "type": "error"
   },
   {
     "inputs": [],
@@ -225,6 +225,10 @@
     "type": "event"
   },
   {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
     "inputs": [],
     "name": "DEFAULT_ADMIN_ROLE",
     "outputs": [
@@ -258,19 +262,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "SGETH",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -410,7 +401,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "requester",
         "type": "address"
       }
     ],
@@ -418,7 +409,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "shares",
         "type": "uint256"
       }
     ],
@@ -561,5 +552,9 @@
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
   }
 ]

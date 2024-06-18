@@ -9,7 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
-contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
+contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard {
     struct Request {
         address requester;
         uint256 shares;
@@ -64,13 +64,12 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
         uint256 shares,
         address requester,
         address owner
-    ) external onlyOwnerOrOperator(owner) nonReentrant returns (uint256 requestId) {
+    ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused returns (uint256 requestId) {
         if (shares == 0) {
             revert InvalidAmount();
         }
 
-        requestId = requestBack; // no requestId associated with this request
-        requestBack++;
+        requestId = requestBack++;
 
         IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
@@ -137,7 +136,7 @@ contract WithdrawQueue is AccessControl, Pausable, ReentrancyGuard {
     }
 
     function pendingRedeemRequest(address requester) public view returns (uint256 shares) {
-        for (uint256 i = 0; i < requestBack; ) {
+        for (uint256 i = requestFront; i < requestBack; ) {
             if (requests[i].requester == requester) {
                 shares += requests[i].shares;
             }
