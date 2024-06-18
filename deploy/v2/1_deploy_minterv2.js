@@ -69,7 +69,8 @@ async function main() {
    * 1. Deploy ETH Withdrawals processing contract for v1 veth2
    * 2. Deploy veth2 to sgETH rollover contract for v1
    */
-  await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
+  // await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
+  await dh.deployContract("WithdrawalQueue", "WithdrawalQueue", [params.minter, params.wsgETH]);
 
   await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
 
