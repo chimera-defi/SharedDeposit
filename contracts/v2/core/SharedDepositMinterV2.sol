@@ -21,8 +21,8 @@ pragma solidity 0.8.20;
 - Added deposit+stake/unstake+withdraw combo convenience routes
 - Refactored fee calc out to external contract 
 */
-import {IFeeCalc} from "../../interfaces/IFeeCalc.sol";
-import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.sol";
+import {IFeeCalc} from "../interfaces/IFeeCalc.sol";
+import {IERC20MintableBurnable} from "../interfaces/IERC20MintableBurnable.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
@@ -31,7 +31,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
-import {ETH2DepositWithdrawalCredentials} from "../../lib/ETH2DepositWithdrawalCredentials.sol";
+import {ETH2DepositWithdrawalCredentials} from "../lib/ETH2DepositWithdrawalCredentials.sol";
 
 contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
     /* ========== STATE VARIABLES ========== */

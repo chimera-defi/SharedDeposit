@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity 0.8.20;
-import {ERC20MintableBurnableByMinter} from "../../lib/ERC20MintableBurnableByMinter.sol";
-import {Errors} from "../../lib/Errors.sol";
+import {ERC20MintableBurnableByMinter} from "../lib/ERC20MintableBurnableByMinter.sol";
+import {Errors} from "../lib/Errors.sol";
 
 contract SgETH is ERC20MintableBurnableByMinter {
     constructor() ERC20MintableBurnableByMinter("SharedStake Governed Staked Ether", "sgETH") {

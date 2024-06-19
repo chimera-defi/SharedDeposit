@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.20;
 
-import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../../lib/RedemptionsBase.sol";
+import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../lib/RedemptionsBase.sol";
 
 /// @title Rollover - ERC20 token to ETH redemption contract
 /// @author @ChimeraDefi - sharedstake.org

@@ -6,8 +6,8 @@ import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {FIFOQueue} from "../../lib/FIFOQueue.sol";
-import {Errors} from "../../lib/Errors.sol";
+import {FIFOQueue} from "../lib/FIFOQueue.sol";
+import {Errors} from "../lib/Errors.sol";
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 /**

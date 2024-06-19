@@ -8,14 +8,14 @@ import {IDepositContract} from "../interfaces/IDepositContract.sol";
 /// @notice A contract for holding a eth2 validator withrawal pubkey
 /// @dev Downstream contract needs to implement who can set the withdrawal address and set it
 contract ETH2DepositWithdrawalCredentials {
-  uint internal constant _depositAmount = 32 ether;
-  IDepositContract public immutable depositContract;
-  bytes public curr_withdrawal_pubkey; // Pubkey for ETH 2.0 withdrawal creds
+  uint256 internal constant _depositAmount = 32 ether;
+  IDepositContract public immutable DEPOSIT_CONTRACT;
+  bytes public withdrawalPubKey; // Pubkey for ETH 2.0 withdrawal creds
 
   event WithdrawalCredentialSet(bytes _withdrawalCredential);
 
   constructor(address _dc) {
-    depositContract = IDepositContract(_dc);
+    DEPOSIT_CONTRACT = IDepositContract(_dc);
   }
 
   /// @notice A more streamlined variant of batch deposit for use with preset withdrawal addresses
@@ -34,9 +34,9 @@ contract ETH2DepositWithdrawalCredentials {
     // https://medium.com/@bloqarl/solidity-gas-optimization-tips-with-assembly-you-havent-heard-yet-1381c77ff078
     // 30m gas / block roughly, say 10m max used so 100 validators a batch max 
     // each deposit call costs roughly 128k https://etherscan.io/tx/0xa2acf6e6bde99b532125cc8026cd88eea345f296968ce732556945ab4705d03e
-    uint i = pubkeys.length;
-    uint _amt = _depositAmount;
-    bytes memory wpk = curr_withdrawal_pubkey;
+    uint256 i = pubkeys.length;
+    uint256 _amt = _depositAmount;
+    bytes memory wpk = withdrawalPubKey;
 
     while (i > 0) {
       unchecked {
@@ -46,7 +46,7 @@ contract ETH2DepositWithdrawalCredentials {
         // Since we set the upper loop bound to the arr len, we decr 1st to not hit out of bounds
         --i;
 
-        depositContract.deposit{value: _amt}(
+        DEPOSIT_CONTRACT.deposit{value: _amt}(
           pubkeys[i],
           wpk,
           signatures[i],
@@ -57,9 +57,9 @@ contract ETH2DepositWithdrawalCredentials {
   }
 
   /// @notice sets curr_withdrawal_pubkey to be used when deploying validators
-  function _setWithdrawalCredential(bytes memory _new_withdrawal_pubkey) internal {
-    curr_withdrawal_pubkey = _new_withdrawal_pubkey;
+  function _setWithdrawalCredential(bytes memory newPk) internal {
+    withdrawalPubKey = newPk;
 
-    emit WithdrawalCredentialSet(_new_withdrawal_pubkey);
+    emit WithdrawalCredentialSet(newPk);
   }
 }

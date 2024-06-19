@@ -6,7 +6,7 @@
 
 pragma solidity ^0.8.0;
 
-import {ERC4626, ERC20} from "solmate/src/mixins/ERC4626.sol";
+import {ERC4626} from "solmate/src/mixins/ERC4626.sol";
 import {SafeCastLib} from "solmate/src/utils/SafeCastLib.sol";
 import {IxERC4626} from "../interfaces/IxERC4626.sol";
 

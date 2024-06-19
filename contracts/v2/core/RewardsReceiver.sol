@@ -9,7 +9,7 @@ pragma solidity 0.8.20;
 // call work() to process ETH
 // DAO is set as owner. must call acceptOwnership. can call flipState
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {YieldDirectorBase} from "../../lib/YieldDirectorBase.sol";
+import {YieldDirectorBase} from "../lib/YieldDirectorBase.sol";
 
 contract RewardsReceiver is Ownable, YieldDirectorBase {
     enum State {

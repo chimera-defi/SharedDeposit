@@ -18,20 +18,21 @@ contract RedemptionsBase is ReentrancyGuard {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
-  error ContractBalanceTooLow();
-  error UserAmountIsZero();
   struct UserEntry {
     uint256 amount;
   }
 
-  mapping(address => UserEntry) public userEntries;
+  error ContractBalanceTooLow();
+  error UserAmountIsZero();
+
+  mapping(address => UserEntry) public userEntries; // solhint-disable-line
   uint256 public totalOut;
-  uint256 public immutable virtualPrice;
-  IERC20 public immutable vEth2Token;
+  uint256 public immutable VIRTUALPRICE;
+  IERC20 public immutable vEth2Token; // solhint-disable-line
 
   constructor(address _underlying, uint256 _virtualPrice) payable {
     vEth2Token = IERC20(_underlying);
-    virtualPrice = _virtualPrice;
+    VIRTUALPRICE = _virtualPrice;
   }
 
   function deposit(uint256 amount) external nonReentrant {
@@ -50,7 +51,7 @@ contract RedemptionsBase is ReentrancyGuard {
 
   function redeem() external nonReentrant {
     address usr = msg.sender;
-    uint256 amountToReturn = _getAmountGivenShares(userEntries[usr].amount, virtualPrice);
+    uint256 amountToReturn = _getAmountGivenShares(userEntries[usr].amount, VIRTUALPRICE);
     if (amountToReturn == 0) {
       revert UserAmountIsZero();
     }
@@ -60,7 +61,7 @@ contract RedemptionsBase is ReentrancyGuard {
   }
 
   function _redeem(uint256 amountToReturn) internal virtual { // solhint-disable-line
-    require(false, "implement me");
+    require(false, "implement me"); // solhint-disable-line
   }
 
   function _stakeForWithdrawal(address sender, uint256 amount) internal {
