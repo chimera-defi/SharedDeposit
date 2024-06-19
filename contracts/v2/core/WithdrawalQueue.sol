@@ -6,10 +6,15 @@ import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-
+import {FIFOQueue} from "../../lib/FIFOQueue.sol";
+import {Errors} from "../../lib/Errors.sol";
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
-contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard {
+// ERC-7540 inspired withdrawal contract
+// This contract is designed to be used with SharedDepositMinterV2 contract
+// As a module extension that adds 7540 methods requestRedeem and redeem
+// Example flow ->
+contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue {
     struct Request {
         address requester;
         uint256 shares;
@@ -17,17 +22,15 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard {
     SharedDepositMinterV2 public immutable MINTER;
     address public immutable WSGETH;
 
-    uint256 public constant REDEEM_THRESOLD = 32 ether;
-
-    uint256 internal requestBack;
     uint256 internal totalPendingRequest;
-    uint256 internal requestFront;
+    uint256 internal requestsPending;
+    uint256 internal requestsFulfilled;
+    uint256 public totalOut;
+
+    bytes32 public constant GOV = keccak256("GOV"); // Governance for settings - normally timelock controlled by multisig
+
     mapping(uint256 => Request) internal requests;
     mapping(address => uint256) public claimableRedeemRequest;
-
-    // This code snippet is incomplete pseudocode used for example only and is no way intended to be used in production or guaranteed to be secure
-    // mapping(address => uint256) public pendingRedeemRequest;
-
     mapping(address requester => mapping(address operator => bool)) public isOperator;
 
     event RedeemRequest(
@@ -40,24 +43,29 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard {
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
     event OperatorSet(address indexed owner, address indexed operator, bool value);
 
-    error InvalidAmount();
-    error PermissionDenied();
-    error InsufficientBalance();
-
     modifier onlyOwnerOrOperator(address owner) {
         if (owner != msg.sender && !isOperator[owner][msg.sender]) {
-            revert PermissionDenied();
+            revert Errors.PermissionDenied();
         }
         _;
     }
 
-    constructor(address _minter, address _wsgEth) {
+    modifier checkWithdraw(address owner, uint256 amt) {
+        uint256 totalBalance = address(this).balance + address(MINTER).balance;
+        if (_checkWithdraw(msg.sender, totalBalance, amt)) {
+            _;
+        }
+    }
+
+    constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
         MINTER = SharedDepositMinterV2(_minter);
         WSGETH = _wsgEth;
 
         uint256 maxUint256 = 2 ** 256 - 1;
 
         IERC20(WSGETH).approve(_minter, maxUint256);
+
+        _grantRole(GOV, msg.sender);
     }
 
     function requestRedeem(
@@ -66,86 +74,88 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard {
         address owner
     ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused returns (uint256 requestId) {
         if (shares == 0) {
-            revert InvalidAmount();
+            revert Errors.InvalidAmount();
         }
 
-        requestId = requestBack++;
-
-        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
-
-        totalPendingRequest += shares;
+        requestId = requestsPending++;
         requests[requestId] = Request({requester: requester, shares: shares});
 
-        uint256 assets = IERC4626(WSGETH).previewRedeem(totalPendingRequest);
-        if (assets >= REDEEM_THRESOLD) {
-            uint256 i = requestFront;
-            requestFront = requestBack;
-            for (; i < requestFront; ) {
-                claimableRedeemRequest[requests[i].requester] += requests[i].shares;
-
-                unchecked {
-                    ++i;
-                }
-            }
-            totalPendingRequest = 0;
+        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
+        _stakeForWithdrawal(owner, shares);
+        totalPendingRequest += shares;
+        if (requester != owner) {
+            isOperator[owner][requester] = true;
         }
+        claimableRedeemRequest[requester] += shares; // underflow would revert if not enough claimable shares
 
         emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
         return requestId;
     }
 
-    /**
-     * Include some arbitrary transition logic here from Pending to Claimable
-     */
-
     function redeem(
         uint256 shares,
         address receiver,
         address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant returns (uint256 assets) {
+    )
+        external
+        onlyOwnerOrOperator(requester)
+        checkWithdraw(receiver, shares)
+        nonReentrant
+        whenNotPaused
+        returns (uint256 assets)
+    {
         if (shares == 0) {
-            revert InvalidAmount();
+            revert Errors.InvalidAmount();
         }
 
         claimableRedeemRequest[requester] -= shares; // underflow would revert if not enough claimable shares
-
+        totalPendingRequest -= shares;
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
         uint256 queueBalance = address(this).balance;
         uint256 minterBalance = address(MINTER).balance;
 
         if (queueBalance + minterBalance < assets) {
-            revert InsufficientBalance();
+            revert Errors.InsufficientBalance();
         }
 
-        if (assets <= queueBalance) {
-            payable(receiver).transfer(assets);
-        } else {
-            payable(receiver).transfer(queueBalance);
-            uint256 remainingShares = IERC4626(WSGETH).convertToShares(assets - queueBalance);
-            MINTER.unstakeAndWithdraw(remainingShares, receiver);
+        // Track total returned
+        totalOut += assets;
+        requestsFulfilled++;
+        // This feels suboptimal, but is the easiest way to always burn the token on redemptions
+        if (assets > minterBalance) {
+            uint256 diff = assets - minterBalance;
+            payable(address(MINTER)).transfer(diff);
         }
+        // Always burn redeemed tokens
+        MINTER.unstakeAndWithdraw(shares, receiver);
 
         emit Redeem(requester, receiver, shares, assets);
     }
 
-    function setOperator(address operator, bool approved) public returns (bool) {
+    function setOperator(address operator, bool approved) external returns (bool) {
         isOperator[msg.sender][operator] = approved;
         emit OperatorSet(msg.sender, operator, approved);
         return true;
     }
 
-    function pendingRedeemRequest(address requester) public view returns (uint256 shares) {
-        for (uint256 i = requestFront; i < requestBack; ) {
-            if (requests[i].requester == requester) {
-                shares += requests[i].shares;
-            }
-            unchecked {
-                ++i;
-            }
+    function togglePause() external onlyRole(GOV) {
+        bool paused = paused();
+        if (paused) {
+            _unpause();
+        } else {
+            _pause();
         }
     }
 
+    function pendingRedeemRequest(uint256 requestId, address owner) public view returns (uint256 shares) {
+        if (requests[requestId].requester == owner) {
+            return requests[requestId].shares;
+        }
+        return 0;
+    }
+
     receive() external payable {} // solhint-disable-line
+
     fallback() external payable {} // solhint-disable-line
 }

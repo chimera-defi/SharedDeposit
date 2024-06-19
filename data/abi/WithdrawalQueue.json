@@ -10,6 +10,11 @@
         "internalType": "address",
         "name": "_wsgEth",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_epochLength",
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
@@ -28,6 +33,11 @@
   {
     "inputs": [],
     "name": "PermissionDenied",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TooEarly",
     "type": "error"
   },
   {
@@ -243,12 +253,12 @@
   },
   {
     "inputs": [],
-    "name": "MINTER",
+    "name": "GOV",
     "outputs": [
       {
-        "internalType": "contract SharedDepositMinterV2",
+        "internalType": "bytes32",
         "name": "",
-        "type": "address"
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -256,12 +266,12 @@
   },
   {
     "inputs": [],
-    "name": "REDEEM_THRESOLD",
+    "name": "MINTER",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "contract SharedDepositMinterV2",
         "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -284,11 +294,53 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "balanceOfSelf",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountToWithdraw",
+        "type": "uint256"
+      }
+    ],
+    "name": "_checkWithdraw",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "withdrawalAllowed",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "",
         "type": "address"
       }
     ],
     "name": "claimableRedeemRequest",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "epochLength",
     "outputs": [
       {
         "internalType": "uint256",
@@ -400,8 +452,13 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "requestId",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
-        "name": "requester",
+        "name": "owner",
         "type": "address"
       }
     ],
@@ -548,6 +605,50 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "togglePause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalOut",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "userEntries",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "blocknum",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

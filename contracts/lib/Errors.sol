@@ -9,4 +9,8 @@ pragma solidity =0.8.20;
  */
 library Errors {
     error ZeroAddress();
+    error InvalidAmount();
+    error PermissionDenied();
+    error InsufficientBalance();
+    error TooEarly();
 }
