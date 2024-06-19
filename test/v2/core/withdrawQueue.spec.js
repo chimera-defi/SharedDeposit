@@ -1,7 +1,7 @@
 const {ethers} = require("hardhat");
 const {expect} = require("chai");
 const {parseEther} = require("ethers/lib/utils");
-const {time} = require("@nomicfoundation/hardhat-network-helpers");
+const {advanceTimeAndBlock} = require("../../../deploy/v2/lib/deploy_utils");
 
 describe("WithdrawalQueue", () => {
   let sgEth, paymentSplitter, minter, withdrawalQueue, wsgEth, rewardsReceiver, deployer, alice, bob, multiSig;
@@ -17,12 +17,13 @@ describe("WithdrawalQueue", () => {
     alice = addr1;
     bob = addr2;
     multiSig = addr3;
+    epoch = 1; // 1 block for quick tests
 
     MINTER_ROLE = await sgEth.MINTER();
 
     // deploy sgeth
     const WSGETH = await ethers.getContractFactory("WSGETH");
-    wsgEth = await WSGETH.deploy(sgEth.address, 24 * 60 * 60);
+    wsgEth = await WSGETH.deploy(sgEth.address, epoch);
     await wsgEth.deployed();
 
     const splitterAddresses = [deployer.address, multiSig.address, wsgEth.address];
@@ -54,7 +55,7 @@ describe("WithdrawalQueue", () => {
     await minter.deployed();
 
     const WithdrawalQueue = await ethers.getContractFactory("WithdrawalQueue");
-    withdrawalQueue = await WithdrawalQueue.deploy(minter.address, wsgEth.address);
+    withdrawalQueue = await WithdrawalQueue.deploy(minter.address, wsgEth.address, epoch);
     await withdrawalQueue.deployed();
 
     const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
@@ -82,6 +83,24 @@ describe("WithdrawalQueue", () => {
       to: withdrawalQueue.address,
       value: parseEther("10"),
     });
+  });
+
+  it("request redeem flow", async () => {
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+      .to.be.emit(withdrawalQueue, "RedeemRequest")
+      .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+      .to.be.emit(withdrawalQueue, "RedeemRequest")
+      .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
+
+    expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
+    expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("30"));
+    await advanceTimeAndBlock(1, ethers);
+
+    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address, alice.address);
+    // await withdrawalQueue.connect(alice).setOperator(bob, true);
+    // await withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, alice.address);
+    expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("5"));
   });
 
   it("request redeem(total request amount is less than 32 ether)", async () => {
@@ -119,13 +138,11 @@ describe("WithdrawalQueue", () => {
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
-    expect(await withdrawalQueue.pendingRedeemRequest(alice.address)).to.eq(0);
-    expect(await withdrawalQueue.pendingRedeemRequest(bob.address)).to.eq(0);
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("30"));
   });
 
-  it("redeem(amount is less than queue balance)", async () => {
+  it("redeem(amount is less than queue balance) and minter is empty", async () => {
     await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
@@ -133,10 +150,18 @@ describe("WithdrawalQueue", () => {
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
+    await advanceTimeAndBlock(1, ethers);
+
+    // Empty minter for test.
+    await sgEth.connect(deployer).addMinter(alice.address);
+    await sgEth.connect(alice).mint(alice.address, parseEther("100"));
+    await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
+
     const prevBalance = await deployer.provider.getBalance(withdrawalQueue.address);
     await expect(
       withdrawalQueue.connect(alice).redeem(parseEther("50"), alice.address, alice.address),
     ).to.be.revertedWith(""); // reverted from panic error
+
     await expect(withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address, alice.address))
       .to.emit(withdrawalQueue, "Redeem")
       .withArgs(alice.address, alice.address, parseEther("5"), parseEther("5"));
@@ -154,15 +179,17 @@ describe("WithdrawalQueue", () => {
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
     const prevBalance = await deployer.provider.getBalance(minter.address);
+    const queuePrevBalance = await deployer.provider.getBalance(withdrawalQueue.address);
+
     await expect(withdrawalQueue.connect(bob).redeem(parseEther("20"), bob.address, bob.address))
       .to.emit(withdrawalQueue, "Redeem")
       .withArgs(bob.address, bob.address, parseEther("20"), parseEther("20"));
     const afterBalance = await deployer.provider.getBalance(minter.address);
     const queueAfterBalance = await deployer.provider.getBalance(withdrawalQueue.address);
 
-    // 20 - 10 = 10
-    expect(prevBalance.sub(afterBalance)).to.eq(parseEther("10"));
+    // 100 - 80 = 20
+    expect(prevBalance.sub(afterBalance)).to.eq(parseEther("20"));
     // 10 - 10 = 0
-    expect(queueAfterBalance).to.eq(0);
+    expect(queuePrevBalance.sub(queueAfterBalance)).to.eq(0);
   });
 });

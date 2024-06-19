@@ -269,7 +269,7 @@
     "name": "MINTER",
     "outputs": [
       {
-        "internalType": "contract SharedDepositMinterV2",
+        "internalType": "address",
         "name": "",
         "type": "address"
       }
@@ -451,11 +451,6 @@
   },
   {
     "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "requestId",
-        "type": "uint256"
-      },
       {
         "internalType": "address",
         "name": "owner",

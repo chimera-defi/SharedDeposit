@@ -26,7 +26,7 @@ abstract contract FIFOQueue {
     ) public view returns (bool withdrawalAllowed) {
         UserEntry memory userEntry = userEntries[sender];
         if (amountToWithdraw > balanceOfSelf
-            || userEntry.amount > amountToWithdraw) {
+            || amountToWithdraw > userEntry.amount ) {
             revert Errors.InvalidAmount();
         }
        uint256 lockEnd = userEntry.blocknum + epochLength;

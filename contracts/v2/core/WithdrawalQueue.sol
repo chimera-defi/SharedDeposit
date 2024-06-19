@@ -10,16 +10,31 @@ import {FIFOQueue} from "../../lib/FIFOQueue.sol";
 import {Errors} from "../../lib/Errors.sol";
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
-// ERC-7540 inspired withdrawal contract
-// This contract is designed to be used with SharedDepositMinterV2 contract
-// As a module extension that adds 7540 methods requestRedeem and redeem
-// Example flow ->
+/**
+ * @title WithdrawalQueue
+ * @author Sharedstake
+ * @notice -
+ * -
+ * @dev -
+ * ERC-7540 inspired withdrawal contract
+ * This contract is designed to be used with SharedDepositMinterV2 contract
+ * As a module extension that adds 7540 methods requestRedeem and redeem
+ * Example flow ->
+ * user calls requestRedeem(user, user, userShares)
+ * user calls setOperator(admin OR protocol provided keeper, true)
+ * admin can now call redeem on the users behalf if needed after epoch
+ * user calls redeem(user, user, userShares) after waiting for epoch
+ * Caveats:
+ * If the user requests another redemption, before fulfillment,
+ * this resets the epoch length clock for their request
+ */
 contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue {
     struct Request {
         address requester;
         uint256 shares;
     }
-    SharedDepositMinterV2 public immutable MINTER;
+    // SharedDepositMinterV2 public immutable MINTER;
+    address public immutable MINTER;
     address public immutable WSGETH;
 
     uint256 internal totalPendingRequest;
@@ -52,13 +67,13 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
 
     modifier checkWithdraw(address owner, uint256 amt) {
         uint256 totalBalance = address(this).balance + address(MINTER).balance;
-        if (_checkWithdraw(msg.sender, totalBalance, amt)) {
+        if (_checkWithdraw(owner, totalBalance, amt)) {
             _;
         }
     }
 
     constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
-        MINTER = SharedDepositMinterV2(_minter);
+        MINTER = _minter;
         WSGETH = _wsgEth;
 
         uint256 maxUint256 = 2 ** 256 - 1;
@@ -113,7 +128,7 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
         uint256 queueBalance = address(this).balance;
-        uint256 minterBalance = address(MINTER).balance;
+        uint256 minterBalance = MINTER.balance;
 
         if (queueBalance + minterBalance < assets) {
             revert Errors.InsufficientBalance();
@@ -125,10 +140,10 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         // This feels suboptimal, but is the easiest way to always burn the token on redemptions
         if (assets > minterBalance) {
             uint256 diff = assets - minterBalance;
-            payable(address(MINTER)).transfer(diff);
+            SharedDepositMinterV2(payable(MINTER)).deposit{value: diff}();
         }
         // Always burn redeemed tokens
-        MINTER.unstakeAndWithdraw(shares, receiver);
+        SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
 
         emit Redeem(requester, receiver, shares, assets);
     }
@@ -148,12 +163,16 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         }
     }
 
-    function pendingRedeemRequest(uint256 requestId, address owner) public view returns (uint256 shares) {
-        if (requests[requestId].requester == owner) {
-            return requests[requestId].shares;
-        }
-        return 0;
+    function pendingRedeemRequest(address owner) public view returns (uint256 shares) {
+        return claimableRedeemRequest[owner];
     }
+
+    // function pendingRedeemRequest(uint256 requestId, address owner) public view returns (uint256 shares) {
+    //     if (requests[requestId].requester == owner) {
+    //         return requests[requestId].shares;
+    //     }
+    //     return 0;
+    // }
 
     receive() external payable {} // solhint-disable-line
 
