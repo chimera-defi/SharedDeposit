@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: BUSL-1.1
 
 // Acts as the deposit contract for the reward receiver during normal functioning
 // 100% of recieved ETH from rewards is auto-compounded back into sgETH
@@ -6,7 +6,7 @@
 // 40% is transferred to a splitter the DAO can modulate for nor payments and other use cases
 
 // call work() to process eth
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
 import {ISharedDeposit} from "../interfaces/ISharedDeposit.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";

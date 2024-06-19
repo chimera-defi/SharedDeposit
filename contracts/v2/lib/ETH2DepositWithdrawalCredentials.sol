@@ -1,5 +1,5 @@
-//SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.20;
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.20;
 
 import {IDepositContract} from "../interfaces/IDepositContract.sol";
 
