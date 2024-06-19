@@ -3,15 +3,19 @@ const GOERLIDEPOSIT = "0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b";
 const MAINNETDEPOSIT = "0x00000000219ab540356cBB839Cbe05303d7705Fa";
 const NOR='0xa1feaF41d843d53d0F6bEd86a8cF592cE21C409e';
 const ZEROADDRESS="0x0000000000000000000000000000000000000000"
-function genParams(deployer, params = {}) {
-  let defaults = {
-    feeCalcAddr: ZEROADDRESS // 0x00 address since initial fees = 0
-  }
+const MAINNET_MULTISIG = "0xebc37f4c20c7f8336e81fb3adf82f6372bef777e";
+const LOCALHOST="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const DEFAULTS = {
+  feeCalcAddr: ZEROADDRESS // 0x00 address since initial fees = 0
+}
+function genParams(dh, newParams = {}) {
+  deployer = dh.deployer.address;
+  let params = Object.assign({}, DEFAULTS);
+  params.network = dh.launchNetwork;
   let addresses = {
     multisigAddr: CHIMERA, // todo: mainnet fix, currently deployer addr
     nor: deployer,
-    deployer: deployer,
-    ...defaults
+    deployer: deployer
   };
 
   let MainnetDeployedAddresses = {
@@ -26,10 +30,9 @@ function genParams(deployer, params = {}) {
 
     vETH2Addr: '0x898bad2774eb97cf6b94605677f43b41871410b1',
     depositContractAddr: MAINNETDEPOSIT,
-    multisigAddr: '0xebc37f4c20c7f8336e81fb3adf82f6372bef777e',
+    multisigAddr: MAINNET_MULTISIG,
     nor: NOR,
     deployer: CHIMERA,
-    ...defaults
   }
 
   let GoerliDeployedAddresses = {
@@ -42,6 +45,8 @@ function genParams(deployer, params = {}) {
     daoFeeSplitter: '0xa609E0Dd2475739ac705fc17f38D9F5584c2c28D',
     depositContractAddr: GOERLIDEPOSIT
   }
+
+  let SepoliaDeployedAddresses = {}
 
   params = {
     epochLen: 24 * 60 * 60, // 1 day
@@ -58,17 +63,49 @@ function genParams(deployer, params = {}) {
       daoFeeSplitter: "PaymentSplitter",
       timelock: "TimelockController",
     },
-    ...MainnetDeployedAddresses,
+    ...DEFAULTS,
+    ...params
+    // ...MainnetDeployedAddresses,
     // ...addresses,
     // ...GoerliDeployedAddresses,
-    ...params
   };
+
+  if (params.network == "goerli") {
+    params = {
+     ...GoerliDeployedAddresses,
+     ...params
+    }
+  } else if (params.network == "mainnet") {
+    params = {
+     ...MainnetDeployedAddresses,
+     ...params
+    }
+  } else if  (params.network == "sepolia") {
+    params = {
+     ...SepoliaDeployedAddresses,
+     ...addresses,
+     ...params
+    }
+  } else if (params.network == "localhost") {
+    params = {
+     ...MainnetDeployedAddresses,
+     ...addresses,
+     ...params,
+    }
+  } else {
+    throw new Error(`Unknown network: ${params.network}`);
+  }
+
+  params = {
+    ...params,
+    ...newParams
+  }
 
   params.daoFeeSplitterDistro = genFeeDistro(params);
   params.timelockParams = genTimelockParams(params);
 
   // dh.log(`Using params: ${JSON.stringify(params)}`)
-  console.log(params)
+  // console.log(params)
 
   return params;
 }

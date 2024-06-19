@@ -25,11 +25,11 @@ class DeployHelper {
         this.deployer = _parsePrivateKeyToDeployer();
         this.hre = hre;
     }
-    async init(address = '') {
-        this.address = address.length > 0 ? address : this.deployer.address;
-        this.multisig_address = this.multisig_address.length > 0 ? this.multisig_address : this.address;
+    async init(address='') {
+        this.address = address?.length > 0 ? address : this.deployer.address;
+        this.multisig_address = this.multisig_address?.length > 0 ? this.multisig_address : this.address;
 
-        this.initialBalance = await hre.ethers.provider.getBalance(address);
+        this.initialBalance = await hre.ethers.provider.getBalance(this.address);
         this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
         this.gas = await hre.ethers.provider.getFeeData();
         this.overrides = await this.getOverrides(); // cache the overrides inititally to reduce api calls

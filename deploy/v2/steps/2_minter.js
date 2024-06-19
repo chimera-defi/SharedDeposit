@@ -1,17 +1,15 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../lib/DeployHelper.js");
-let {deployMinterV2, setWC, addMinter} = require("../lib/minter_deploy_utils.js");
+let {deployMinterV2, setWithdrawalCredential, addMinter} = require("../lib/minter_deploy_utils.js");
 let genParams = require("../lib/opts.js");
 let OA = require("../lib/onchain_actions.js");
 
 require("dotenv").config();
 
 async function main() {
-  deployer = new ethers.Wallet(network.name == "goerli" ? process.env.GOERLIPK : process.env.LOCALPK, ethers.provider);
-
-  let dh = new DeployHelper(network.name, deployer.address);
-  await dh.init(deployer.address, deployer);
+  let dh = new DeployHelper(network.name);
+  await dh.init();
 
   let oa = new OA(dh);
   let params = genParams(dh);
@@ -42,7 +40,7 @@ async function main() {
   params = await oa.deployNonCustodialStakingPipeline(params);
   await dh.waitIfNotLocalHost();
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
-  // await setWC(dh, params); moved to end
+  await setWithdrawalCredential(dh, params); //moved to end
 
   await dh.postRun();
 }

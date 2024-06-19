@@ -2,7 +2,6 @@
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../lib/DeployHelper.js");
 let genParams = require("../lib/opts.js");
-let OA = require("../lib/onchain_actions.js");
 
 require("dotenv").config();
 
@@ -10,7 +9,6 @@ async function main() {
   let dh = new DeployHelper(network.name);
   await dh.init();
   let params = genParams(dh.address);
-  dh.multisig_address = params.multisigAddr;
 
   /**
    * Servicing for v2
@@ -18,8 +16,15 @@ async function main() {
    * 2. Swap out old contract on MinterV2
    */
   await dh.deployContract("WithdrawalQueue", "WithdrawalQueue", [params.minter, params.wsgETH]);
+  params.withdrawals = dh.addressOf("WithdrawalQueue");
 
-  // Todo: swap out old contract on MinterV2/rewardsRecvr to point to this new withdrawal queue instead of the old withdrawal contract
+  await dh.deployContract("RewardsReceiver", "RewardsReceiver", [
+    params.withdrawals,
+    [params.sgETH, params.wsgETH, params.daoFeeSplitter, params.minter],
+  ]);
+  params.rewardsReceiver = dh.addressOf("RewardsReceiver");
+
+  await setWithdrawalCredential(dh, params);
   await dh.postRun();
 }
 

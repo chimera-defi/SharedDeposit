@@ -30,11 +30,11 @@ const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNE
 // apiKey: secrets.ETHERSCAN_API,
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
 
-sepolia = {}
-const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : '';
+sepolia = {};
+const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : "";
 const SEPOLIA_RPC_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
 
-SEPOLIA_PRIVATE_KEY =  process.env.SEPOLIA_PRIVATE_KEY ?  process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
+SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY ? process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
 
 // END required user input
 

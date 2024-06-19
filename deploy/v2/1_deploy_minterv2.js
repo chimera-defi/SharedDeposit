@@ -1,7 +1,7 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("./lib/DeployHelper.js");
-let {deployMinterV2, setWC, addMinter} = require("./lib/minter_deploy_utils.js");
+let {deployMinterV2, setWithdrawalCredential, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
 let OA = require("./lib/onchain_actions.js");
 
@@ -10,7 +10,7 @@ require("dotenv").config();
 async function main() {
   let dh = new DeployHelper(network.name);
   deployer = dh.deployer;
-  await dh.init(deployer.address);
+  await dh.init();
 
   let oa = new OA(dh);
   let params = genParams(dh);
@@ -51,7 +51,20 @@ async function main() {
   console.log("Fee splitter distro: ", params.daoFeeSplitterDistro);
 
   // Setup the non-custodial staking pipeline incl 1,2,3
-  params = await oa.deployNonCustodialStakingPipeline(params);
+  await dh.deployContract(params.names.daoFeeSplitter, params.names.daoFeeSplitter, [
+    params.daoFeeSplitterDistro.addresses,
+    params.daoFeeSplitterDistro.values,
+  ]);
+  params.daoFeeSplitter = dh.addressOf(params.names.daoFeeSplitter);
+
+  await dh.deployContract("Withdrawals", "Withdrawals", [params.sgETH, params.sgETHVirtualPrice]);
+  params.withdrawals = dh.addressOf("Withdrawals");
+
+  await dh.deployContract("RewardsReceiver", "RewardsReceiver", [
+    params.withdrawals,
+    [params.sgETH, params.wsgETH, params.daoFeeSplitter, params.minter],
+  ]);
+  params.rewardsReceiver = dh.addressOf("RewardsReceiver");
 
   await dh.waitIfNotLocalHost();
 
@@ -60,11 +73,11 @@ async function main() {
    * 1. Deploy ETH Withdrawals processing contract for v1 veth2
    * 2. Deploy veth2 to sgETH rollover contract for v1
    */
-  await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
+  // await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
 
-  await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
+  // await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
 
-  await dh.waitIfNotLocalHost();
+  // await dh.waitIfNotLocalHost();
 
   // // Transfer ownership of any owned components to the multisig
   // await oa.transferRewardsRecvrToMultisig(params);
@@ -86,7 +99,7 @@ async function main() {
 
   await addMinter(dh, params);
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
-  await setWC(dh, params);
+  await setWithdrawalCredential(dh, params);
 
   await oa.transferRewardsRecvrToMultisig(params);
   await dh.waitIfNotLocalHost();

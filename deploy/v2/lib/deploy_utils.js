@@ -184,14 +184,25 @@ const _sendTokens = async (contract, name, to, amount) => {
 };
 
 const _transferOwnership = async (name, contract, to) => {
-  let res = await _transact(contract.transferOwnership, to);
-  log(`Ownership transferred for ${name} at ${contract.address} to ${to}`);
+  let owner = contract?.owner ? await _transact(contract.owner) : false;
+  let res;
+  if (to != owner) {
+    res = await _transact(contract.transferOwnership, to);
+    log(`Ownership transferred for ${name} at ${contract.address} to ${to}`);
+  } else {
+    log(`Ownership transfer skipped. Both addresses are the same`)
+  }
   return res;
 };
 
 const _transact = async (tx, ...args) => {
   let overrides = await _getOverrides();
-  console.log(...args);
+  // console.log(...args);
+  // Txs with no args are reads and dont need overrides or waits. 
+  if (args?.length == 0) {
+    let trace = await tx(overrides);
+    return trace;
+  }
   let trace = await tx(...args, overrides);
   await trace.wait(); // throws on tx failure
   return trace;

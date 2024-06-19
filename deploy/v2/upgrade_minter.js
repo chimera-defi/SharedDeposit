@@ -1,7 +1,12 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../deploy_utils.js");
-let {deployMinterV2, setWC, addMinter, deployWithdrawalsCredentialPipeline} = require("./lib/minter_deploy_utils.js");
+let {
+  deployMinterV2,
+  setWithdrawalCredential,
+  addMinter,
+  deployWithdrawalsCredentialPipeline,
+} = require("./lib/minter_deploy_utils.js");
 let OA = require("./lib/onchain_actions.js");
 let genParams = require("./lib/opts.js");
 require("dotenv").config();
@@ -20,7 +25,7 @@ async function main() {
 
   // params = await oa.deployWithdrawalsCredentialPipeline(params);
 
-  await setWC(dh, params);
+  await setWithdrawalCredential(dh, params);
   console.log("WC set");
 
   await dh.waitIfNotLocalHost();

@@ -1,7 +1,7 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("./lib/deploy_utils.js");
-let {deployMinterV2, setWC, addMinter} = require("./lib/minter_deploy_utils.js");
+let {deployMinterV2, setWithdrawalCredential, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
 let OA = require("./lib/onchain_actions.js");
 
@@ -29,7 +29,7 @@ async function main() {
   params = genParams(dh, params);
   console.log("Fee splitter distro: ", params.daoFeeSplitterDistro);
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
-  await setWC(dh, params);
+  await setWithdrawalCredential(dh, params);
 
   await dh.waitIfNotLocalHost();
 
