@@ -40,12 +40,12 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
     uint256 internal totalPendingRequest;
     uint256 internal requestsPending;
     uint256 internal requestsFulfilled;
-    uint256 public totalOut;
+    uint256 public totalAssetsOut;
 
     bytes32 public constant GOV = keccak256("GOV"); // Governance for settings - normally timelock controlled by multisig
 
     mapping(uint256 => Request) internal requests;
-    mapping(address => uint256) public claimableRedeemRequest;
+    mapping(address => uint256) public redeemRequests;
     mapping(address requester => mapping(address operator => bool)) public isOperator;
 
     event RedeemRequest(
@@ -63,13 +63,6 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
             revert Errors.PermissionDenied();
         }
         _;
-    }
-
-    modifier checkWithdraw(address owner, uint256 amt) {
-        uint256 totalBalance = address(this).balance + address(MINTER).balance;
-        if (_checkWithdraw(owner, totalBalance, amt)) {
-            _;
-        }
     }
 
     constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
@@ -91,17 +84,17 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
+        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
         requestId = requestsPending++;
         requests[requestId] = Request({requester: requester, shares: shares});
 
-        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
-        _stakeForWithdrawal(owner, shares);
+        _stakeForWithdrawal(owner, IERC4626(WSGETH).previewRedeem(shares));
         totalPendingRequest += shares;
-        if (requester != owner) {
-            isOperator[owner][requester] = true;
-        }
-        claimableRedeemRequest[requester] += shares; // underflow would revert if not enough claimable shares
+        // if (requester != owner) {
+        //     isOperator[owner][requester] = true;
+        // }
+        redeemRequests[requester] += shares; // underflow would revert if not enough claimable shares
 
         emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
         return requestId;
@@ -111,21 +104,21 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         uint256 shares,
         address receiver,
         address requester
-    )
-        external
-        onlyOwnerOrOperator(requester)
-        checkWithdraw(receiver, shares)
-        nonReentrant
-        whenNotPaused
-        returns (uint256 assets)
-    {
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused returns (uint256 assets) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
 
-        claimableRedeemRequest[requester] -= shares; // underflow would revert if not enough claimable shares
-        totalPendingRequest -= shares;
         assets = IERC4626(WSGETH).previewRedeem(shares);
+
+        if (claimableRedeemRequest(requester) < assets) {
+            revert Errors.InvalidAmount();
+        }
+        _withdraw(requester, assets);
+
+        // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
+        redeemRequests[requester] -= shares; // underflow would revert if not enough claimable shares
+        totalPendingRequest -= shares;
 
         uint256 queueBalance = address(this).balance;
         uint256 minterBalance = MINTER.balance;
@@ -135,7 +128,7 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         }
 
         // Track total returned
-        totalOut += assets;
+        totalAssetsOut += assets;
         requestsFulfilled++;
         // This feels suboptimal, but is the easiest way to always burn the token on redemptions
         if (assets > minterBalance) {
@@ -164,7 +157,20 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
     }
 
     function pendingRedeemRequest(address owner) public view returns (uint256 shares) {
-        return claimableRedeemRequest[owner];
+        return redeemRequests[owner];
+    }
+
+    function claimableRedeemRequest(address owner) public view returns (uint256 shares) {
+        if (redeemRequests[owner] > 0 && checkWithdraw(owner, redeemRequests[owner])) {
+            return redeemRequests[owner];
+        } else {
+            return 0;
+        }
+    }
+
+    function checkWithdraw(address owner, uint256 amt) internal view returns (bool) {
+        uint256 totalBalance = address(this).balance + address(MINTER).balance;
+        return _isWithdrawalAllowed(owner, totalBalance, amt);
     }
 
     receive() external payable {} // solhint-disable-line

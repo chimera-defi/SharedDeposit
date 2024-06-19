@@ -39,6 +39,35 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "balanceOfSelf",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountToWithdraw",
+        "type": "uint256"
+      }
+    ],
+    "name": "_isWithdrawalAllowed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "epochLength",
     "outputs": [

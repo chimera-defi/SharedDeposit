@@ -323,7 +323,36 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "balanceOfSelf",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountToWithdraw",
+        "type": "uint256"
+      }
+    ],
+    "name": "_isWithdrawalAllowed",
+    "outputs": [
+      {
+        "internalType": "bool",
         "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
         "type": "address"
       }
     ],
@@ -331,7 +360,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "shares",
         "type": "uint256"
       }
     ],
@@ -500,6 +529,25 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "redeemRequests",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "role",
         "type": "bytes32"
@@ -614,7 +662,7 @@
   },
   {
     "inputs": [],
-    "name": "totalOut",
+    "name": "totalAssetsOut",
     "outputs": [
       {
         "internalType": "uint256",
