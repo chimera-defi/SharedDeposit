@@ -1,5 +1,16 @@
 # Deployment logs for deploys that matter
 
+- sepolia
+
+{
+  SgETH: '0xA3A244Db2C07061E159090BB8b354ae4662fB0C3',
+  WSGETH: '0xc8BD8F8AC1410e6f59a5EeAf7be00703232EcD56',
+  SharedDepositMinterV2: '0x1974601C7f3A4b3E30A65eFD66f35358390B55a8',
+  PaymentSplitter: '0xFDCDe0019BffA69B72aC14715b61Cb5A3EdAe1f9',
+  Withdrawals: '0xA357FA70FCaEa08c467EfB31e082ec933178d1EE',
+  RewardsReceiver: '0x17A043f3bb5360562301B08D8178731037D2EE4E'
+}
+
 - mainnet
 
 ```
