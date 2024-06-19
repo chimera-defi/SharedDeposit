@@ -1,6 +1,6 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
-let {DeployHelper} = require("../deploy_utils.js");
+let {DeployHelper} = require("./lib/DeployHelper.js");
 let {deployMinterV2, setWC, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
 let OA = require("./lib/onchain_actions.js");
@@ -8,18 +8,9 @@ let OA = require("./lib/onchain_actions.js");
 require("dotenv").config();
 
 async function main() {
-  pk = ''
-  if (network.name == "goerli") {
-    pk = process.env.GOERLIPK;
-  } else if (network.name == "sepolia") {
-    pk = process.env.SEPOLIAPK;
-  } else {
-    pk = process.env.LOCALPK;
-  }
-  deployer = new ethers.Wallet(pk);
-
-  let dh = new DeployHelper(network.name, deployer.address);
-  await dh.init(deployer.address, deployer);
+  let dh = new DeployHelper(network.name);
+  deployer = dh.deployer;
+  await dh.init(deployer.address);
 
   let oa = new OA(dh);
   let params = genParams(dh);
@@ -69,8 +60,7 @@ async function main() {
    * 1. Deploy ETH Withdrawals processing contract for v1 veth2
    * 2. Deploy veth2 to sgETH rollover contract for v1
    */
-  // await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
-  await dh.deployContract("WithdrawalQueue", "WithdrawalQueue", [params.minter, params.wsgETH]);
+  await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
 
   await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
 

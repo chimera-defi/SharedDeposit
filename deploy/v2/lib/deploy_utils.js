@@ -1,20 +1,31 @@
 const hre = require("hardhat");
 const fs = require("fs");
-const {ethers} = hre;
+const { ethers } = hre;
 
 const log = txt => {
   txt = txt + "  \n";
   console.log(txt);
-  fs.writeFileSync("log.txt", txt, {flag: "a"});
+  fs.writeFileSync("log.txt", txt, { flag: "a" });
 };
+
+const _parsePrivateKeyToDeployer = () => {
+  pk = ''
+  if (network.name == "goerli") {
+    pk = process.env.GOERLIPK;
+  } else if (network.name == "sepolia") {
+    pk = process.env.SEPOLIAPK;
+  } else {
+    pk = process.env.LOCALPK;
+  }
+  return new ethers.Wallet(pk);
+}
 
 const isMainnet = launchNetwork => {
   // some behaviours need to be tested with a mainnet fork which behaves the same as mainnet
   return launchNetwork == "localhost" || launchNetwork == "mainnet";
 };
-const notLocal = launchNetwork => launchNetwork !== "localhost";
 const wait = async ms => await new Promise(resolve => setTimeout(resolve, ms));
-const printOverrides = o => {
+const _printOverrides = o => {
   return {
     type: 2,
     maxFeePerGas: o.maxFeePerGas.toString(),
@@ -81,7 +92,7 @@ const _deployContract = async (name, launchNetwork = false, cArgs = [], cachedOv
   await contract.deployTransaction.wait(1);
   await contract.deployed();
   log(`\n Deployed ${name} to ${contract.address} \n on ${launchNetwork}.  `);
-  return Promise.resolve({contract: contract, args: cArgs, initialized: false, srcName: name});
+  return Promise.resolve({ contract: contract, args: cArgs, initialized: false, srcName: name });
 };
 
 function chunkArray(array, size) {
@@ -135,14 +146,14 @@ const _verifyAll = async (allContracts, launchNetwork) => {
 
 const _deployInitializableContract = async (name, launchNetwork = false, initArgs = []) => {
   const overridesForEIP1559 = await _getOverrides();
-  const {contract, _} = await _deployContract(name, launchNetwork, []);
+  const { contract, _ } = await _deployContract(name, launchNetwork, []);
   if (initArgs.length > 0) {
     await contract.initialize(...initArgs, overridesForEIP1559);
   } else {
     await contract.initialize(initArgs, overridesForEIP1559);
   }
   log(`Initialized ${name} with ${initArgs.toString()} \n`);
-  return Promise.resolve({contract: contract, args: initArgs, initialized: true, srcName: name});
+  return Promise.resolve({ contract: contract, args: initArgs, initialized: true, srcName: name });
 };
 
 const _getAddress = obj => {
@@ -163,7 +174,7 @@ const _postRun = (contracts, launchNetwork) => {
     let url = prefix + contracts[k].contract.address;
     log(`\n ${k} deployed to ${contracts[k].contract.address} at \n ${url}  `);
   });
-  fs.writeFileSync("deploy_log.json", JSON.stringify(contracts), {flag: "a"});
+  fs.writeFileSync("deploy_log.json", JSON.stringify(contracts), { flag: "a" });
 };
 
 const _sendTokens = async (contract, name, to, amount) => {
@@ -203,171 +214,6 @@ async function advanceBlock(ethers) {
   await ethers.provider.send("evm_mine");
 }
 
-class DeployHelper {
-  constructor(launchNetwork, multisig_address) {
-    this.contracts = {};
-    this.launchNetwork = launchNetwork;
-    this.initialBalance = 0;
-    this.currentBlockTime = 0;
-    this.distribution = {};
-    this.multisig_address = multisig_address;
-  }
-  async init(address, deployer = {}) {
-    this.address = address;
-    this.hre = hre;
-    this.initialBalance = await hre.ethers.provider.getBalance(address);
-    this.currentBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
-    this.deployer = deployer;
-    this.gas = await hre.ethers.provider.getFeeData();
-    this.overrides = await this.getOverrides(); // cache the overrides inititally to reduce api calls
-
-    log(
-      `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${
-        this.currentBlockTime
-      } on network: ${this.launchNetwork}`,
-    );
-
-    log(`Using gas settings: ${this.overrides.maxFeePerGas} & bribe: ${this.overrides.maxPriorityFeePerGas}`);
-  }
-  async deployContract(name, ctrctName, args) {
-    this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args, this.overrides);
-    await this.waitIfNotLocalHost();
-  }
-  async deployInitializableContract(name, ctrctName, args) {
-    this.contracts[name] = await _deployInitializableContract(ctrctName, this.launchNetwork, args);
-  }
-  addressOf(name) {
-    return _getAddress(this.contracts[name]);
-  }
-  getContract(name) {
-    return _getContract(this.contracts, name);
-  }
-  async getOverrides() {
-    return await _getOverrides();
-  }
-  async transact(tx, ...args) {
-    return await _transact(tx, args);
-  }
-
-  // Token distro
-  addDist(name, amount) {
-    this.distribution[name] = amount;
-  }
-  getContract(name) {
-    return _getContract(this.contracts, name);
-  }
-  async getContractAt(name, address) {
-    let try_cache = this.getContract(name);
-    if (try_cache && try_cache?.address == address) return try_cache;
-    let factory = await hre.ethers.getContractFactory(name);
-    let contract = await factory.attach(address);
-    if (this.deployer?.address) await contract.connect(this.deployer);
-    // this.contracts[name] = contract;
-    return contract;
-  }
-  async _checkEnoughTokensToDistribute(token) {
-    let total = Object.values(this.distribution).reduce((a, b) => a.add(b));
-    let diff = (await this.getContract(token).balanceOf(this.address)).sub(total);
-    if (diff !== 0) {
-      log(`Distribution difference: ${diff.toString()}`);
-      if (isMainnet(this.launchNetwork) && diff < 0) {
-        throw "Not enough total balance";
-      }
-    }
-  }
-  async distribute(token) {
-    await this._checkEnoughTokensToDistribute(token);
-    for (let name in this.distribution) {
-      await _sendTokens(this.getContract(token), name, this.addressOf(name), this.distribution[name]);
-    }
-  }
-
-  // ownership transfer
-  async transferOwnershipToMultisig(name) {
-    await _transferOwnership(name, this.getContract(name), this.multisig_address);
-  }
-  async transferOwnershipToMultisigMultiple(arrOfNames) {
-    for (let name of arrOfNames) {
-      await transferOwnershipToMultisig(name);
-    }
-  }
-  async verify() {
-    await _verifyAll(this.contracts, this.launchNetwork);
-  }
-  async mine() {
-    advanceTimeAndBlock(20, hre.ethers);
-  }
-
-  async postRun() {
-    await _postRun(this.contracts, this.launchNetwork);
-    let finalBalance = await hre.ethers.provider.getBalance(this.address);
-    let finalBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
-    let overrides = await this.getOverrides(this.launchNetwork);
-    log(
-      `Total cost of deploys: ${
-        this.initialBalance.sub(finalBalance).toString() / 1e18
-      } with gas settings: ${JSON.stringify(printOverrides(overrides))}. Took ${
-        finalBlockTime - this.currentBlockTime
-      } seconds`,
-    );
-    await this.verify();
-    this.genDeployJson();
-  }
-
-  genDeployJson() {
-    // Helper fn to deploy a json of the deployed contracts and addresses for porting to the frontend
-    let o = {};
-    for (let key in this.contracts) {
-      o[key] = this.addressOf(key);
-    }
-    log("All deployed contracts in JSON:");
-    log(JSON.stringify(o));
-    console.log(o);
-  }
-
-  log(txt) {
-    log(txt);
-  }
-
-  parseEther(n) {
-    return hre.ethers.utils.parseEther(n);
-  }
-
-  async waitIfNotLocalHost() {
-    if (notLocal(this.launchNetwork)) {
-      let t = 10 * 1000; // 15 secs
-      await wait(t);
-      log(`Waiting ${t} ms for non-local deploy for rate limit risks`);
-    }
-  }
-
-  async getBalance(address) {
-    let bal = await hre.ethers.provider.getBalance(address);
-    return bal;
-  }
-  prepend0x(text) {
-    return `0x${text}`;
-  }
-  //https://ethereum.stackexchange.com/questions/94664/arrayify-error-when-passing-a-string-as-an-argument-to-a-transaction
-  web3StringToBytes32(text) {
-    // text = this.prepend0x(text);
-    var result = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(text));
-    while (result.length < 66) {
-      result += "0";
-    }
-    if (result.length !== 66) {
-      throw new Error(`invalid web3 implicit bytes32", ${result}, ${text}`);
-    }
-    return result;
-  }
-  addToParams(params, name) {
-    let realname = params.names[name];
-    params[name] = this.addressOf(realname);
-    params.contracts[name] = this.getContract(realname);
-    return params;
-  }
-}
-
 module.exports = {
   _deployInitializableContract: _deployInitializableContract,
   _deployContract: _deployContract,
@@ -376,6 +222,7 @@ module.exports = {
   _verifyAll: _verifyAll,
   _postRun: _postRun,
   _getOverrides: _getOverrides,
+  _printOverrides: _printOverrides,
   log: log,
   isMainnet: isMainnet,
   _transact: _transact,
@@ -383,5 +230,5 @@ module.exports = {
   _transferOwnership: _transferOwnership,
   _getContract: _getContract,
   advanceTimeAndBlock: advanceTimeAndBlock,
-  DeployHelper: DeployHelper,
+  _parsePrivateKeyToDeployer: _parsePrivateKeyToDeployer,
 };

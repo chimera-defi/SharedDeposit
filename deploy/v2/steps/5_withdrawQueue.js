@@ -7,25 +7,19 @@ let OA = require("../lib/onchain_actions.js");
 require("dotenv").config();
 
 async function main() {
-  deployer = new ethers.Wallet(network.name == "goerli" ? process.env.GOERLIPK : process.env.LOCALPK, ethers.provider);
-
-  let dh = new DeployHelper(network.name, deployer.address);
-  await dh.init(deployer.address, deployer);
-
-  let oa = new OA(dh);
-  let params = genParams(dh);
+  let dh = new DeployHelper(network.name);
+  await dh.init();
+  let params = genParams(dh.address);
   dh.multisig_address = params.multisigAddr;
 
   /**
-   * Servicing for v1
-   * 1. Deploy ETH Withdrawals processing contract for v1 veth2
-   * 2. Deploy veth2 to sgETH rollover contract for v1
+   * Servicing for v2
+   * 1. Deploy ETH Withdrawals queue processing contract
+   * 2. Swap out old contract on MinterV2
    */
-  await dh.deployContract("WithdrawalsvETH2", "Withdrawals", [params.vETH2Addr, params.rolloverVirtual]);
-
-  // await dh.deployContract("Rollover", "Rollover", [params.vETH2Addr, sgETHAddrs, params.rolloverVirtual]);
   await dh.deployContract("WithdrawalQueue", "WithdrawalQueue", [params.minter, params.wsgETH]);
 
+  // Todo: swap out old contract on MinterV2/rewardsRecvr to point to this new withdrawal queue instead of the old withdrawal contract
   await dh.postRun();
 }
 

@@ -1,6 +1,6 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
-let {DeployHelper} = require("../../deploy_utils.js");
+let {DeployHelper} = require("../DeployHelper.js");
 let {setWC, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
 let OA = require("./lib/onchain_actions.js");

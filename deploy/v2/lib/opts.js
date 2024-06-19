@@ -2,14 +2,15 @@ const CHIMERA = "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
 const GOERLIDEPOSIT = "0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b";
 const MAINNETDEPOSIT = "0x00000000219ab540356cBB839Cbe05303d7705Fa";
 const NOR='0xa1feaF41d843d53d0F6bEd86a8cF592cE21C409e';
-function genParams(dh, params = {}) {
+const ZEROADDRESS="0x0000000000000000000000000000000000000000"
+function genParams(deployer, params = {}) {
   let defaults = {
-    feeCalcAddr: dh.addressOf(0) // 0x00 address since initial fees = 0
+    feeCalcAddr: ZEROADDRESS // 0x00 address since initial fees = 0
   }
   let addresses = {
     multisigAddr: CHIMERA, // todo: mainnet fix, currently deployer addr
-    nor: dh.address,
-    deployer: dh.address,
+    nor: deployer,
+    deployer: deployer,
     ...defaults
   };
 
@@ -66,7 +67,7 @@ function genParams(dh, params = {}) {
   params.daoFeeSplitterDistro = genFeeDistro(params);
   params.timelockParams = genTimelockParams(params);
 
-  dh.log(`Using params: ${JSON.stringify(params)}`)
+  // dh.log(`Using params: ${JSON.stringify(params)}`)
   console.log(params)
 
   return params;
