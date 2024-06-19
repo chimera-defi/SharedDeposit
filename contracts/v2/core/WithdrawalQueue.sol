@@ -167,13 +167,6 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         return claimableRedeemRequest[owner];
     }
 
-    // function pendingRedeemRequest(uint256 requestId, address owner) public view returns (uint256 shares) {
-    //     if (requests[requestId].requester == owner) {
-    //         return requests[requestId].shares;
-    //     }
-    //     return 0;
-    // }
-
     receive() external payable {} // solhint-disable-line
 
     fallback() external payable {} // solhint-disable-line
