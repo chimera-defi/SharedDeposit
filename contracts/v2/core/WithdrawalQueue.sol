@@ -1,20 +1,20 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
+
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+
 import {FIFOQueue} from "../lib/FIFOQueue.sol";
 import {Errors} from "../lib/Errors.sol";
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 /**
  * @title WithdrawalQueue
- * @author Sharedstake
- * @notice -
- * -
+ * @author @ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
  * @dev -
  * ERC-7540 inspired withdrawal contract
  * This contract is designed to be used with SharedDepositMinterV2 contract

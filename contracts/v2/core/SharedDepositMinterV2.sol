@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
 /// @title SharedDepositMinterV2 - minter for ETH LSD
@@ -28,7 +27,6 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {ETH2DepositWithdrawalCredentials} from "../lib/ETH2DepositWithdrawalCredentials.sol";

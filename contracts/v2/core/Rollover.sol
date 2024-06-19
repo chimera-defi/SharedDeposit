@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
 import {SafeERC20, SafeMath, IERC20, RedemptionsBase} from "../lib/RedemptionsBase.sol";

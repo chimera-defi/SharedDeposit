@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicensed
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
 // Rewards receiver contract for ETH2 CL + RL rewards
@@ -11,6 +11,8 @@ pragma solidity 0.8.20;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {YieldDirectorBase} from "../lib/YieldDirectorBase.sol";
 
+/// @title RewardsReceiver - Rewards receiver contract for ETH2 CL + RL rewards
+/// @author @ChimeraDefi - admin@sharedstake.org - chimera_defi@protonmail.com
 contract RewardsReceiver is Ownable, YieldDirectorBase {
     enum State {
         Deposits,

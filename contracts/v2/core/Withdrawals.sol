@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-// SPDX-License-Identifier: MIT
 import {RedemptionsBase} from "../lib/RedemptionsBase.sol";
 
 /// @title Withdrawals - ERC20 token to ETH redemption contract

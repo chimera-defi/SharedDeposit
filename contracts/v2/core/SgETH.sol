@@ -1,8 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 import {ERC20MintableBurnableByMinter} from "../lib/ERC20MintableBurnableByMinter.sol";
 import {Errors} from "../lib/Errors.sol";
 
+/// @title SgETH - SharedStake Governed Staked Ether
+/// @author @ChimeraDefi - admin@sharedstake.org - chimera_defi@protonmail.com
 contract SgETH is ERC20MintableBurnableByMinter {
     constructor() ERC20MintableBurnableByMinter("SharedStake Governed Staked Ether", "sgETH") {
         // Set the admin of the minter role; this causes the grant and revole role fns to gaurd to this admin role

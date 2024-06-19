@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
 import {ERC4626, xERC4626} from "../lib/xERC4626.sol";
