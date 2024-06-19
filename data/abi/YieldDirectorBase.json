@@ -12,20 +12,7 @@
   },
   {
     "inputs": [],
-    "name": "feeSplitter",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "minter",
+    "name": "MINTER",
     "outputs": [
       {
         "internalType": "contract ISharedDeposit",
@@ -38,7 +25,7 @@
   },
   {
     "inputs": [],
-    "name": "sgETH",
+    "name": "SGETH",
     "outputs": [
       {
         "internalType": "contract IERC20",
@@ -51,7 +38,20 @@
   },
   {
     "inputs": [],
-    "name": "wsgETH",
+    "name": "WSGETH",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeSplitter",
     "outputs": [
       {
         "internalType": "address",

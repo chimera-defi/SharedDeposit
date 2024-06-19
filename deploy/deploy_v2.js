@@ -24,7 +24,7 @@ module.exports = async ({getNamedAccounts, deployments}) => {
 module.exports.tags = ["v2"];
 
 async function main() {
-  const {_deployInitializableContract, _deployContract} = require("./deploy_utils.js");
+  const {_deployInitializableContract, _deployContract} = require("./v2/lib/deploy_utils.js");
   // deploy, deployer
   const [deployer] = await hre.ethers.getSigners();
   // const {deployer} = await getNamedAccounts();

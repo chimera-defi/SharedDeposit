@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
-
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
 /// @title SharedDepositMinterV2 - minter for ETH LSD
@@ -21,17 +20,16 @@ pragma solidity 0.8.20;
 - Added deposit+stake/unstake+withdraw combo convenience routes
 - Refactored fee calc out to external contract 
 */
-import {IFeeCalc} from "../../interfaces/IFeeCalc.sol";
-import {IERC20MintableBurnable} from "../../interfaces/IERC20MintableBurnable.sol";
+import {IFeeCalc} from "../interfaces/IFeeCalc.sol";
+import {IERC20MintableBurnable} from "../interfaces/IERC20MintableBurnable.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
-import {ETH2DepositWithdrawalCredentials} from "../../lib/ETH2DepositWithdrawalCredentials.sol";
+import {ETH2DepositWithdrawalCredentials} from "../lib/ETH2DepositWithdrawalCredentials.sol";
 
 contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
     /* ========== STATE VARIABLES ========== */
@@ -141,7 +139,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
 
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
-    function donate(uint256 shares) external payable nonReentrant {} // solhint-disable-line
+    function donate() external payable {} // solhint-disable-line
 
     /*//////////////////////////////////////////////////////////////
                             ADMIN LOGIC
@@ -281,4 +279,8 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         address payable recv = payable(dest);
         Address.sendValue(recv, assets);
     }
+
+    receive() external payable {} // solhint-disable-line
+
+    fallback() external payable {} // solhint-disable-line
 }

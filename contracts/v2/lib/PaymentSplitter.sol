@@ -1,12 +1,11 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.0;
 
 // OZ paymentsplitter with minor changes
 // private function _addPayee made internal for better inheritance flow
 // 0 payee chck in constructor removed to allow empty setup
 
 // OpenZeppelin Contracts (last updated v4.8.0) (finance/PaymentSplitter.sol)
-
-pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";

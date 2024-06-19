@@ -56,6 +56,8 @@
     "lint:ts": "eslint --config ./.eslintrc.yaml --ignore-path ./.eslintignore --ext .js,.ts .",
     "prettier": "prettier --config ./.prettierrc.yaml --write \"**/*.{js,json,md,sol,ts}\"",
     "prettier:check": "prettier --check --config ./.prettierrc.yaml \"**/*.{js,json,md,sol,ts}\"",
-    "test": "hardhat test"
+    "test": "hardhat test --parallel",
+    "loc:sol:setup": "brew install cloc",
+    "loc:sol": "cloc contracts/v2/"
   }
 }

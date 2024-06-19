@@ -55,13 +55,11 @@ function makeWithdrawalCred(params = {
   return eth1Withdraw;
 }
 
-async function setWC(dh, params = {
+async function setWithdrawalCredential(dh, params = {
   rewardsReceiver: '0xaddr'
 }) {
   let eth1Withdraw = makeWithdrawalCred(params);
   let sc = await dh.getContract(params.names.minter);
-  // sc = await sc.connect(dh.deployer);
-  // await dh.transact(sc.setWithdrawalCredential, eth1Withdraw);
   await sc.setWithdrawalCredential(eth1Withdraw, dh.overrides);
   console.log("Updated withdrawal creds");
 }
@@ -85,7 +83,7 @@ async function upgradeGoerliMinter(dh, params) {
   params = await deployMinterV2(dh, params);
   await addMinter(dh, params);
 
-  await setWC(dh, params);
+  await setWithdrawalCredential(dh, params);
   console.log("WC set");
 
   await oa.e2e(params);
@@ -96,7 +94,7 @@ async function upgradeGoerliMinter(dh, params) {
 
 module.exports = {
   deployMinterV2: deployMinterV2,
-  setWC: setWC,
+  setWithdrawalCredential: setWithdrawalCredential,
   addMinter: addMinter,
   upgradeGoerliMinter: upgradeGoerliMinter,
 }

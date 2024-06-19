@@ -1,16 +1,14 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
-let {DeployHelper} = require("../../deploy_utils.js");
+let {DeployHelper} = require("../lib/DeployHelper.js");
 let genParams = require("../lib/opts.js");
 let OA = require("../lib/onchain_actions.js");
 
 require("dotenv").config();
 
 async function main() {
-  deployer = new ethers.Wallet(network.name == "goerli" ? process.env.GOERLIPK : process.env.LOCALPK, ethers.provider);
-
-  let dh = new DeployHelper(network.name, deployer.address);
-  await dh.init(deployer.address, deployer);
+  let dh = new DeployHelper(network.name);
+  await dh.init();
 
   let oa = new OA(dh);
   let params = genParams(dh);
