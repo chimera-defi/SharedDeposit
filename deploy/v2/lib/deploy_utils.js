@@ -24,7 +24,7 @@ const isMainnet = launchNetwork => {
   // some behaviours need to be tested with a mainnet fork which behaves the same as mainnet
   return launchNetwork == "localhost" || launchNetwork == "mainnet";
 };
-const wait = async ms => await new Promise(resolve => setTimeout(resolve, ms));
+const _wait = async ms => await new Promise(resolve => setTimeout(resolve, ms));
 const _printOverrides = o => {
   return {
     type: 2,
@@ -50,8 +50,10 @@ const _getOverrides = async () => {
   let omfpg = overridesForEIP1559.maxFeePerGas;
   let mfpg = gas.maxFeePerGas;
   if (mfpg.gte(omfpg)) {
-    await wait(15000);
-    console.log("gas spike hit?!", mfpg.toString());
+    let waitTime = 15000; 
+    console.log("gas spike hit?! current gas in gwei:", ethers.utils.formatUnits(mfpg.toString(), "gwei"));
+    console.log("waiting for ", waitTime);
+    await _wait(waitTime);
     gas = await hre.ethers.provider.getFeeData();
   }
   overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas.gte(gas.maxPriorityFeePerGas)
@@ -107,7 +109,7 @@ const _verifyAll = async (allContracts, launchNetwork) => {
   if (!launchNetwork || launchNetwork == "hardhat" || launchNetwork == "localhost") return;
   let num = 60000; // 60s
   log(`Waiting ${num} ms to make sure everything has propagated on etherscan`);
-  await wait(num);
+  await _wait(num);
   // wait 10s to make sure everything has propagated on etherscan
 
   let contractArr = [],
@@ -242,4 +244,5 @@ module.exports = {
   _getContract: _getContract,
   advanceTimeAndBlock: advanceTimeAndBlock,
   _parsePrivateKeyToDeployer: _parsePrivateKeyToDeployer,
+  _wait: _wait
 };
