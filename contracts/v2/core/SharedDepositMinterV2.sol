@@ -139,7 +139,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
 
     // migration function to accept old monies and copy over state
     // users should not use this as it just donates the money without minting veth or tracking donations
-    function donate(uint256 shares) external payable nonReentrant {} // solhint-disable-line
+    function donate() external payable {} // solhint-disable-line
 
     /*//////////////////////////////////////////////////////////////
                             ADMIN LOGIC

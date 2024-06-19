@@ -329,13 +329,7 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      }
-    ],
+    "inputs": [],
     "name": "donate",
     "outputs": [],
     "stateMutability": "payable",

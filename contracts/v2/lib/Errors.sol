@@ -12,4 +12,5 @@ library Errors {
     error PermissionDenied();
     error InsufficientBalance();
     error TooEarly();
+    error FailedCall();
 }

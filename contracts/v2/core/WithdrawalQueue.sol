@@ -10,7 +10,11 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 
 import {FIFOQueue} from "../lib/FIFOQueue.sol";
 import {Errors} from "../lib/Errors.sol";
+import {OperatorSettable} from "../lib/OperatorSettable.sol";
+
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import "hardhat/console.sol";
 
 /**
  * @title WithdrawalQueue
@@ -28,7 +32,7 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
  * If the user requests another redemption, before fulfillment,
  * this resets the epoch length clock for their request
  */
-contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue {
+contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue, OperatorSettable {
     struct Request {
         address requester;
         uint256 shares;
@@ -46,7 +50,6 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
 
     mapping(uint256 => Request) internal requests;
     mapping(address => uint256) public redeemRequests;
-    mapping(address requester => mapping(address operator => bool)) public isOperator;
 
     event RedeemRequest(
         address indexed requester,
@@ -56,14 +59,6 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         uint256 assets
     );
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
-    event OperatorSet(address indexed owner, address indexed operator, bool value);
-
-    modifier onlyOwnerOrOperator(address owner) {
-        if (owner != msg.sender && !isOperator[owner][msg.sender]) {
-            revert Errors.PermissionDenied();
-        }
-        _;
-    }
 
     constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
         MINTER = _minter;
@@ -91,9 +86,6 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
 
         _stakeForWithdrawal(owner, IERC4626(WSGETH).previewRedeem(shares));
         totalPendingRequest += shares;
-        // if (requester != owner) {
-        //     isOperator[owner][requester] = true;
-        // }
         redeemRequests[requester] += shares; // underflow would revert if not enough claimable shares
 
         emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
@@ -133,18 +125,14 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         // This feels suboptimal, but is the easiest way to always burn the token on redemptions
         if (assets > minterBalance) {
             uint256 diff = assets - minterBalance;
+            // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
             SharedDepositMinterV2(payable(MINTER)).deposit{value: diff}();
         }
+
         // Always burn redeemed tokens
         SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
 
         emit Redeem(requester, receiver, shares, assets);
-    }
-
-    function setOperator(address operator, bool approved) external returns (bool) {
-        isOperator[msg.sender][operator] = approved;
-        emit OperatorSet(msg.sender, operator, approved);
-        return true;
     }
 
     function togglePause() external onlyRole(GOV) {
@@ -160,17 +148,15 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue 
         return redeemRequests[owner];
     }
 
+    // claimableRedeemRequest - returns owners shares in claimable state, i.e. epoch has elapsed and sufficient funds exist
     function claimableRedeemRequest(address owner) public view returns (uint256 shares) {
-        if (redeemRequests[owner] > 0 && checkWithdraw(owner, redeemRequests[owner])) {
+        uint256 totalBalance = address(this).balance + address(MINTER).balance;
+
+        if (redeemRequests[owner] > 0 && _isWithdrawalAllowed(owner, totalBalance, redeemRequests[owner])) {
             return redeemRequests[owner];
         } else {
             return 0;
         }
-    }
-
-    function checkWithdraw(address owner, uint256 amt) internal view returns (bool) {
-        uint256 totalBalance = address(this).balance + address(MINTER).balance;
-        return _isWithdrawalAllowed(owner, totalBalance, amt);
     }
 
     receive() external payable {} // solhint-disable-line

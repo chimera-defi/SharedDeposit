@@ -78,7 +78,6 @@ describe("RewardsReceiver", () => {
     });
 
     let prevBalance = await deployer.provider.getBalance(rewardsReceiver.address);
-    console.log(prevBalance);
     await rewardsReceiver.work();
     let afterBalance = await deployer.provider.getBalance(rewardsReceiver.address);
     expect(afterBalance).to.eq(prevBalance.sub(parseEther("1")));
