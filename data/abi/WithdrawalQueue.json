@@ -22,11 +22,6 @@
   },
   {
     "inputs": [],
-    "name": "InsufficientBalance",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidAmount",
     "type": "error"
   },
