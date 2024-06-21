@@ -139,6 +139,10 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         }
     }
 
+    function setEpochLength(uint256 value) external onlyRole(GOV) {
+        _setEpochLength(value);
+    }
+
     function pendingRedeemRequest(address owner) public view returns (uint256 shares) {
         return redeemRequests[owner];
     }
