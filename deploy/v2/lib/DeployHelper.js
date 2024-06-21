@@ -11,6 +11,7 @@ let {
     _verifyAll,
     _postRun,
     _printOverrides,
+    _wait,
     log,
 } = require("./deploy_utils.js");
 
@@ -39,7 +40,13 @@ class DeployHelper {
             } on network: ${this.launchNetwork}`,
         );
 
-        log(`Using gas settings: ${this.overrides.maxFeePerGas} & bribe: ${this.overrides.maxPriorityFeePerGas}`);
+        if (this.launchNetwork === "sepolia") {
+            // we can get away with less gas on sepolia maybe
+            this.overrides.maxFeePerGas = this.overrides.maxFeePerGas.div(20);
+            this.overrides.maxPriorityFeePerGas = this.overrides.maxPriorityFeePerGas.div(20);
+        }
+
+        log(`Using gas settings: ${ethers.utils.formatUnits((this.overrides.maxFeePerGas).toString(), "gwei")} gwei & bribe: ${ethers.utils.formatUnits(this.overrides.maxPriorityFeePerGas, "gwei")} gwei`);
     }
     async deployContract(name, ctrctName, args) {
         this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args, this.overrides);
@@ -145,8 +152,8 @@ class DeployHelper {
 
     async waitIfNotLocalHost() {
         if (this.launchNetwork !== "localhost") {
-            let t = 10 * 1000; // 15 secs
-            await wait(t);
+            let t = 10 * 1000; // 10s
+            await _wait(t);
             log(`Waiting ${t} ms for non-local deploy for rate limit risks`);
         }
     }

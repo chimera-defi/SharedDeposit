@@ -46,7 +46,11 @@ function genParams(dh, newParams = {}) {
     depositContractAddr: GOERLIDEPOSIT
   }
 
-  let SepoliaDeployedAddresses = {}
+  let SepoliaDeployedAddresses = {
+    sgETH: '0x0F917a7F6c41e5e86a0F3870bAaDf512a4742dD2',
+    wsgETH: '0x88110316C5F96F3544cEF90389e924c69eb8146d',
+    depositContractAddr: MAINNETDEPOSIT
+  }
 
   params = {
     epochLen: 24 * 60 * 60, // 1 day
