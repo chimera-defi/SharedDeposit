@@ -1,6 +1,10 @@
-const {ethers} = require("hardhat");
-const {expect} = require("chai");
-const {parseEther} = require("ethers/lib/utils");
+// const {ethers} = require("hardhat");
+import hh from "hardhat";
+const {ethers} = hh;
+import {expect} from "chai";
+import {parseEther} from "ethers";
+// const {expect} = require("chai");
+// const {parseEther} = require("ethers/lib/utils");
 
 describe("e2e test", () => {
   let sgEth, deployer, alice, multiSig;
@@ -11,7 +15,8 @@ describe("e2e test", () => {
 
     const SgETH = await ethers.getContractFactory("SgETH");
     sgEth = await SgETH.deploy([]);
-    await sgEth.deployed();
+    await sgEth.waitForDeployment();
+    sgEth.address = sgEth.target;
 
     deployer = owner;
     alice = addr1;
@@ -22,37 +27,43 @@ describe("e2e test", () => {
     // deploy sgeth
     const WSGETH = await ethers.getContractFactory("WSGETH");
     const wsgETH = await WSGETH.deploy(sgEth.address, 24 * 60 * 60);
-    await wsgETH.deployed();
+    await wsgETH.waitForDeployment();
+    wsgETH.address = wsgETH.target;
 
     const splitterAddresses = [deployer.address, multiSig.address, wsgETH.address];
     const splitterValues = [6, 3, 31];
 
     const PaymentSplitter = await ethers.getContractFactory("PaymentSplitter");
     const paymentSplitter = await PaymentSplitter.deploy(splitterAddresses, splitterValues);
-    await paymentSplitter.deployed();
+    await paymentSplitter.waitForDeployment();
+    paymentSplitter.address = paymentSplitter.target;
 
     const rolloverVirtual = "1080000000000000000";
     const vETH2Addr = "0x898bad2774eb97cf6b94605677f43b41871410b1";
 
     const Withdrawals = await ethers.getContractFactory("Withdrawals");
     const withdrawals = await Withdrawals.deploy(vETH2Addr, rolloverVirtual);
-    await withdrawals.deployed();
+    await withdrawals.waitForDeployment();
+    withdrawals.address = withdrawals.target;
 
     const numValidators = 1000;
     const adminFee = 0;
 
     const addresses = [
-      ethers.constants.AddressZero, // fee splitter
+      ethers.ZeroAddress, // fee splitter
       sgEth.address, // sgETH address
       wsgETH.address, // wsgETH address
       multiSig.address, // government address
-      ethers.constants.AddressZero, // deposit contract address - can't find deposit contract - using dummy address
+      ethers.ZeroAddress, // deposit contract address - can't find deposit contract - using dummy address
     ];
+    console.log('addresses', addresses)
 
     // add secondary minter contract / eoa
     const Minter = await ethers.getContractFactory("SharedDepositMinterV2");
     const minter = await Minter.deploy(numValidators, adminFee, addresses);
-    await minter.deployed();
+    await minter.waitForDeployment();
+    minter.address = minter.target;
+    console.log('minter')
 
     const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
     const rewardsReceiver = await RewardsReceiver.deploy(withdrawals.address, [
@@ -61,7 +72,10 @@ describe("e2e test", () => {
       paymentSplitter.address,
       minter.address,
     ]);
-    await rewardsReceiver.deployed();
+    await rewardsReceiver.waitForDeployment();
+    rewardsReceiver.address = rewardsReceiver.target; 
+
+    console.log(rewardsReceiver)
   });
 
   it("e2e test", async () => {
@@ -80,20 +94,20 @@ describe("e2e test", () => {
     // minter can mint
     await expect(sgEth.connect(deployer).mint(deployer.address, parseEther("1")))
       .to.be.emit(sgEth, "Transfer")
-      .withArgs(ethers.constants.AddressZero, deployer.address, parseEther("1"));
+      .withArgs(ethers.ZeroAddress, deployer.address, parseEther("1"));
 
     await sgEth.removeMinter(deployer.address);
     // add secondary owner
     // revoke deployer admin rights
     await expect(sgEth.transferOwnership(multiSig.address))
       .to.be.emit(sgEth, "RoleGranted")
-      .withArgs(ethers.constants.HashZero, multiSig.address, deployer.address)
+      .withArgs(ethers.ZeroHash, multiSig.address, deployer.address)
       .and.to.be.emit(sgEth, "RoleRevoked")
-      .withArgs(ethers.constants.HashZero, deployer.address, deployer.address);
+      .withArgs(ethers.ZeroHash, deployer.address, deployer.address);
 
     // check auth invariants are preserved. i.e ex owner and outsiders cannot interact with the contract
     await expect(sgEth.connect(deployer).transferOwnership(alice.address)).to.be.revertedWith(
-      `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${ethers.constants.HashZero}`,
+      `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${ethers.ZeroHash}`,
     );
   });
 });
