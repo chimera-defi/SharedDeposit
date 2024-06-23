@@ -1,6 +1,7 @@
-const {ethers} = require("hardhat");
-const {expect} = require("chai");
-const {parseEther} = require("ethers/lib/utils");
+import {expect} from "chai";
+import hh from "hardhat";
+const {ethers} = hh;
+import {parseEther} from "ethers";
 
 describe("RewardsReceiver", () => {
   let rewardsReceiver, sgEth, paymentSplitter, minter, withdrawals, wsgEth, deployer, alice, multiSig;
@@ -10,32 +11,34 @@ describe("RewardsReceiver", () => {
 
     const SgETH = await ethers.getContractFactory("SgETH");
     sgEth = await SgETH.deploy([]);
-    await sgEth.deployed();
+    await sgEth.waitForDeployment();
+    sgEth.address = sgEth.target;
 
     deployer = owner;
     alice = addr1;
     multiSig = addr2;
 
-    MINTER_ROLE = await sgEth.MINTER();
-
     // deploy sgeth
     const WSGETH = await ethers.getContractFactory("WSGETH");
     wsgEth = await WSGETH.deploy(sgEth.address, 24 * 60 * 60);
-    await wsgEth.deployed();
+    await wsgEth.waitForDeployment();
+    wsgEth.address = wsgEth.target;
 
     const splitterAddresses = [deployer.address, multiSig.address, wsgEth.address];
     const splitterValues = [6, 3, 31];
 
     const PaymentSplitter = await ethers.getContractFactory("PaymentSplitter");
     paymentSplitter = await PaymentSplitter.deploy(splitterAddresses, splitterValues);
-    await paymentSplitter.deployed();
+    await paymentSplitter.waitForDeployment();
+    paymentSplitter.address = paymentSplitter.target;
 
     const rolloverVirtual = "1080000000000000000";
     const vETH2Addr = "0x898bad2774eb97cf6b94605677f43b41871410b1";
 
     const Withdrawals = await ethers.getContractFactory("Withdrawals");
     withdrawals = await Withdrawals.deploy(vETH2Addr, rolloverVirtual);
-    await withdrawals.deployed();
+    await withdrawals.waitForDeployment();
+    withdrawals.address = withdrawals.target;
 
     const numValidators = 1000;
     const adminFee = 0;
@@ -45,18 +48,19 @@ describe("RewardsReceiver", () => {
     // await feeCalc.deployed();
 
     const addresses = [
-      ethers.constants.AddressZero,
+      ethers.ZeroAddress,
       // feeCalc.address, // fee splitter
       sgEth.address, // sgETH address
       wsgEth.address, // wsgETH address
       multiSig.address, // government address
-      ethers.constants.AddressZero, // deposit contract address - can't find deposit contract - using dummy address
+      ethers.ZeroAddress, // deposit contract address - can't find deposit contract - using dummy address
     ];
 
     // add secondary minter contract / eoa
     const Minter = await ethers.getContractFactory("SharedDepositMinterV2");
     minter = await Minter.deploy(numValidators, adminFee, addresses);
-    await minter.deployed();
+    await minter.waitForDeployment();
+    minter.address = minter.target;
 
     const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
     rewardsReceiver = await RewardsReceiver.deploy(withdrawals.address, [
@@ -65,7 +69,8 @@ describe("RewardsReceiver", () => {
       paymentSplitter.address,
       minter.address,
     ]);
-    await rewardsReceiver.deployed();
+    await rewardsReceiver.waitForDeployment();
+    rewardsReceiver.address = rewardsReceiver.target;
 
     await sgEth.addMinter(minter.address);
   });
@@ -80,7 +85,7 @@ describe("RewardsReceiver", () => {
     let prevBalance = await deployer.provider.getBalance(rewardsReceiver.address);
     await rewardsReceiver.work();
     let afterBalance = await deployer.provider.getBalance(rewardsReceiver.address);
-    expect(afterBalance).to.eq(prevBalance.sub(parseEther("1")));
+    expect(afterBalance).to.eq(prevBalance - (parseEther("1")));
 
     await deployer.sendTransaction({
       to: rewardsReceiver.address,
@@ -91,7 +96,7 @@ describe("RewardsReceiver", () => {
     prevBalance = await deployer.provider.getBalance(rewardsReceiver.address);
     await rewardsReceiver.work();
     afterBalance = await deployer.provider.getBalance(rewardsReceiver.address);
-    expect(afterBalance).to.eq(prevBalance.sub(parseEther("1")));
+    expect(afterBalance).to.eq(prevBalance - (parseEther("1")));
   });
 
   it("flipState", async () => {
