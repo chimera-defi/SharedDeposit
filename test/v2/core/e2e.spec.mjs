@@ -1,10 +1,7 @@
-// const {ethers} = require("hardhat");
 import hh from "hardhat";
 const {ethers} = hh;
 import {expect} from "chai";
 import {parseEther} from "ethers";
-// const {expect} = require("chai");
-// const {parseEther} = require("ethers/lib/utils");
 
 describe("e2e test", () => {
   let sgEth, deployer, alice, multiSig;
