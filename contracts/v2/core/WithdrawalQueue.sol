@@ -14,7 +14,6 @@ import {OperatorSettable} from "../lib/OperatorSettable.sol";
 
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import "hardhat/console.sol";
 
 /**
  * @title WithdrawalQueue
