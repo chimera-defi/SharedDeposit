@@ -144,6 +144,15 @@ const config: HardhatUserConfig = {
     outDir: "types",
     target: "ethers-v6",
   },
+  namedAccounts: {
+    deployer: 0,
+    multiSig: 1,
+    alice: 3,
+    bob: 4,
+  },
+  preprocess: {
+    eachLine: removeConsoleLog(hre => hre.network.name !== "hardhat" && hre.network.name !== "localhost"),
+  },
 };
 
 if (ETHERSCAN_API) {
