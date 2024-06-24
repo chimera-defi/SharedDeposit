@@ -13,7 +13,6 @@ import {Errors} from "../lib/Errors.sol";
 import {OperatorSettable} from "../lib/OperatorSettable.sol";
 
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 /**
  * @title WithdrawalQueue
@@ -82,13 +81,14 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
 
         requestId = requestsPending++;
         requests[requestId] = Request({requester: requester, shares: shares});
+        // use assets for tracking
+        uint256 assets = IERC4626(WSGETH).previewRedeem(shares);
 
-        _stakeForWithdrawal(owner, IERC4626(WSGETH).previewRedeem(shares));
-        totalPendingRequest += shares;
-        redeemRequests[requester] += shares; // underflow would revert if not enough claimable shares
+        _stakeForWithdrawal(owner, assets);
+        totalPendingRequest += assets;
+        redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
 
         emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
-        return requestId;
     }
 
     function redeem(
@@ -102,25 +102,21 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
 
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
+        // checks if we have enough assets to fulfill the request and if epoch has passed
         if (claimableRedeemRequest(requester) < assets) {
-            revert Errors.InvalidAmount();
+            _checkWithdraw(requester, totalBalance(), assets);
+            return 0; // should never happen. previous fn will generate a rich error
         }
+
         _withdraw(requester, assets);
-
         // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
-        redeemRequests[requester] -= shares; // underflow would revert if not enough claimable shares
-        totalPendingRequest -= shares;
-
-        uint256 queueBalance = address(this).balance;
-        uint256 minterBalance = MINTER.balance;
-
-        if (queueBalance + minterBalance < assets) {
-            revert Errors.InsufficientBalance();
-        }
-
+        redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
+        totalPendingRequest -= assets;
         // Track total returned
         totalAssetsOut += assets;
         requestsFulfilled++;
+
+        uint256 minterBalance = MINTER.balance;
         // This feels suboptimal, but is the easiest way to always burn the token on redemptions
         if (assets > minterBalance) {
             uint256 diff = assets - minterBalance;
@@ -143,19 +139,26 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         }
     }
 
+    function setEpochLength(uint256 value) external onlyRole(GOV) {
+        _setEpochLength(value);
+    }
+
     function pendingRedeemRequest(address owner) public view returns (uint256 shares) {
         return redeemRequests[owner];
     }
 
-    // claimableRedeemRequest - returns owners shares in claimable state, i.e. epoch has elapsed and sufficient funds exist
+    // claimableRedeemRequest - returns owners shares in claimable state,
+    // i.e. epoch has elapsed and sufficient funds exist
     function claimableRedeemRequest(address owner) public view returns (uint256 shares) {
-        uint256 totalBalance = address(this).balance + address(MINTER).balance;
-
-        if (redeemRequests[owner] > 0 && _isWithdrawalAllowed(owner, totalBalance, redeemRequests[owner])) {
+        if (redeemRequests[owner] > 0 && _isWithdrawalAllowed(owner, totalBalance(), redeemRequests[owner])) {
             return redeemRequests[owner];
         } else {
             return 0;
         }
+    }
+
+    function totalBalance() internal view returns (uint256) {
+        return address(this).balance + MINTER.balance;
     }
 
     receive() external payable {} // solhint-disable-line

@@ -158,11 +158,23 @@ const config: HardhatUserConfig = {
 if (ETHERSCAN_API) {
   config["etherscan"] = {
     apiKey: {
+      ethereum: ETHERSCAN_API,
       mainnet: ETHERSCAN_API,
-      goerli: ETHERSCAN_API,
+      sepolia: ETHERSCAN_API,
     },
-    customChains: [],
+    customChains: [
+      {
+        network: "sepolia",
+        chainId: chainIds.sepolia,
+        urls: {
+          apiURL: "https://api-sepolia.etherscan.io/api",
+          browserURL: "https://sepolia.etherscan.io",
+        },
+      },
+    ],
   };
+} else {
+  console.log("No Etherscan API key found. Skipping Etherscan verification.");
 }
 
 function getSortedFiles(dependenciesGraph: any) {
