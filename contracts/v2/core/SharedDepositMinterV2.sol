@@ -13,12 +13,12 @@ pragma solidity 0.8.20;
 // 5. The ability to provision validators for user ETH is portioned out by the DAO
 
 // Changes
-/** 
+/**
 - Custom errors instead of revert strings
 - Granular management via AccessControl with GOV and NOR roles. Node operator can only deploy validators
 - Refactored to allow users to specify destination address for fns - for zaps
 - Added deposit+stake/unstake+withdraw combo convenience routes
-- Refactored fee calc out to external contract 
+- Refactored fee calc out to external contract
 */
 import {IFeeCalc} from "../interfaces/IFeeCalc.sol";
 import {IERC20MintableBurnable} from "../interfaces/IERC20MintableBurnable.sol";
@@ -280,7 +280,9 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         Address.sendValue(recv, assets);
     }
 
-    receive() external payable {} // solhint-disable-line
+    receive() external payable {
+        _depositAccounting();
+    } // solhint-disable-line
 
     fallback() external payable {} // solhint-disable-line
 }
