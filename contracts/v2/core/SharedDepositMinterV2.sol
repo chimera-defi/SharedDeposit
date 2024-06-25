@@ -280,9 +280,7 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         Address.sendValue(recv, assets);
     }
 
-    receive() external payable {
-        _depositAccounting();
-    } // solhint-disable-line
+    receive() external payable {} // solhint-disable-line
 
     fallback() external payable {} // solhint-disable-line
 }

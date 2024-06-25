@@ -46,7 +46,7 @@ class DeployHelper {
             this.overrides.maxPriorityFeePerGas = this.overrides.maxPriorityFeePerGas.div(20);
         }
 
-        log(`Using gas settings: ${ethers.utils.formatUnits((this.overrides.maxFeePerGas).toString(), "gwei")} gwei & bribe: ${ethers.utils.formatUnits(this.overrides.maxPriorityFeePerGas, "gwei")} gwei`);
+        log(`Using gas settings: ${ethers.formatUnits((this.overrides.maxFeePerGas).toString(), "gwei")} gwei & bribe: ${ethers.formatUnits(this.overrides.maxPriorityFeePerGas, "gwei")} gwei`);
     }
     async deployContract(name, ctrctName, args) {
         this.contracts[name] = await _deployContract(ctrctName, this.launchNetwork, args, this.overrides);
@@ -85,8 +85,8 @@ class DeployHelper {
         return contract;
     }
     async _checkEnoughTokensToDistribute(token) {
-        let total = Object.values(this.distribution).reduce((a, b) => a.add(b));
-        let diff = (await this.getContract(token).balanceOf(this.address)).sub(total);
+        let total = Object.values(this.distribution).reduce((a, b) => a + b);
+        let diff = (await this.getContract(token).balanceOf(this.address)) - (total);
         if (diff !== 0) {
             log(`Distribution difference: ${diff.toString()}`);
             if (isMainnet(this.launchNetwork) && diff < 0) {
@@ -123,8 +123,8 @@ class DeployHelper {
         let finalBlockTime = (await hre.ethers.provider.getBlock()).timestamp;
         let overrides = await this.getOverrides(this.launchNetwork);
         log(
-            `Total cost of deploys: ${this.initialBalance.sub(finalBalance).toString() / 1e18
-            } with gas settings: ${JSON.stringify(_printOverrides(overrides))}. Took ${finalBlockTime - this.currentBlockTime
+            `Total cost of deploys: ${this.formatEther(this.initialBalance - finalBalance)} Eth
+             with gas settings: ${JSON.stringify(_printOverrides(overrides))}. Took ${finalBlockTime - this.currentBlockTime
             } seconds`,
         );
         await this.verify();
@@ -147,7 +147,11 @@ class DeployHelper {
     }
 
     parseEther(n) {
-        return hre.ethers.utils.parseEther(n);
+        return hre.ethers.parseEther(n);
+    }
+
+    formatEther(n) {
+        return hre.ethers.formatEther(n && n?.toString() ? n.toString() : n);
     }
 
     async waitIfNotLocalHost() {
@@ -168,7 +172,7 @@ class DeployHelper {
     //https://ethereum.stackexchange.com/questions/94664/arrayify-error-when-passing-a-string-as-an-argument-to-a-transaction
     web3StringToBytes32(text) {
         // text = this.prepend0x(text);
-        var result = ethers.utils.hexlify(ethers.utils.toUtf8Bytes(text));
+        var result = ethers.hexlify(ethers.toUtf8Bytes(text));
         while (result.length < 66) {
             result += "0";
         }
