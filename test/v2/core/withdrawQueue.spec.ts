@@ -250,6 +250,9 @@ describe("WithdrawalQueue", () => {
     // Empty minter for test.
     await sgEth.connect(deployer).addMinter(alice.address);
     await sgEth.connect(alice).mint(alice.address, parseEther("100"));
+    // Boost minter shares for accounting
+    let cvs = await minter.curValidatorShares();
+    await minter.connect(multiSig).migrateShares(cvs + parseEther("100"));
     await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
 
     const prevBalance = await deployer.provider.getBalance(withdrawalQueue.target);
@@ -278,7 +281,11 @@ describe("WithdrawalQueue", () => {
     // Empty minter for test.
     await sgEth.connect(deployer).addMinter(alice.address);
     await sgEth.connect(alice).mint(alice.address, parseEther("100"));
+    // Boost minter shares for accounting
+    let cvs = await minter.curValidatorShares();
+    await minter.connect(multiSig).migrateShares(cvs + parseEther("100"));
     await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
+    
 
     // Empty the queue
     const prevBalance = await deployer.provider.getBalance(withdrawalQueue.target);
