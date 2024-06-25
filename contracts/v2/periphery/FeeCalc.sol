@@ -22,29 +22,28 @@ contract FeeCalc is Ownable2Step {
         // admin fee in bips (10000 = 100%)
         adminFee = _settings.adminFee;
         config = _settings;
-        costPerValidator = (32 + (32*adminFee)) * 1 ether / BIPS;
+        costPerValidator = ((32 + (32 * adminFee)) * 1 ether) / BIPS;
     }
 
     function processDeposit(uint256 value) external view returns (uint256 amt, uint256 fee) {
         if (config.chargeOnDeposit) {
-            fee = value * adminFee / BIPS;
+            fee = (value * adminFee) / BIPS;
             amt = value - fee;
         }
     }
 
     function processWithdraw(uint256 value) external view returns (uint256 amt, uint256 fee) {
         if (config.refundFeesOnWithdraw) {
-            fee = value * adminFee / BIPS;
+            fee = (value * adminFee) / BIPS;
             amt = value + fee;
         } else if (config.chargeOnExit) {
-            fee = value * config.exitFee / BIPS;
+            fee = (value * config.exitFee) / BIPS;
             amt = value - fee;
         } else {
             fee = 0;
             amt = value;
         }
     }
-
 
     function set(Settings calldata newSettings) external onlyOwner {
         config = newSettings;
@@ -63,5 +62,4 @@ contract FeeCalc is Ownable2Step {
         adminFee = amount;
         config.adminFee = amount;
     }
-
 }

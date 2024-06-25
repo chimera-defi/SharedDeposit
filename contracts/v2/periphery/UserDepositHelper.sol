@@ -23,7 +23,13 @@ contract UserDepositHelper {
 
     // Deposit multiple users and amts from a single call with referral and frontend address emitted. useful for batch deposits to reduce gas costs
     // An external contract can buffer ETH and call this
-    function depositMultipleWithReferral(address[] memory addrs, uint256[] memory amts, address ref, address frontend, bytes32[] memory bytesToBroadcast) external payable {
+    function depositMultipleWithReferral(
+        address[] memory addrs,
+        uint256[] memory amts,
+        address ref,
+        address frontend,
+        bytes32[] memory bytesToBroadcast
+    ) external payable {
         uint256 i = addrs.length;
         if (addrs.length != amts.length || addrs.length != bytesToBroadcast.length) {
             payable(msg.sender).transfer(msg.value);
@@ -41,7 +47,7 @@ contract UserDepositHelper {
         }
     }
 
-    // User deposit helper. User needs to call this function. 
+    // User deposit helper. User needs to call this function.
     // Referral data can be filled in by frontend
     function depositWithEvents(address ref, address frontend, bytes32 data) external payable {
         MINTER.depositAndStakeFor{value: msg.value}(msg.sender);

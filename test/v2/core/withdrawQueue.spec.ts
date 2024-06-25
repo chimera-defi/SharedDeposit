@@ -285,7 +285,6 @@ describe("WithdrawalQueue", () => {
     let cvs = await minter.curValidatorShares();
     await minter.connect(multiSig).migrateShares(cvs + parseEther("100"));
     await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
-    
 
     // Empty the queue
     const prevBalance = await deployer.provider.getBalance(withdrawalQueue.target);

@@ -32,7 +32,7 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
  * Basic upgrade path:
  * 1. Call togglePause(1), this disables the requestRedeem fn so no new requests
  * 2. Deploy new contract, direct users to it
- * 3. Fulfill any remaining redeemRequests i.e. totalPendingRequest, 
+ * 3. Fulfill any remaining redeemRequests i.e. totalPendingRequest,
  * for all RedeemRequest events from requestsFulfilled to requestsCreated
  */
 contract WithdrawalQueue is AccessControl, GranularPause, ReentrancyGuard, FIFOQueue, OperatorSettable {
