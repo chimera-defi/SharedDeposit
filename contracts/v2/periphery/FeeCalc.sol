@@ -1,39 +1,67 @@
 // SPDX-License-Identifier: UNLICENSED
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.20;
 
-contract FeeCalc {
-    using SafeMath for uint256;
+contract FeeCalc is Ownable2Step {
+    struct Settings {
+        uint256 adminFee;
+        uint256 exitFee;
+        bool refundFeesOnWithdraw;
+        bool chargeOnDeposit;
+        bool chargeOnExit;
+    }
+    Settings private config;
     uint256 public adminFee;
     uint256 public costPerValidator;
-    bool public refundFeesOnWithdraw;
-    uint256 public exitFee;
 
-    constructor(uint256 _adminFee, uint256 _exitFee) {
-        adminFee = _adminFee;
-        exitFee = _exitFee;
-        costPerValidator = uint256(32).mul(1e18).add(adminFee);
+    uint256 private immutable BIPS = 10000;
+    constructor(Settings memory _settings) Ownable2Step() {
+        // admin fee in bips (10000 = 100%)
+        adminFee = _settings.adminFee;
+        config = _settings;
+        costPerValidator = (32 + (32*adminFee)) * 1 ether / BIPS;
     }
 
     function processDeposit(uint256 value) external view returns (uint256 amt, uint256 fee) {
-        fee = value.mul(adminFee).div(costPerValidator);
-        amt = value.sub(fee);
-    }
-
-    function processWithdraw(uint256 value) external view returns (uint256 amt, uint256 fee) {
-        if (refundFeesOnWithdraw) {
-            amt = value.mul(1e18).div(uint256(1).mul(1e18).sub(adminFee.mul(1e18).div(costPerValidator)));
-            fee = amt.sub(value);
-        } else {
-            fee = value.mul(exitFee).div(costPerValidator);
-            amt = value.sub(fee);
+        if (config.chargeOnDeposit) {
+            fee = value * adminFee / BIPS;
+            amt = value - fee;
         }
     }
 
-    function setAdminFee(uint256 amount) external {
-        adminFee = amount;
-        costPerValidator = uint256(32).mul(1e18).add(adminFee);
+    function processWithdraw(uint256 value) external view returns (uint256 amt, uint256 fee) {
+        if (config.refundFeesOnWithdraw) {
+            fee = value * adminFee / BIPS;
+            amt = value + fee;
+        } else if (config.chargeOnExit) {
+            fee = value * config.exitFee / BIPS;
+            amt = value - fee;
+        } else {
+            fee = 0;
+            amt = value;
+        }
     }
+
+
+    function set(Settings calldata newSettings) external onlyOwner {
+        config = newSettings;
+        adminFee = newSettings.adminFee;
+    }
+
+    function setRefundFeesOnWithdraw(bool _refundFeesOnWithdraw) external onlyOwner {
+        config.refundFeesOnWithdraw = _refundFeesOnWithdraw;
+    }
+
+    function setExitFee(uint256 _exitFee) external onlyOwner {
+        config.exitFee = _exitFee;
+    }
+
+    function setAdminFee(uint256 amount) external onlyOwner {
+        adminFee = amount;
+        config.adminFee = amount;
+    }
+
 }
