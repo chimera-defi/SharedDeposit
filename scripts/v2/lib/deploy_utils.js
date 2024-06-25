@@ -1,6 +1,9 @@
 const hre = require("hardhat");
 const fs = require("fs");
-const { ethers } = hre;
+// const hreEther = { ethers } = hre;
+// const {ethers} = require("ethers");
+const {ethers} = hre;
+// const { connect } = require("http2");
 
 const log = txt => {
   txt = txt + "  \n";
@@ -36,8 +39,8 @@ const _printOverrides = o => {
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
-    maxFeePerGas: ethers.utils.parseUnits("25", "gwei"),
-    maxPriorityFeePerGas: ethers.utils.parseUnits("2", "gwei"),
+    maxFeePerGas: ethers.parseUnits("25", "gwei"),
+    maxPriorityFeePerGas: ethers.parseUnits("2", "gwei"),
     gasLimit: 2500000,
   };
   // const gasPrice = await hre.ethers.provider.getGasPrice();
@@ -49,14 +52,14 @@ const _getOverrides = async () => {
   // check and wait if gas spike is hit
   let omfpg = overridesForEIP1559.maxFeePerGas;
   let mfpg = gas.maxFeePerGas;
-  if (mfpg.gte(omfpg)) {
+  if (mfpg >= (omfpg)) {
     let waitTime = 15000; 
-    console.log("gas spike hit?! current gas in gwei:", ethers.utils.formatUnits(mfpg.toString(), "gwei"));
+    console.log("gas spike hit?! current gas in gwei:", ethers.formatUnits(mfpg.toString(), "gwei"));
     console.log("waiting for ", waitTime);
     await _wait(waitTime);
     gas = await hre.ethers.provider.getFeeData();
   }
-  overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas.gte(gas.maxPriorityFeePerGas)
+  overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas >= (gas.maxPriorityFeePerGas)
     ? gas.maxPriorityFeePerGas
     : overridesForEIP1559.maxPriorityFeePerGas;
 
@@ -91,8 +94,11 @@ const _deployContract = async (name, launchNetwork = false, cArgs = [], cachedOv
   const overridesForEIP1559 = cachedOverrides ? cachedOverrides : await _getOverrides();
   const factory = await hre.ethers.getContractFactory(name);
   const contract = await factory.deploy(...cArgs, overridesForEIP1559);
-  await contract.deployTransaction.wait(1);
-  await contract.deployed();
+  cdtx = await factory.getDeployTransaction(...cArgs, overridesForEIP1559);
+  await contract.deploymentTransaction().wait(1);
+  await contract.waitForDeployment();
+  contract.address = contract.target;
+
   log(`\n Deployed ${name} to ${contract.address} \n on ${launchNetwork}.  `);
   return Promise.resolve({ contract: contract, args: cArgs, initialized: false, srcName: name });
 };

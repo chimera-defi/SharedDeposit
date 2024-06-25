@@ -77,27 +77,27 @@ class OA {
     let recv;
 
     recv = await this.getSGEthBal(params);
-    console.log("starting sgeth bal", recv.toString() / 1e18);
+    console.log("starting sgeth bal", this.dh.formatEther(recv));
 
     await this.deposit(params, amt);
 
     recv = await this.getSGEthBal(params);
-    console.log("Deposited Eth, got sgETH:", amt / 1e18, recv.toString() / 1e18);
+    console.log("Deposited Eth, got sgETH:", this.dh.formatEther(amt), this.dh.formatEther(recv));
 
     await this.withdraw(params, amt);
     recv = await this.getSGEthBal(params);
-    console.log("new sgETH bal post withdraw", recv.toString() / 1e18);
+    console.log("new sgETH bal post withdraw", this.dh.formatEther(recv));
     console.log("warmed up deposit/withdraw");
     await new Promise(resolve => setTimeout(resolve, 10000)); // avoid upstream timeouts / rate limits
 
     recv = await this.getWSGEthBal(params);
-    console.log("starting wsgeth bal", recv.toString() / 1e18);
+    console.log("starting wsgeth bal", this.dh.formatEther(recv));
     await this.depositAndStake(params, amt);
     recv = await this.getWSGEthBal(params);
-    console.log("Staked Eth, got wsgETH:", amt / 1e18, recv.toString() / 1e18);
-    await this.unstakeAndWithdraw(params, amt / 2); // leave  abit int the wsgeth
+    console.log("Staked Eth, got wsgETH:", this.dh.formatEther(amt), this.dh.formatEther(recv));
+    await this.unstakeAndWithdraw(params, amt.toString() / 2); // leave  abit int the wsgeth
     recv = await this.getWSGEthBal(params);
-    console.log("Unstaked wsgETH, new wsgETH bal:", recv.toString() / 1e18);
+    console.log("Unstaked wsgETH, new wsgETH bal:", this.dh.formatEther(recv));
     console.log("warmed up stake/unstake");
   }
 
