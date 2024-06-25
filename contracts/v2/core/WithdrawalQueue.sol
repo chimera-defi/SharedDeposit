@@ -5,14 +5,13 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {FIFOQueue} from "../lib/FIFOQueue.sol";
 import {Errors} from "../lib/Errors.sol";
 import {OperatorSettable} from "../lib/OperatorSettable.sol";
-
+import {GranularPause} from "../lib/GranularPause.sol";
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 /**
@@ -30,8 +29,13 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
  * Caveats:
  * If the user requests another redemption, before fulfillment,
  * this resets the epoch length clock for their request
+ * Basic upgrade path:
+ * 1. Call togglePause(1), this disables the requestRedeem fn so no new requests
+ * 2. Deploy new contract, direct users to it
+ * 3. Fulfill any remaining redeemRequests i.e. totalPendingRequest, 
+ * for all RedeemRequest events from requestsFulfilled to requestsCreated
  */
-contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue, OperatorSettable {
+contract WithdrawalQueue is AccessControl, GranularPause, ReentrancyGuard, FIFOQueue, OperatorSettable {
     using Address for address payable;
 
     struct Request {
@@ -43,7 +47,7 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
     address public immutable WSGETH;
 
     uint256 internal totalPendingRequest;
-    uint256 internal requestsPending;
+    uint256 internal requestsCreated;
     uint256 internal requestsFulfilled;
     uint256 public totalAssetsOut;
 
@@ -76,13 +80,13 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         uint256 shares,
         address requester,
         address owner
-    ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused returns (uint256 requestId) {
+    ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
         IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
-        requestId = requestsPending++;
+        requestId = requestsCreated++;
         requests[requestId] = Request({requester: requester, shares: shares});
         // use assets for tracking
         uint256 assets = IERC4626(WSGETH).previewRedeem(shares);
@@ -98,7 +102,7 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         uint256 shares,
         address receiver,
         address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -124,7 +128,7 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         if (assets > minterBalance) {
             uint256 diff = assets - minterBalance;
             // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
-            payable(MINTER).sendValue(diff);
+            payable(MINTER).transfer(diff);
         }
 
         // Always burn redeemed tokens
@@ -133,12 +137,12 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         emit Redeem(requester, receiver, shares, assets);
     }
 
-    function togglePause() external onlyRole(GOV) {
-        bool paused = paused();
+    function togglePause(uint16 func) external onlyRole(GOV) {
+        bool paused = paused[func];
         if (paused) {
-            _unpause();
+            _unpause(func);
         } else {
-            _pause();
+            _pause(func);
         }
     }
 
