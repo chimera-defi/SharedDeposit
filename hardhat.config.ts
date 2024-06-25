@@ -109,7 +109,9 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    hardhat: {},
+    hardhat: {
+      tags: ["hardhat"],
+    },
     localhost: {
       accounts: [`0x${GOERLIPK}`],
     },
