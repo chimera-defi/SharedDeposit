@@ -1,75 +1,57 @@
-const {ethers} = require("hardhat");
-const {expect} = require("chai");
-const {parseEther} = require("ethers/lib/utils");
-const {time} = require("@nomicfoundation/hardhat-network-helpers");
+import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
+import {
+  RewardsReceiver,
+  RewardsReceiver__factory,
+  SgETH,
+  SgETH__factory,
+  SharedDepositMinterV2,
+  SharedDepositMinterV2__factory,
+  WSGETH,
+  WSGETH__factory,
+} from "../../../types";
+import chai from "chai";
+import {deployments} from "hardhat";
+import Ship from "../../../utils/ship";
+import {MaxUint256, ZeroAddress, parseEther} from "ethers";
+import {time} from "@nomicfoundation/hardhat-network-helpers";
+
+const {expect} = chai;
+
+let ship: Ship;
+let sgEth: SgETH,
+  minter: SharedDepositMinterV2,
+  wsgEth: WSGETH,
+  rewardsReceiver: RewardsReceiver,
+  deployer: SignerWithAddress,
+  alice: SignerWithAddress,
+  bob: SignerWithAddress,
+  multiSig: SignerWithAddress;
+
+const setup = deployments.createFixture(async hre => {
+  ship = await Ship.init(hre);
+  const {accounts, users} = ship;
+  await deployments.fixture(["sgEth", "minter", "wsgEth", "rewardsReceiver"]);
+
+  return {
+    ship,
+    accounts,
+    users,
+  };
+});
 
 describe("SharedDepositMinterV2", () => {
-  let sgEth, paymentSplitter, minter, withdrawals, wsgEth, rewardsReceiver, deployer, alice, bob, multiSig;
-
   beforeEach(async () => {
-    const [owner, addr1, addr2, addr3] = await ethers.getSigners();
+    const {ship, accounts} = await setup();
 
-    const SgETH = await ethers.getContractFactory("SgETH");
-    sgEth = await SgETH.deploy([]);
-    await sgEth.deployed();
+    sgEth = await ship.connect(SgETH__factory);
+    minter = await ship.connect(SharedDepositMinterV2__factory);
+    wsgEth = await ship.connect(WSGETH__factory);
+    rewardsReceiver = await ship.connect(RewardsReceiver__factory);
 
-    deployer = owner;
-    alice = addr1;
-    bob = addr2;
-    multiSig = addr3;
-
-    MINTER_ROLE = await sgEth.MINTER();
-
-    // deploy sgeth
-    const WSGETH = await ethers.getContractFactory("WSGETH");
-    wsgEth = await WSGETH.deploy(sgEth.address, 24 * 60 * 60);
-    await wsgEth.deployed();
-
-    const splitterAddresses = [deployer.address, multiSig.address, wsgEth.address];
-    const splitterValues = [6, 3, 31];
-
-    const PaymentSplitter = await ethers.getContractFactory("PaymentSplitter");
-    paymentSplitter = await PaymentSplitter.deploy(splitterAddresses, splitterValues);
-    await paymentSplitter.deployed();
-
-    const rolloverVirtual = "1080000000000000000";
-    const vETH2Addr = "0x898bad2774eb97cf6b94605677f43b41871410b1";
-
-    const Withdrawals = await ethers.getContractFactory("Withdrawals");
-    withdrawals = await Withdrawals.deploy(vETH2Addr, rolloverVirtual);
-    await withdrawals.deployed();
-
-    const numValidators = 1000;
-    const adminFee = 0;
-
-    // const FeeCalc = await ethers.getContractFactory("FeeCalc");
-    // const feeCalc = await FeeCalc.deploy(parseEther("0"), parseEther("0"));
-    // await feeCalc.deployed();
-
-    const addresses = [
-      ethers.constants.AddressZero,
-      //feeCalc.address, // fee splitter
-      sgEth.address, // sgETH address
-      wsgEth.address, // wsgETH address
-      multiSig.address, // government address
-      ethers.constants.AddressZero, // deposit contract address - can't find deposit contract - using dummy address
-    ];
-
-    // add secondary minter contract / eoa
-    const Minter = await ethers.getContractFactory("SharedDepositMinterV2");
-    minter = await Minter.deploy(numValidators, adminFee, addresses);
-    await minter.deployed();
-
-    const RewardsReceiver = await ethers.getContractFactory("RewardsReceiver");
-    rewardsReceiver = await RewardsReceiver.deploy(withdrawals.address, [
-      sgEth.address,
-      wsgEth.address,
-      paymentSplitter.address,
-      minter.address,
-    ]);
-    await rewardsReceiver.deployed();
-
-    await sgEth.addMinter(minter.address);
+    deployer = accounts.deployer;
+    alice = accounts.alice;
+    bob = accounts.bob;
+    multiSig = accounts.multiSig;
   });
 
   describe("functionality", () => {
@@ -79,7 +61,7 @@ describe("SharedDepositMinterV2", () => {
         value: parseEther("1"),
       });
       const afterBalance = await sgEth.balanceOf(alice.address);
-      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
+      expect(afterBalance).to.eq(prevBalance + parseEther("1"));
     });
 
     it("depositFor", async () => {
@@ -89,68 +71,74 @@ describe("SharedDepositMinterV2", () => {
         value: parseEther("1"),
       });
       const afterBalance = await sgEth.balanceOf(bob.address);
-      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
+      expect(afterBalance).to.eq(prevBalance + parseEther("1"));
     });
 
     it("depositAndStake", async () => {
       const prevStake = await wsgEth.maxRedeem(deployer.address);
-      const prevBalance = await sgEth.balanceOf(wsgEth.address);
+      const prevBalance = await sgEth.balanceOf(wsgEth.target);
       await minter.depositAndStake({
         value: parseEther("1"),
       });
-      const afterBalance = await sgEth.balanceOf(wsgEth.address);
-      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
+      const afterBalance = await sgEth.balanceOf(wsgEth.target);
+      expect(afterBalance).to.eq(prevBalance + parseEther("1"));
 
       const afterStake = await wsgEth.maxRedeem(deployer.address);
-      expect(afterStake).to.eq(prevStake.add(parseEther("1")));
+      expect(afterStake).to.eq(prevStake + parseEther("1"));
     });
 
     it("depositAndStakeFor", async () => {
       // alice deposit and stake for bob
       const prevStake = await wsgEth.maxRedeem(bob.address);
-      const prevBalance = await sgEth.balanceOf(wsgEth.address);
+      const prevBalance = await sgEth.balanceOf(wsgEth.target);
       await minter.connect(alice).depositAndStakeFor(bob.address, {
         value: parseEther("1"),
       });
-      const afterBalance = await sgEth.balanceOf(wsgEth.address);
-      expect(afterBalance).to.eq(prevBalance.add(parseEther("1")));
+      const afterBalance = await sgEth.balanceOf(wsgEth.target);
+      expect(afterBalance).to.eq(prevBalance + parseEther("1"));
 
       const afterStake = await wsgEth.maxRedeem(bob.address);
-      expect(afterStake).to.eq(prevStake.add(parseEther("1")));
+      expect(afterStake).to.eq(prevStake + parseEther("1"));
     });
 
     it("withdraw, withdrawTo", async () => {
       await minter.connect(alice).deposit({
         value: parseEther("1"),
       });
-      await expect(minter.connect(alice).withdraw(parseEther("1.1"))).to.be.revertedWith("");
+      await expect(minter.connect(alice).withdraw(parseEther("1.1"))).to.be.revertedWith(
+        "ERC20: burn amount exceeds balance",
+      );
 
       let prevBalance = await sgEth.balanceOf(alice.address);
       await minter.connect(alice).withdraw(parseEther("0.5"));
       let afterBalance = await sgEth.balanceOf(alice.address);
 
-      expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
+      expect(afterBalance).to.eq(prevBalance - parseEther("0.5"));
 
       prevBalance = await sgEth.balanceOf(alice.address);
       await minter.connect(alice).withdrawTo(parseEther("0.5"), bob.address);
       afterBalance = await sgEth.balanceOf(alice.address);
 
-      expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
+      expect(afterBalance).to.eq(prevBalance - parseEther("0.5"));
     });
 
     it("unstakeAndWithdraw", async () => {
       await minter.connect(alice).depositAndStake({
         value: parseEther("1"),
       });
-      await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("1.1"), alice.address)).to.be.revertedWith("");
-      await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address)).to.be.revertedWith("");
+      await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("1.1"), alice.address)).to.be.revertedWithPanic(
+        "0x11",
+      );
+      await expect(minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address)).to.be.revertedWithPanic(
+        "0x11",
+      );
 
-      await wsgEth.connect(alice).approve(minter.address, ethers.constants.MaxUint256);
+      await wsgEth.connect(alice).approve(minter.target, MaxUint256);
       let prevBalance = await wsgEth.balanceOf(alice.address);
       await minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address);
       let afterBalance = await wsgEth.balanceOf(alice.address);
 
-      expect(afterBalance).to.eq(prevBalance.sub(parseEther("0.5")));
+      expect(afterBalance).to.eq(prevBalance - parseEther("0.5"));
     });
 
     it("slash", async () => {
@@ -161,7 +149,7 @@ describe("SharedDepositMinterV2", () => {
 
       // deposit to rewardReceiver to simulate reward
       await deployer.sendTransaction({
-        to: rewardsReceiver.address,
+        to: rewardsReceiver.target,
         value: parseEther("1"),
       });
       // sends 60% of sgEth to WSGEth contract
@@ -170,7 +158,7 @@ describe("SharedDepositMinterV2", () => {
       // slash 0.1 eth from reward amount, so currently reward is 0.5
       await expect(minter.connect(multiSig).slash(parseEther("0.1")))
         .to.be.emit(sgEth, "Transfer")
-        .withArgs(wsgEth.address, ethers.constants.AddressZero, parseEther("0.1"));
+        .withArgs(wsgEth.target, ZeroAddress, parseEther("0.1"));
 
       // max withdrawal amount is not changed yet because didn't called syncReward of WsgEth
       expect(await wsgEth.maxWithdraw(alice.address)).to.eq(parseEther("10"));
@@ -212,14 +200,16 @@ describe("SharedDepositMinterV2", () => {
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
       );
 
-      await expect(minter.connect(multiSig).slash(parseEther("0.1"))).to.be.revertedWith("AmountTooHigh()");
+      await expect(minter.connect(multiSig).slash(parseEther("0.1")))
+        .to.be.revertedWithCustomError(minter, "AmountTooHigh")
+        .withArgs();
 
       await minter.connect(alice).depositAndStake({
         value: parseEther("10"),
       });
       await expect(minter.connect(multiSig).slash(parseEther("0.1")))
         .to.be.emit(sgEth, "Transfer")
-        .withArgs(wsgEth.address, ethers.constants.AddressZero, parseEther("0.1"));
+        .withArgs(wsgEth.target, ZeroAddress, parseEther("0.1"));
     });
 
     it("togglePause", async () => {
@@ -258,9 +248,9 @@ describe("SharedDepositMinterV2", () => {
       await expect(minter.connect(alice).setNumValidators(1)).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${GOV_ROLE}`,
       );
-      await expect(minter.connect(multiSig).setNumValidators(0)).to.be.revertedWith(
-        "VM Exception while processing transaction: reverted with custom error 'NoValidators()'",
-      );
+      await expect(minter.connect(multiSig).setNumValidators(0))
+        .to.be.revertedWithCustomError(minter, "NoValidators")
+        .withArgs();
 
       await minter.connect(multiSig).setNumValidators(1);
     });

@@ -1,15 +1,22 @@
-require("@nomiclabs/hardhat-waffle");
-require("@openzeppelin/hardhat-upgrades");
-require("@nomiclabs/hardhat-etherscan");
+import {HardhatUserConfig, subtask, task, types} from "hardhat/config";
+// import {node_url, accounts, verifyKey} from "./utils/network";
+import {removeConsoleLog} from "hardhat-preprocessor";
 
-require("hardhat-deploy");
-require("hardhat-deploy-ethers");
-require("hardhat-gas-reporter");
-require("hardhat-contract-sizer");
-require("hardhat-abi-exporter");
-require("solidity-coverage");
-
-require("dotenv").config();
+import "@nomicfoundation/hardhat-chai-matchers";
+import "@nomicfoundation/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
+import "@nomiclabs/hardhat-solhint";
+import "@typechain/hardhat";
+import "hardhat-gas-reporter";
+import "solidity-coverage";
+import "hardhat-abi-exporter";
+import "hardhat-deploy";
+import "hardhat-deploy-ethers";
+import "hardhat-watcher";
+import "hardhat-storage-layout";
+import "dotenv/config";
+import "hardhat-contract-sizer";
+import * as fs from "fs";
 
 // Environment sourced variables
 const GOERLIPK = process.env.GOERLIPK
@@ -30,11 +37,11 @@ const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNE
 // apiKey: secrets.ETHERSCAN_API,
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
 
-sepolia = {};
+// sepolia = {};
 const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : "";
 const SEPOLIA_RPC_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
 
-SEPOLIA_PRIVATE_KEY = process.env.SEPOLIAPK ? process.env.SEPOLIAPK : GOERLIPK;
+const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY ? process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
 
 // END required user input
 
@@ -58,7 +65,7 @@ let maxRunsOnEtherscan = 1000000;
  * @type import('hardhat/config').HardhatUserConfig
  */
 // final exported hardhat config
-config = {
+const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
@@ -133,6 +140,19 @@ config = {
     only: [],
     spacing: 2,
   },
+  typechain: {
+    outDir: "types",
+    target: "ethers-v6",
+  },
+  namedAccounts: {
+    deployer: 0,
+    multiSig: 1,
+    alice: 3,
+    bob: 4,
+  },
+  preprocess: {
+    eachLine: removeConsoleLog(hre => hre.network.name !== "hardhat" && hre.network.name !== "localhost"),
+  },
 };
 
 if (ETHERSCAN_API) {
@@ -157,18 +177,13 @@ if (ETHERSCAN_API) {
   console.log("No Etherscan API key found. Skipping Etherscan verification.");
 }
 
-// imported from https://github.com/boringcrypto/dictator-dao/blob/main/hardhat.config.js
-
-// module.exports = require("@boringcrypto/hardhat-framework").config.hardhat({})
-const fs = require("fs");
-
-function getSortedFiles(dependenciesGraph) {
+function getSortedFiles(dependenciesGraph: any) {
   const tsort = require("tsort");
   const graph = tsort();
 
-  const filesMap = {};
+  const filesMap: Record<string, any> = {};
   const resolvedFiles = dependenciesGraph.getResolvedFiles();
-  resolvedFiles.forEach(f => (filesMap[f.sourceName] = f));
+  resolvedFiles.forEach((f: any) => (filesMap[f.sourceName] = f));
 
   for (const [from, deps] of dependenciesGraph.entries()) {
     for (const to of deps) {
@@ -180,13 +195,13 @@ function getSortedFiles(dependenciesGraph) {
 
   // If an entry has no dependency it won't be included in the graph, so we
   // add them and then dedup the array
-  const withEntries = topologicalSortedNames.concat(resolvedFiles.map(f => f.sourceName));
+  const withEntries: string[] = topologicalSortedNames.concat(resolvedFiles.map((f: any) => f.sourceName as string));
 
   const sortedNames = [...new Set(withEntries)];
-  return sortedNames.map(n => filesMap[n]);
+  return sortedNames.map((n: string) => filesMap[n]);
 }
 
-function getFileWithoutImports(resolvedFile) {
+function getFileWithoutImports(resolvedFile: any) {
   const IMPORT_SOLIDITY_REGEX = /^\s*import(\s+)[\s\S]*?;\s*$/gm;
 
   return resolvedFile.content.rawContent.replace(IMPORT_SOLIDITY_REGEX, "").trim();
@@ -224,7 +239,7 @@ subtask("flat:get-flattened-sources", "Returns all contracts and their dependenc
     flattened = `// SPDX-License-Identifier: MIXED\n\n${flattened}`;
 
     // Remove every line started with "pragma experimental ABIEncoderV2;" except the first one
-    flattened = flattened.replace(/pragma experimental ABIEncoderV2;\n/gm, (i => m => (!i++ ? m : ""))(0));
+    flattened = flattened.replace(/pragma experimental ABIEncoderV2;\n/gm, (i => (m: string) => (!i++ ? m : ""))(0));
 
     flattened = flattened.trim();
     if (output) {
@@ -239,7 +254,9 @@ subtask("flat:get-dependency-graph")
   .addOptionalParam("files", undefined, undefined, types.any)
   .setAction(async ({files}, {run}) => {
     const sourcePaths =
-      files === undefined ? await run("compile:solidity:get-source-paths") : files.map(f => fs.realpathSync(f));
+      files === undefined
+        ? await run("compile:solidity:get-source-paths")
+        : files.map((f: string) => fs.realpathSync(f));
 
     const sourceNames = await run("compile:solidity:get-source-names", {
       sourcePaths,
@@ -287,8 +304,8 @@ task("flattenAll", "Flatten all files we care about").setAction(async ({}, {run}
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
-task("accounts", "Prints the list of accounts", async () => {
-  const accounts = await ethers.getSigners();
+task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+  const accounts = await hre.ethers.getSigners();
 
   for (const account of accounts) {
     console.log(account.address);

@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
 import {FIFOQueue} from "../lib/FIFOQueue.sol";
 import {Errors} from "../lib/Errors.sol";
@@ -31,6 +32,8 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
  * this resets the epoch length clock for their request
  */
 contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue, OperatorSettable {
+    using Address for address payable;
+
     struct Request {
         address requester;
         uint256 shares;
@@ -121,7 +124,7 @@ contract WithdrawalQueue is AccessControl, Pausable, ReentrancyGuard, FIFOQueue,
         if (assets > minterBalance) {
             uint256 diff = assets - minterBalance;
             // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
-            SharedDepositMinterV2(payable(MINTER)).deposit{value: diff}();
+            payable(MINTER).sendValue(diff);
         }
 
         // Always burn redeemed tokens
