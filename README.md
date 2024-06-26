@@ -2,7 +2,7 @@
 
 Contracts powering https://sharedstake.org / https://sharedstake.finance
 
-Ethereum liquid staking derivatives.  
+Ethereum liquid staking derivatives.
 Docs: https://docs.sharedstake.finance/
 
 V2 core auditable contracts and guidance/README in `contracts/v2/core`.
@@ -44,8 +44,8 @@ export ALCHEMY_GOERLI_KEY='xx'
 # Errors
 
 A note on errors
-To reduce bytecode size and gas costs, error strings are shortened following UNIv3 as an example.  
-The template is: {origin contract}:reason  
+To reduce bytecode size and gas costs, error strings are shortened following UNIv3 as an example.
+The template is: {origin contract}:reason
 Common reasons:
 
 ```
@@ -85,24 +85,24 @@ Spec:
 
 # Gas profiling
 
-Gas profiling on goerli with different optimizations.  
-Transfer costs:  
+Gas profiling on goerli with different optimizations.
+Transfer costs:
 Optimizations | Cost
 5000000 | 51481
 200 | 51553
 
-This represents a 0.13% improvement in the cost of a transfer, arguably the most frequent interaction.  
-Deploy costs:  
-Optimizations | Cost  
-5000000 | 27645256739592190  
+This represents a 0.13% improvement in the cost of a transfer, arguably the most frequent interaction.
+Deploy costs:
+Optimizations | Cost
+5000000 | 27645256739592190
 200 | 22124896691748864
 
 This represents a 24% increase in deployment costs with 5000000 optimizer runs vs 200.
 
-This was carried out on Goerli using a gas price avg of 4.5 Gwei.  
+This was carried out on Goerli using a gas price avg of 4.5 Gwei.
 Based on this a 200 run base is chosen.
 
-Gas costs of large lists in args:  
+Gas costs of large lists in args:
 With around ~100 addresses in a constructor arg gas price of the entire deploy stack increased by around 10%.
 
 Added gas observations - may '23
@@ -166,3 +166,51 @@ Ownership transferred for TokenMigrator at 0x9615460582Efa2a9b1d8D21e7E02afE43A4
 Ownership transferred for Blocklist at <redacted> to 0xeBc37F4c20C7F8336E81fB3aDf82f6372BEf777E
 Ownership transferred for Allowlist at <redacted> to 0xeBc37F4c20C7F8336E81fB3aDf82f6372BEf777E
 ```
+
+Here's the corrected README section:
+
+---
+
+## Using Development Kit
+
+### Deploy Contracts
+
+You can run the deploy script by specifying tags for the deploy script:
+
+```bash
+yarn deploy:sepolia --tags minter
+```
+
+The tag should exist in the deploy scripts:
+
+```typescript
+import {DeployFunction} from "hardhat-deploy/types";
+
+const func: DeployFunction = async function (hre) {
+  // deployment code
+};
+
+export default func;
+func.tags = ["minter"];
+func.dependencies = ["sgEth", "wsgEth"];
+```
+
+When deploying contracts, the dependency scripts will run first.
+
+### Verify Contracts
+
+You can verify contracts by specifying the name of the contract:
+
+```bash
+yarn verify:sepolia SharedDepositMinterV2
+```
+
+Ensure you provide the correct contract name.
+
+---
+
+### Explanation
+
+- **Deploying Contracts**: The `yarn deploy:sepolia --tags minter` command runs the deploy script with the specified tag (`minter`). The tag must be defined in the deploy script. Dependencies specified in `func.dependencies` will run before the tagged script.
+
+- **Verifying Contracts**: The `yarn verify:sepolia SharedDepositMinterV2` command verifies the contract on the `sepolia` network by its name (`SharedDepositMinterV2`). Ensure the contract name is accurate to avoid verification errors.

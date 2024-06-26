@@ -73,6 +73,9 @@
     "prettier:check": "prettier --check --config ./.prettierrc.yaml \"**/*.{js,json,md,sol,ts}\"",
     "test": "hardhat test",
     "loc:sol:setup": "brew install cloc",
-    "loc:sol": "cloc contracts/v2/"
+    "loc:sol": "cloc contracts/v2/",
+    "deploy:sepolia": "npx hardhat deploy --network sepolia",
+    "script:sepolia": "npx hardhat run --network sepolia",
+    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts"
   }
 }

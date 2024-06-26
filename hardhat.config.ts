@@ -18,6 +18,8 @@ import "dotenv/config";
 import "hardhat-contract-sizer";
 import * as fs from "fs";
 
+import "./tasks/verify";
+
 // Environment sourced variables
 const GOERLIPK = process.env.GOERLIPK
   ? process.env.GOERLIPK
@@ -107,7 +109,9 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    hardhat: {},
+    hardhat: {
+      tags: ["hardhat"],
+    },
     localhost: {
       accounts: [`0x${GOERLIPK}`],
     },

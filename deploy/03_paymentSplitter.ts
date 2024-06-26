@@ -7,7 +7,9 @@ const func: DeployFunction = async hre => {
 
   const wsgEth = (await connect(WSGETH__factory)) as WSGETH;
 
-  const splitterAddresses = [accounts.deployer.address, accounts.multiSig.address, wsgEth.target];
+  const multiSig = hre.network.tags.hardhat ? accounts.multiSig.address : "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
+
+  const splitterAddresses = [accounts.deployer.address, multiSig, wsgEth.target];
   const splitterValues = [6, 3, 31];
 
   await deploy(PaymentSplitter__factory, {

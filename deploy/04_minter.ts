@@ -12,6 +12,8 @@ const func: DeployFunction = async hre => {
   const numValidators = 1000;
   const adminFee = 0;
 
+  const multiSig = hre.network.tags.hardhat ? accounts.multiSig.address : "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
+
   // const FeeCalc = await ethers.getContractFactory("FeeCalc");
   // const feeCalc = await FeeCalc.deploy(parseEther("0"), parseEther("0"));
   // await feeCalc.deployed();
@@ -21,7 +23,7 @@ const func: DeployFunction = async hre => {
     //feeCalc.address, // fee splitter
     sgEth.target, // sgETH address
     wsgEth.target, // wsgETH address
-    accounts.multiSig.address, // government address
+    multiSig, // government address
     ZeroAddress, // deposit contract address - can't find deposit contract - using dummy address
   ];
 
