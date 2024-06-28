@@ -36,10 +36,8 @@ const MAINNET_RPC_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
 const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : GOERLIPK;
 // Your API key for Etherscan
 // Obtain one at https://etherscan.io/
-// apiKey: secrets.ETHERSCAN_API,
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
 
-// sepolia = {};
 const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : "";
 const SEPOLIA_RPC_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
 
@@ -57,7 +55,7 @@ const chainIds = {
   mainnet: 1,
   rinkeby: 4,
   ropsten: 3,
-  sepolia: 11155111,
+  sepolia: 11155111, // hex: 0xaa36a7
 };
 
 // You need to export an object to set up your config

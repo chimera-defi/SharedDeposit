@@ -1,8 +1,11 @@
 // onchain actions 
 // Helpers for triggering transactions for deploy/test 
-class OA {
+// we keep passing params in as they may change during execution
+// instead of caching them in the class
+class OnchainActions {
   constructor(dh) {
     this.dh = dh;
+    // this.minter = this.dh.getContract('SharedDepositMinterV2');
   }
 
   async deposit(params = {
@@ -24,6 +27,16 @@ class OA {
     let c = params.names.minter;
     await dh.getContract(c).withdraw(amt,  dh.overrides);
   };
+
+  async withdrawAdminFee(params = {
+    names: {
+      minter: 'SharedDepositMinterV2'
+    }
+  }, amt) {
+    let dh = this.dh;
+    let c = params.names.minter;
+    await dh.getContract(c).withdrawAdminFee(amt,  dh.overrides);
+  }
 
   async depositAndStake(params = {
     names: {
@@ -75,30 +88,36 @@ class OA {
     params.wsgETH = params.wsgETH?.length > 0 ? params.wsgETH : this.dh.addressOf(params.names.minter)
     let amt = params.principal > 0 ? params.principal : this.dh.parseEther("0.01");
     let recv;
+    let dh = this.dh;
+    let m = this.dh.getContract(params.names.minter);
 
     recv = await this.getSGEthBal(params);
-    console.log("starting sgeth bal", this.dh.formatEther(recv));
+    dh.log("starting sgeth bal", this.dh.formatEther(recv));
 
-    await this.deposit(params, amt);
+    await m.deposit({ value: amt, ...dh.overrides });
 
     recv = await this.getSGEthBal(params);
-    console.log("Deposited Eth, got sgETH:", this.dh.formatEther(amt), this.dh.formatEther(recv));
+    dh.log("Deposited Eth, got sgETH:", this.dh.formatEther(amt), this.dh.formatEther(recv));
 
-    await this.withdraw(params, amt);
+    await m.withdraw(amt,  dh.overrides);
     recv = await this.getSGEthBal(params);
-    console.log("new sgETH bal post withdraw", this.dh.formatEther(recv));
-    console.log("warmed up deposit/withdraw");
+    dh.log("new sgETH bal post withdraw", this.dh.formatEther(recv));
+    dh.log("warmed up deposit/withdraw");
     await new Promise(resolve => setTimeout(resolve, 10000)); // avoid upstream timeouts / rate limits
 
     recv = await this.getWSGEthBal(params);
-    console.log("starting wsgeth bal", this.dh.formatEther(recv));
+    dh.log("starting wsgeth bal", this.dh.formatEther(recv));
     await this.depositAndStake(params, amt);
     recv = await this.getWSGEthBal(params);
-    console.log("Staked Eth, got wsgETH:", this.dh.formatEther(amt), this.dh.formatEther(recv));
+    dh.log("Staked Eth, got wsgETH:", this.dh.formatEther(amt), this.dh.formatEther(recv));
     await this.unstakeAndWithdraw(params, amt.toString() / 2); // leave  abit int the wsgeth
     recv = await this.getWSGEthBal(params);
-    console.log("Unstaked wsgETH, new wsgETH bal:", this.dh.formatEther(recv));
-    console.log("warmed up stake/unstake");
+
+    // check admin fee
+    await m.withdrawAdminFee(this.dh.parseEther("0"), dh.overrides);
+    
+    dh.log("Unstaked wsgETH, new wsgETH bal:", this.dh.formatEther(recv));
+    dh.log("warmed up stake/unstake");
   }
 
   async deployNonCustodialStakingPipeline(params = {
@@ -174,7 +193,7 @@ class OA {
     let daoFeeSplitter = await dh.getContractAt(params.names.daoFeeSplitter, params.daoFeeSplitter)
     let wsgETH = await dh.getContractAt(params.names.wsgETH, params.wsgETH);
     let pps = await wsgETH.pricePerShare();
-    console.log('Initial price per share:', pps.toString() / 1e18);
+    dh.log('Initial price per share:', pps.toString() / 1e18);
     await rr.work({value: amt});
 
     // https://github.com/ethers-io/ethers.js/discussions/2345
@@ -182,7 +201,7 @@ class OA {
     let fnSig = 'release(address,address)';
     await daoFeeSplitter[fnSig](params.sgETH, params.wsgETH)
     pps = await wsgETH.pricePerShare();
-    console.log("seeded rewards; Amt: ", amt.toString() / 1e18, "Price per share: ", pps.toString() / 1e18)
+    dh.log("seeded rewards; Amt: ", amt.toString() / 1e18, "Price per share: ", pps.toString() / 1e18)
   }
 
   async depositEth2(params, validators) {
@@ -211,8 +230,8 @@ class OA {
 
     let bal2 = await this.dh.getBalance(params.minter)
 
-    console.log(`Starting Balance: ${bal.toString() / 1e18} \n Ending Balance: ${bal2.toString() / 1e18}`)
+    dh.log(`Starting Balance: ${bal.toString() / 1e18} \n Ending Balance: ${bal2.toString() / 1e18}`)
   }
 }
 
-module.exports = OA;
+module.exports = {OnchainActions};

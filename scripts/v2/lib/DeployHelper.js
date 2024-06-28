@@ -15,8 +15,11 @@ let {
     log,
 } = require("./deploy_utils.js");
 
-class DeployHelper {
+let {OnchainActions} = require("./OnchainActions.js");
+
+class DeployHelper extends OnchainActions {
     constructor(launchNetwork, multisig_address = '') {
+        super(null);
         this.contracts = {};
         this.launchNetwork = launchNetwork;
         this.initialBalance = 0;
@@ -25,6 +28,7 @@ class DeployHelper {
         this.multisig_address = multisig_address;
         this.deployer = _parsePrivateKeyToDeployer();
         this.hre = hre;
+        this.dh = this; // used to float the deploy helper methods to the onchain actions lib 
     }
     async init(address='') {
         this.address = address?.length > 0 ? address : this.deployer.address;
@@ -36,14 +40,14 @@ class DeployHelper {
         this.overrides = await this.getOverrides(); // cache the overrides inititally to reduce api calls
 
         log(
-            `Initial balance of deployer at ${this.address} is: ${this.initialBalance?.toString()} at block timestamp : ${this.currentBlockTime
+            `Initial balance of deployer at ${this.address} is: ${ethers.formatUnits(this.initialBalance)?.toString()} ETH at block timestamp : ${this.currentBlockTime
             } on network: ${this.launchNetwork}`,
         );
 
         if (this.launchNetwork === "sepolia") {
             // we can get away with less gas on sepolia maybe
-            this.overrides.maxFeePerGas = this.overrides.maxFeePerGas.div(20);
-            this.overrides.maxPriorityFeePerGas = this.overrides.maxPriorityFeePerGas.div(20);
+            // this.overrides.maxFeePerGas = this.overrides.maxFeePerGas / ethers.getUint(10);
+            // this.overrides.maxPriorityFeePerGas = this.overrides.maxPriorityFeePerGas /  ethers.getUint(10);
         }
 
         log(`Using gas settings: ${ethers.formatUnits((this.overrides.maxFeePerGas).toString(), "gwei")} gwei & bribe: ${ethers.formatUnits(this.overrides.maxPriorityFeePerGas, "gwei")} gwei`);
@@ -142,8 +146,8 @@ class DeployHelper {
         console.log(o);
     }
 
-    log(txt) {
-        log(txt);
+    log(txt, ...etc) {
+        log(txt, ...etc);
     }
 
     parseEther(n) {

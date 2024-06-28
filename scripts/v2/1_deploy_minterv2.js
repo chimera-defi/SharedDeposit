@@ -3,8 +3,7 @@
 let {DeployHelper} = require("./lib/DeployHelper.js");
 let {deployMinterV2, setWithdrawalCredential, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
-let OA = require("./lib/onchain_actions.js");
-const {network, ethers} = require("hardhat");
+const {network} = require("hardhat");
 
 require("dotenv").config();
 
@@ -13,7 +12,6 @@ async function main() {
   deployer = dh.deployer;
   await dh.init();
 
-  let oa = new OA(dh);
   let params = genParams(dh);
   dh.multisig_address = params.multisigAddr;
 
@@ -48,6 +46,7 @@ async function main() {
     chargeOnExit: false
   }]);
   params.feeCalcAddr = dh.addressOf("FeeCalc");
+  
 
   await deployMinterV2(dh, params);
   let minter = dh.addressOf(params.names.minter);
@@ -118,14 +117,14 @@ async function main() {
   // Set the withdrawal contract now that we have it - i.e the rewards recvr
   await setWithdrawalCredential(dh, params);
 
-  await oa.transferRewardsRecvrToMultisig(params);
+  await dh.transferRewardsRecvrToMultisig(params);
   await dh.waitIfNotLocalHost();
 
-  await oa.transferSgETHToMultisig(params);
+  await dh.transferSgETHToMultisig(params);
   await dh.waitIfNotLocalHost();
 
   // test deposit withdraw flow
-  await oa.e2e(params);
+  await dh.e2e(params);
 
 // starting sgeth bal 0.0
 // Deposited Eth, got sgETH: 0.01 0.01
