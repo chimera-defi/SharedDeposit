@@ -4,6 +4,7 @@ let {DeployHelper} = require("./lib/DeployHelper.js");
 let {deployMinterV2, setWithdrawalCredential, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
 let OA = require("./lib/onchain_actions.js");
+const {network, ethers} = require("hardhat");
 
 require("dotenv").config();
 
@@ -15,6 +16,12 @@ async function main() {
   let oa = new OA(dh);
   let params = genParams(dh);
   dh.multisig_address = params.multisigAddr;
+
+  // if testnet deploy a mock deposit contract
+  if (network.name !== "mainnet") {
+    await dh.deployContract("DepositContract", "DepositContract", []);
+    params.depositContractAddr = dh.addressOf("DepositContract");
+  }
 
   /** Deploy core of v2 system
    * 1. Deploy sgETH
@@ -31,6 +38,16 @@ async function main() {
   await dh.deployContract(wsgETH, wsgETH, [sgETHAddrs, params.epochLen]);
   let wsgETHAddr = dh.addressOf(wsgETH);
   params.wsgETH = wsgETHAddr;
+
+
+  await dh.deployContract("FeeCalc", "FeeCalc", [{
+    adminFee: 10,
+    exitFee: 0,
+    refundFeesOnWithdraw: true,
+    chargeOnDeposit: true,
+    chargeOnExit: false
+  }]);
+  params.feeCalcAddr = dh.addressOf("FeeCalc");
 
   await deployMinterV2(dh, params);
   let minter = dh.addressOf(params.names.minter);
@@ -109,6 +126,15 @@ async function main() {
 
   // test deposit withdraw flow
   await oa.e2e(params);
+
+// starting sgeth bal 0.0
+// Deposited Eth, got sgETH: 0.01 0.01
+// new sgETH bal post withdraw 0.0
+// warmed up deposit/withdraw
+// starting wsgeth bal 0.0
+// Staked Eth, got wsgETH: 0.01 0.01
+// Unstaked wsgETH, new wsgETH bal: 0.005
+// warmed up stake/unstake
 }
 
 // We recommend this pattern to be able to use async/await everywhere

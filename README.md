@@ -39,6 +39,18 @@ export ALCHEMY_GOERLI_KEY='xx'
 // see deploy_minterv2.js or deploy tasks in package.json for hardhat deploy usage
 ```
 
+# Slither
+
+Slither run results and howto:
+
+- start venv
+- `pip3 install slither-analyzer`
+- `slither . --ignore-compile`
+  ./contracts/
+  --compile-force-framework hardhat
+  --solc-remaps @openzeppelin/=$(pwd)/node_modules/@openzeppelin/
+  --solc solc-0.8.10 --solc-args "--optimize --optimize-runs 200"`
+
 # Archival
 
 # Errors

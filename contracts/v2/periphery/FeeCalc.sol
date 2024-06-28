@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-
 pragma solidity ^0.8.20;
+
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 contract FeeCalc is Ownable2Step {
     struct Settings {
@@ -25,26 +23,6 @@ contract FeeCalc is Ownable2Step {
         costPerValidator = ((32 + (32 * adminFee)) * 1 ether) / BIPS;
     }
 
-    function processDeposit(uint256 value) external view returns (uint256 amt, uint256 fee) {
-        if (config.chargeOnDeposit) {
-            fee = (value * adminFee) / BIPS;
-            amt = value - fee;
-        }
-    }
-
-    function processWithdraw(uint256 value) external view returns (uint256 amt, uint256 fee) {
-        if (config.refundFeesOnWithdraw) {
-            fee = (value * adminFee) / BIPS;
-            amt = value + fee;
-        } else if (config.chargeOnExit) {
-            fee = (value * config.exitFee) / BIPS;
-            amt = value - fee;
-        } else {
-            fee = 0;
-            amt = value;
-        }
-    }
-
     function set(Settings calldata newSettings) external onlyOwner {
         config = newSettings;
         adminFee = newSettings.adminFee;
@@ -61,5 +39,27 @@ contract FeeCalc is Ownable2Step {
     function setAdminFee(uint256 amount) external onlyOwner {
         adminFee = amount;
         config.adminFee = amount;
+    }
+
+    function processDeposit(uint256 value, address sender) external view returns (uint256 amt, uint256 fee) {
+        // TODO: semder is currently unsused but can be used later to calculate a fee reduction based on token holdings
+        if (config.chargeOnDeposit) {
+            fee = (value * adminFee) / BIPS;
+            amt = value - fee;
+        }
+    }
+
+    function processWithdraw(uint256 value, address sender) external view returns (uint256 amt, uint256 fee) {
+        // TODO: semder is currently unsused but can be used later to calculate a fee reduction based on token holdings
+        if (config.refundFeesOnWithdraw) {
+            fee = (value * adminFee) / BIPS;
+            amt = value + fee;
+        } else if (config.chargeOnExit) {
+            fee = (value * config.exitFee) / BIPS;
+            amt = value - fee;
+        } else {
+            fee = 0;
+            amt = value;
+        }
     }
 }
