@@ -12,9 +12,9 @@ const func: DeployFunction = async hre => {
   const fc = await deploy(FeeCalc__factory, {
     args: [
       {
-        adminFee: 10,
+        adminFee: 0,
         exitFee: 0,
-        refundFeesOnWithdraw: true,
+        refundFeesOnWithdraw: false,
         chargeOnDeposit: true,
         chargeOnExit: false,
       },

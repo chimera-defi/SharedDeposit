@@ -33,7 +33,7 @@ const func: DeployFunction = async hre => {
   const numValidators = 1000;
   const adminFee = 0;
 
-  const multiSig = hre.network.tags.hardhat ? accounts.multiSig.address : "0x610c92c70eb55dfeafe8970513d13771da79f2e0";
+  const multiSig = hre.network.tags.hardhat ? accounts.multiSig.address : accounts.deployer.address;
 
   // const FeeCalc = await ethers.getContractFactory("FeeCalc");
   // const feeCalc = await FeeCalc.deploy(parseEther("0"), parseEther("0"));
