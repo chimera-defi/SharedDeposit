@@ -1,12 +1,13 @@
 const hre = require("hardhat");
 const fs = require("fs");
-// const hreEther = { ethers } = hre;
-// const {ethers} = require("ethers");
 const {ethers} = hre;
-// const { connect } = require("http2");
 
-const log = txt => {
-  txt = txt + "  \n";
+// const WAITGAS = 15000; 
+
+const WAITGAS = 0;
+
+const log = (txt, ...etc) => {
+  txt = txt + [' ', ...etc].join(' ') + "  \n";
   console.log(txt);
   fs.writeFileSync("log.txt", txt, { flag: "a" });
 };
@@ -27,7 +28,10 @@ const isMainnet = launchNetwork => {
   // some behaviours need to be tested with a mainnet fork which behaves the same as mainnet
   return launchNetwork == "localhost" || launchNetwork == "mainnet";
 };
-const _wait = async ms => await new Promise(resolve => setTimeout(resolve, ms));
+const _wait = async ms => {
+  log(`Waiting ${ms} ms`);
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
 const _printOverrides = o => {
   return {
     type: 2,
@@ -36,28 +40,43 @@ const _printOverrides = o => {
     gasLimit: o.gasLimit,
   };
 };
+
+const asMill = (n) => n * 1e7;
+
+const defaultGas = {
+  type: 2,
+  maxFeePerGas: ethers.parseUnits("25", "gwei"),
+  maxPriorityFeePerGas: ethers.parseUnits("1", "gwei"),
+};
+
 const _getOverrides = async () => {
   const overridesForEIP1559 = {
     type: 2,
     maxFeePerGas: ethers.parseUnits("25", "gwei"),
     maxPriorityFeePerGas: ethers.parseUnits("2", "gwei"),
-    gasLimit: 2500000,
+    // gasLimit: asMill(15),
   };
   // const gasPrice = await hre.ethers.provider.getGasPrice();
   // overridesForEIP1559.maxFeePerGas = gasPrice;
 
-  let gas = await hre.ethers.provider.getFeeData();
+  let gas = await ethers.provider.getFeeData();
   // todo we want to keep waiting for gas to drop. or some max time.
   // manually set expected max gas
   // check and wait if gas spike is hit
   let omfpg = overridesForEIP1559.maxFeePerGas;
   let mfpg = gas.maxFeePerGas;
   if (mfpg >= (omfpg)) {
-    let waitTime = 15000; 
+    let waitTime = WAITGAS; 
     console.log("gas spike hit?! current gas in gwei:", ethers.formatUnits(mfpg.toString(), "gwei"));
     console.log("waiting for ", waitTime);
     await _wait(waitTime);
-    gas = await hre.ethers.provider.getFeeData();
+
+    gas = await ethers.provider.getFeeData();
+    mfpg = gas.maxFeePerGas;
+    // if (mfpg >= defaultGas.maxFeePerGas) {
+    //   gas = defaultGas;
+    // }
+    console.log("Done waiting for gas resolution; new gas settings: ", ethers.formatUnits(mfpg.toString(), "gwei"));
   }
   overridesForEIP1559.maxPriorityFeePerGas = overridesForEIP1559.maxPriorityFeePerGas >= (gas.maxPriorityFeePerGas)
     ? gas.maxPriorityFeePerGas
@@ -84,6 +103,16 @@ const _verifyBase = async (contract, launchNetwork, cArgs) => {
   }
 };
 
+const _estimateDeploymentGasLimit = async (contractDeployTx) => {
+  // const deploymentData = contract.interface.encodeDeploy(cArgs)
+  // const estimatedGas = await ethers.provider.estimateGas({ data: deploymentData });
+  const estimatedGas = await ethers.provider.estimateGas(contractDeployTx)
+  log(`Estimated gas for cdtx: ${Object.keys(contractDeployTx).join(' ')} \n ${Object.values(contractDeployTx).join(' ')}`);
+  log(`Estimated gas: ${Object.keys(estimatedGas).join(' ')} \n ${Object.values(estimatedGas).join(' ')}`);
+
+  return estimatedGas;
+}
+
 const _verify = async (contract, launchNetwork, cArgs) => {
   if (!launchNetwork || launchNetwork == "hardhat") return;
   await new Promise(resolve => setTimeout(resolve, 10000));
@@ -91,12 +120,24 @@ const _verify = async (contract, launchNetwork, cArgs) => {
 };
 
 const _deployContract = async (name, launchNetwork = false, cArgs = [], cachedOverrides) => {
+  log(`\n Deploying ${name} \n on ${launchNetwork}.  `);
   const overridesForEIP1559 = cachedOverrides ? cachedOverrides : await _getOverrides();
-  const factory = await hre.ethers.getContractFactory(name);
+  const factory = await ethers.getContractFactory(name);
+  // const factory = await ethers.ContractFactory
+  // let cdtx = await factory.getDeployTransaction(...cArgs, overridesForEIP1559);
+  // let estimate = await _estimateDeploymentGasLimit(cdtx);
+  // log(` estimate with settings: \n ${Object.keys(estimate).join(' ')} \n ${Object.values(estimate).join(' ')} from ${cdtx}`)
+  // over write our custom gas limit with what the tx should take
+  // overridesForEIP1559.gasLimit =  cdtx.gasLimit  > 0 && cdtx.gasLimit < overridesForEIP1559.gasLimit ? cdtx.gasLimit : overridesForEIP1559.gasLimit;
+  // log(` Deploying with settings: \n ${Object.keys(overridesForEIP1559).join(' ')} \n ${Object.values(overridesForEIP1559).join(' ')}`)
+
   const contract = await factory.deploy(...cArgs, overridesForEIP1559);
-  cdtx = await factory.getDeployTransaction(...cArgs, overridesForEIP1559);
-  await contract.deploymentTransaction().wait(1);
+  await _wait(10000);
+  console.log("deployment done, now to waitForDeployment")
   await contract.waitForDeployment();
+  log(`\n waitForDeployment wait for ${name} \n on ${launchNetwork}.  `);
+  await contract.deploymentTransaction().wait(1);
+  log(`\n deploymentTransaction wait for ${name} \n on ${launchNetwork}.  `);
   contract.address = contract.target;
 
   log(`\n Deployed ${name} to ${contract.address} \n on ${launchNetwork}.  `);
@@ -116,7 +157,6 @@ const _verifyAll = async (allContracts, launchNetwork) => {
   let num = 60000; // 60s
   log(`Waiting ${num} ms to make sure everything has propagated on etherscan`);
   await _wait(num);
-  // wait 10s to make sure everything has propagated on etherscan
 
   let contractArr = [],
     verifyAttemtLog = {};

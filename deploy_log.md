@@ -2,6 +2,19 @@
 
 - sepolia
 
+-- deployed with new hardhat deploy tooling, see deployment log for deets
+{
+SgETH: '0xCF4831EBE785437DC54a90018b1b410Bd16c8533',
+WSGETH: '0x514dfd2d10eC6775f030BA2abcf7A2445C0CA6Fb',
+SharedDepositMinterV2: '0x36c2F00cC7D02be7Df0BC9be2a8e08b74C4f2E56',
+PaymentSplitter: '0x38E86964A811Ee66D1139CD97C838B713F63779B',
+WithdrawalQueue: '0x93Ec5A17176336C95Bfb537A71130d6eEA6eF73D',
+RewardsReceiver: '0xAeBD9A9b883f539894A28CBCD866d50ca34000FD',
+MockDepositContract: '0xEb9e7570f8D5ac7D0Abfbed902A784E84dF16a78'
+}
+
+-- deployed with old pipeline
+
 {
 SgETH: '0xA3A244Db2C07061E159090BB8b354ae4662fB0C3',
 WSGETH: '0xc8BD8F8AC1410e6f59a5EeAf7be00703232EcD56',

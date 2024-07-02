@@ -3,7 +3,6 @@
 let {DeployHelper} = require("./lib/deploy_utils.js");
 let {deployMinterV2, setWithdrawalCredential, addMinter} = require("./lib/minter_deploy_utils.js");
 let genParams = require("./lib/opts.js");
-let OA = require("./lib/onchain_actions.js");
 
 require("dotenv").config();
 
@@ -13,7 +12,6 @@ async function main() {
   let dh = new DeployHelper(network.name, deployer.address);
   await dh.init(deployer.address, deployer);
 
-  let oa = new OA(dh);
   let params = genParams(dh);
   dh.multisig_address = params.multisigAddr;
 
@@ -34,14 +32,14 @@ async function main() {
   await dh.waitIfNotLocalHost();
 
   // Transfer ownership of any owned components to the multisig
-  await oa.transferRewardsRecvrToMultisig(params);
+  await dh.transferRewardsRecvrToMultisig(params);
   await dh.waitIfNotLocalHost();
 
-  await oa.transferSgETHToMultisig(params);
+  await dh.transferSgETHToMultisig(params);
   await dh.waitIfNotLocalHost();
 
   // test deposit withdraw flow
-  await oa.e2e(params);
+  await dh.e2e(params);
 
   await dh.waitIfNotLocalHost();
 
