@@ -34,7 +34,7 @@ import {ETH2DepositWithdrawalCredentials} from "../lib/ETH2DepositWithdrawalCred
 /// @title SharedDepositMinterV2
 /// @author ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
 /// @notice Mints LSD tokens for ETH deposited to the contract. Handles the depositing of ETH to the ETH2 deposit contract and validator creation
-/// @dev Deployment params: 
+/// @dev Deployment params:
 /// - addresses : [feeCalc, sgeth, wsgeth, gov]
 contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
     /* ========== STATE VARIABLES ========== */
