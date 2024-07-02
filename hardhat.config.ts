@@ -36,14 +36,17 @@ const MAINNET_RPC_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
 const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : GOERLIPK;
 // Your API key for Etherscan
 // Obtain one at https://etherscan.io/
-// apiKey: secrets.ETHERSCAN_API,
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
 
-// sepolia = {};
 const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : "";
-const SEPOLIA_RPC_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL
+  ? process.env.SEPOLIA_RPC_URL
+  : `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
 
 const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY ? process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
+
+// const ACTIVE_DEPLOYER_PK = SEPOLIA_PRIVATE_KEY; // use for real deploys
+const ACTIVE_DEPLOYER_PK = GOERLIPK; // use for test
 
 // END required user input
 
@@ -57,7 +60,7 @@ const chainIds = {
   mainnet: 1,
   rinkeby: 4,
   ropsten: 3,
-  sepolia: 11155111,
+  sepolia: 11155111, // hex: 0xaa36a7
 };
 
 // You need to export an object to set up your config
@@ -158,7 +161,7 @@ const config: HardhatUserConfig = {
     target: "ethers-v6",
   },
   namedAccounts: {
-    deployer: 0,
+    deployer: `privatekey://0x${ACTIVE_DEPLOYER_PK}`,
     multiSig: 1,
     alice: 3,
     bob: 4,
