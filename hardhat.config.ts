@@ -39,9 +39,14 @@ const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNE
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
 
 const ALCHEMY_SEPOLIA_KEY = process.env.ALCHEMY_SEPOLIA_KEY ? process.env.ALCHEMY_SEPOLIA_KEY : "";
-const SEPOLIA_RPC_URL = `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
+const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL
+  ? process.env.SEPOLIA_RPC_URL
+  : `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_SEPOLIA_KEY}`;
 
 const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY ? process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
+
+const ACTIVE_DEPLOYER_PK = SEPOLIA_PRIVATE_KEY ? SEPOLIA_PRIVATE_KEY : (MAINNET_PRIVATE_KEY ? MAINNET_PRIVATE_KEY : GOERLIPK);
+// const ACTIVE_DEPLOYER_PK = GOERLIPK;
 
 // END required user input
 
@@ -156,7 +161,7 @@ const config: HardhatUserConfig = {
     target: "ethers-v6",
   },
   namedAccounts: {
-    deployer: 0,
+    deployer: `privatekey://0x${ACTIVE_DEPLOYER_PK}`,
     multiSig: 1,
     alice: 3,
     bob: 4,

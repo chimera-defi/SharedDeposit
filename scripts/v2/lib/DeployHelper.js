@@ -46,8 +46,8 @@ class DeployHelper extends OnchainActions {
 
         if (this.launchNetwork === "sepolia") {
             // we can get away with less gas on sepolia maybe
-            // this.overrides.maxFeePerGas = this.overrides.maxFeePerGas / ethers.getUint(10);
-            // this.overrides.maxPriorityFeePerGas = this.overrides.maxPriorityFeePerGas /  ethers.getUint(10);
+            this.overrides.maxFeePerGas = this.overrides.maxFeePerGas / ethers.getUint(2);
+            this.overrides.maxPriorityFeePerGas = this.overrides.maxPriorityFeePerGas /  ethers.getUint(2);
         }
 
         log(`Using gas settings: ${ethers.formatUnits((this.overrides.maxFeePerGas).toString(), "gwei")} gwei & bribe: ${ethers.formatUnits(this.overrides.maxPriorityFeePerGas, "gwei")} gwei`);
