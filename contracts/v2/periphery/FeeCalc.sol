@@ -11,7 +11,7 @@ contract FeeCalc is Ownable2Step {
         bool chargeOnDeposit;
         bool chargeOnExit;
     }
-    Settings private config;
+    Settings public config;
     uint256 public adminFee;
     uint256 public costPerValidator;
 
