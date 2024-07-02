@@ -1,6 +1,16 @@
 import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../utils/ship";
-import {SgETH, SgETH__factory, SharedDepositMinterV2__factory, WSGETH, WSGETH__factory, DepositContract, DepositContract__factory, FeeCalc, FeeCalc__factory} from "../types";
+import {
+  SgETH,
+  SgETH__factory,
+  SharedDepositMinterV2__factory,
+  WSGETH,
+  WSGETH__factory,
+  DepositContract,
+  DepositContract__factory,
+  FeeCalc,
+  FeeCalc__factory,
+} from "../types";
 import {ZeroAddress} from "ethers";
 
 const func: DeployFunction = async hre => {
@@ -13,8 +23,8 @@ const func: DeployFunction = async hre => {
   let chainId = await hre.getChainId();
 
   let depositContractAddr;
-  if ( chainId != '1') {
-    let depositContract =  (await connect(DepositContract__factory)) as DepositContract;
+  if (chainId != "1") {
+    let depositContract = (await connect(DepositContract__factory)) as DepositContract;
     depositContractAddr = depositContract.target;
   } else {
     depositContractAddr = "0x00000000219ab540356cBB839Cbe05303d7705Fa";

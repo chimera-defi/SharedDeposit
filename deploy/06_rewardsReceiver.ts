@@ -26,7 +26,6 @@ function makeWithdrawalCred(params: any) {
   return eth1Withdraw;
 }
 
-
 const func: DeployFunction = async hre => {
   const {deploy, connect} = await Ship.init(hre);
 
@@ -40,7 +39,7 @@ const func: DeployFunction = async hre => {
     args: [withdrawalQueue.target, [sgEth.target, wsgEth.target, paymentSplitter.target, minter.target]],
   });
 
-  let rr =  (await connect(RewardsReceiver__factory)) as RewardsReceiver;
+  let rr = (await connect(RewardsReceiver__factory)) as RewardsReceiver;
   await minter.setWithdrawalCredential(makeWithdrawalCred(rr.target));
 };
 
