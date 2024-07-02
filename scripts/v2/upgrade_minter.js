@@ -7,7 +7,6 @@ let {
   addMinter,
   deployWithdrawalsCredentialPipeline,
 } = require("./lib/minter_deploy_utils.js");
-let OA = require("./lib/onchain_actions.js");
 let genParams = require("./lib/opts.js");
 require("dotenv").config();
 
@@ -17,7 +16,6 @@ async function main() {
   let dh = new DeployHelper(network.name, deployer.address);
   await dh.init(deployer.address, deployer);
 
-  let oa = new OA(dh);
   let params = genParams(dh);
 
   params = await deployMinterV2(dh, params);
@@ -29,7 +27,7 @@ async function main() {
   console.log("WC set");
 
   await dh.waitIfNotLocalHost();
-  await oa.e2e(params);
+  await dh.e2e(params);
 
   await dh.waitIfNotLocalHost();
   // await oa.seedRewards(params, "0.005");

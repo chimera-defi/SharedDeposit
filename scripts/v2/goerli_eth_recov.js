@@ -1,7 +1,6 @@
 // export GOERLIPK='private key';
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../deploy_utils.js");
-let OA = require("./lib/onchain_actions.js");
 let genParams = require("./lib/opts.js");
 require("dotenv").config();
 
@@ -10,7 +9,6 @@ async function main() {
 
   let dh = new DeployHelper(network.name, deployer.address);
   await dh.init(deployer.address, deployer);
-  let oa = new OA(dh);
   let params = genParams(dh);
 
   let name = "GoerliETHRecov";

@@ -2,7 +2,6 @@
 // npx hardhat run --network goerli --verbose deploy/deploy_minterv2.js
 let {DeployHelper} = require("../lib/DeployHelper.js");
 let genParams = require("../lib/opts.js");
-let OA = require("../lib/onchain_actions.js");
 
 require("dotenv").config();
 
@@ -10,7 +9,6 @@ async function main() {
   let dh = new DeployHelper(network.name);
   await dh.init();
 
-  let oa = new OA(dh);
   let params = genParams(dh);
   dh.multisig_address = params.multisigAddr;
 
@@ -25,10 +23,10 @@ async function main() {
   let sgETHAddrs = dh.addressOf(sgETH);
   params.sgETH = sgETHAddrs;
 
-  let wsgETH = params.names.wsgETH;
-  await dh.deployContract(wsgETH, wsgETH, [sgETHAddrs, params.epochLen]);
-  let wsgETHAddr = dh.addressOf(wsgETH);
-  params.wsgETH = wsgETHAddr;
+  // let wsgETH = params.names.wsgETH;
+  // await dh.deployContract(wsgETH, wsgETH, [sgETHAddrs, params.epochLen]);
+  // let wsgETHAddr = dh.addressOf(wsgETH);
+  // params.wsgETH = wsgETHAddr;
 
   await dh.postRun();
 }

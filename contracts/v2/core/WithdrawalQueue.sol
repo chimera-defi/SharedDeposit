@@ -35,7 +35,7 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
  * 3. Fulfill any remaining redeemRequests i.e. totalPendingRequest,
  * for all RedeemRequest events from requestsFulfilled to requestsCreated
  */
-contract WithdrawalQueue is AccessControl, GranularPause, ReentrancyGuard, FIFOQueue, OperatorSettable {
+contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQueue, OperatorSettable {
     using Address for address payable;
 
     struct Request {
