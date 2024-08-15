@@ -76,6 +76,14 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         _grantRole(GOV, msg.sender);
     }
 
+    /// @notice Requests a redemption of vault assets.
+    /// @dev This function must be called by either the owner or an operator of the vault, and is only allowed when the contract is not paused.
+
+    /// @param shares The number of shares to redeem.
+    /// @param requester The address requesting the redemption.
+    /// @param owner The owner of the vault being redeemed from.
+
+    /// @return requestId The unique ID assigned to this redemption request.
     function requestRedeem(
         uint256 shares,
         address requester,
@@ -98,6 +106,14 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
     }
 
+    /// @notice Allows a user to redeem their vault shares.
+    /// @dev This function must be called by either the owner or an operator of the requester's vault, and is only allowed when the contract is not paused.
+
+    /// @param shares The number of shares to redeem.
+    /// @param receiver The address that will receive the redeemed assets.
+    /// @param requester The address requesting the redemption.
+
+    /// @return assets The amount of assets that were successfully redeemed.
     function redeem(
         uint256 shares,
         address receiver,
@@ -135,6 +151,31 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
 
         emit Redeem(requester, receiver, shares, assets);
+    }
+
+    /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired
+    function cancelRedeem(
+        address receiver,
+        address requester
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
+        assets = pendingRedeemRequest(requester);
+        uint256 shares = IERC4626(WSGETH).previewDeposit(assets);
+        if (shares == 0) {
+            revert Errors.InvalidAmount();
+        }
+
+        _verifyEpochHasElapsed(requester);
+
+        // checks if we have enough assets to fulfill the request and if epoch has passed
+        if (claimableRedeemRequest(requester) < assets) {
+            return 0; // should never happen. previous fn will generate a rich error
+        }
+
+        // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
+        redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
+        totalPendingRequest -= assets;
+        _cancelWithdrawal(requester);
+        IERC20(WSGETH).transferFrom(address(this), receiver, shares); // asset here is the Vault underlying asset
     }
 
     function togglePause(uint16 func) external onlyRole(GOV) {

@@ -20,6 +20,14 @@ abstract contract FIFOQueue {
         epochLength = _epochLength;
     }
 
+    function _verifyEpochHasElapsed(address sender) public view returns (bool epochElapsed)  {
+        UserEntry memory ue = userEntries[sender];
+        if (!(block.number >= ue.blocknum + epochLength)) {
+            revert Errors.TooEarly();
+        }
+        return true;
+    }
+
     function _checkWithdraw(
         address sender,
         uint256 balanceOfSelf,
@@ -30,11 +38,7 @@ abstract contract FIFOQueue {
         if (!(amountToWithdraw <= balanceOfSelf && amountToWithdraw <= ue.amount)) {
             revert Errors.InvalidAmount();
         }
-
-        if (!(block.number >= ue.blocknum + epochLength)) {
-            revert Errors.TooEarly();
-        }
-        return true;
+        return _verifyEpochHasElapsed(sender);
     }
 
     function _isWithdrawalAllowed(
@@ -61,6 +65,10 @@ abstract contract FIFOQueue {
         ue.amount = ue.amount + amount;
         ue.blocknum = block.number;
         userEntries[sender] = ue;
+    }
+
+    function _cancelWithdrawal(address sender) internal {
+        delete userEntries[sender];
     }
 
     function _withdraw(address sender, uint256 amount) internal {
