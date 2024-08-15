@@ -157,7 +157,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     function cancelRedeem(
         address receiver,
         address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
         assets = pendingRedeemRequest(requester);
         uint256 shares = IERC4626(WSGETH).previewDeposit(assets);
         if (shares == 0) {
