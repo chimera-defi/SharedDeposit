@@ -64,6 +64,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         uint256 assets
     );
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
+    event CancelRedeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
 
     constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
         MINTER = _minter;
@@ -158,8 +159,9 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         address receiver,
         address requester
     ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
-        assets = pendingRedeemRequest(requester);
-        uint256 shares = IERC4626(WSGETH).previewDeposit(assets);
+        uint256 shares = pendingRedeemRequest(requester);
+        assets = IERC4626(WSGETH).previewRedeem(shares);
+
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -168,14 +170,17 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
         // checks if we have enough assets to fulfill the request and if epoch has passed
         if (claimableRedeemRequest(requester) < assets) {
+            _checkWithdraw(requester, totalBalance(), assets);
             return 0; // should never happen. previous fn will generate a rich error
         }
 
         // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
         redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
         totalPendingRequest -= assets;
-        _cancelWithdrawal(requester);
-        IERC20(WSGETH).transferFrom(address(this), receiver, shares); // asset here is the Vault underlying asset
+        _withdraw(requester, assets);
+        IERC20(WSGETH).transfer(receiver, shares); // asset here is the Vault underlying asset
+
+        emit CancelRedeem(requester, receiver, shares, assets);
     }
 
     function togglePause(uint16 func) external onlyRole(GOV) {

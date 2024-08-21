@@ -67,10 +67,6 @@ abstract contract FIFOQueue {
         userEntries[sender] = ue;
     }
 
-    function _cancelWithdrawal(address sender) internal {
-        delete userEntries[sender];
-    }
-
     function _withdraw(address sender, uint256 amount) internal {
         UserEntry memory ue = userEntries[sender];
         if (amount > ue.amount) {

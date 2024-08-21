@@ -73,6 +73,38 @@ describe("WithdrawalQueue", () => {
     });
   });
 
+  it("test cancelRedeem flow", async () => {
+    // make redeem request
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+      .to.be.emit(withdrawalQueue, "RedeemRequest")
+      .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+      .to.be.emit(withdrawalQueue, "RedeemRequest")
+      .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
+
+    // confirm redeem request is processeable
+    expect(await withdrawalQueue.pendingRedeemRequest(alice.address)).to.eq(parseEther("10"));
+    expect(await withdrawalQueue.pendingRedeemRequest(bob.address)).to.eq(parseEther("30"));
+    await advanceTimeAndBlock(1);
+    expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
+    expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("30"));
+
+    // cancel 1
+    await expect(withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address))
+      .to.be.emit(withdrawalQueue, "CancelRedeem")
+      .withArgs(alice.address, alice.address, parseEther("10"), parseEther("10"));
+
+    await expect(withdrawalQueue.connect(alice).redeem(parseEther("10"), alice.address, alice.address))
+      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
+      .withArgs();
+
+    await withdrawalQueue.connect(bob).redeem(parseEther("30"), bob.address, bob.address);
+
+    // await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    //   .to.be.emit(withdrawalQueue, "RedeemRequest")
+    //   .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
+  });
+
   it("request redeem flow", async () => {
     await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
