@@ -99,10 +99,6 @@ describe("WithdrawalQueue", () => {
       .withArgs();
 
     await withdrawalQueue.connect(bob).redeem(parseEther("30"), bob.address, bob.address);
-
-    // await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
-    //   .to.be.emit(withdrawalQueue, "RedeemRequest")
-    //   .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
   });
 
   it("request redeem flow", async () => {
