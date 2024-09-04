@@ -87,12 +87,12 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     /// @return requestId The unique ID assigned to this redemption request.
     function requestRedeem(
         uint256 shares,
-        address requester,
-        address owner
-    ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
+        address requester
+    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
+        address owner = msg.sender;
         IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
         requestId = requestsCreated++;
@@ -117,13 +117,13 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     /// @return assets The amount of assets that were successfully redeemed.
     function redeem(
         uint256 shares,
-        address receiver,
-        address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
+        address receiver
+    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
 
+        address requester = msg.sender;
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
         // checks if we have enough assets to fulfill the request and if epoch has passed
@@ -156,17 +156,15 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
     /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired
     function cancelRedeem(
-        address receiver,
-        address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
+        address receiver
+    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
+        address requester = msg.sender;
         uint256 shares = pendingRedeemRequest(requester);
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
-
-        _verifyEpochHasElapsed(requester);
 
         // checks if we have enough assets to fulfill the request and if epoch has passed
         if (claimableRedeemRequest(requester) < assets) {
