@@ -74,10 +74,10 @@ describe("WithdrawalQueue", () => {
   });
 
   it("request redeem flow", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
