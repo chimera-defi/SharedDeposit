@@ -74,6 +74,10 @@ describe("WithdrawalQueue", () => {
   });
 
   it("test cancelRedeem flow", async () => {
+    let startBalAlice = await wsgEth.connect(alice).balanceOf(alice);
+    // await alice.provider.getBalance(alice.address);
+    let startBalBob = await wsgEth.connect(bob).balanceOf(bob);
+    // await bob.provider.getBalance(bob.address);
     // make redeem request
     await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
@@ -99,6 +103,12 @@ describe("WithdrawalQueue", () => {
       .withArgs();
 
     await withdrawalQueue.connect(bob).redeem(parseEther("30"), bob.address);
+
+    let finalBalAlice = await wsgEth.connect(alice).balanceOf(alice);
+    let finalBalBob = await wsgEth.connect(bob).balanceOf(bob);
+  
+    expect(startBalAlice).to.eq(finalBalAlice);
+    expect(startBalBob).to.eq(finalBalBob+parseEther("30"));
   });
 
   it("request redeem flow", async () => {

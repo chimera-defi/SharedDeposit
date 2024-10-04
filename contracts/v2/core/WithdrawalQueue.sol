@@ -159,8 +159,8 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         address receiver
     ) external onlyOwnerOrOperator(receiver) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
         address requester = msg.sender;
-        uint256 shares = pendingRedeemRequest(requester);
-        assets = IERC4626(WSGETH).previewRedeem(shares);
+        assets = pendingRedeemRequest(requester);
+        uint256 shares = IERC4626(WSGETH).previewDeposit(assets);
 
         if (shares == 0) {
             revert Errors.InvalidAmount();
