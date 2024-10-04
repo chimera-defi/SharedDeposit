@@ -10,7 +10,7 @@ import {
   WithdrawalQueue__factory,
 } from "../../../types";
 import chai from "chai";
-import {deployments} from "hardhat";
+import {deployments, ethers} from "hardhat";
 import Ship from "../../../utils/ship";
 import {parseEther} from "ethers";
 import {advanceTimeAndBlock} from "../../../utils/time";
@@ -128,6 +128,7 @@ describe("WithdrawalQueue", () => {
     await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
+    await advanceTimeAndBlock(epoch);
 
     await expect(withdrawalQueue.connect(alice).setOperator(bob.address, true))
       .to.be.emit(withdrawalQueue, "OperatorSet")
@@ -158,10 +159,10 @@ describe("WithdrawalQueue", () => {
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
 
     await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
+      .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
     await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), bob.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
+      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
       .withArgs();
 
     await expect(withdrawalQueue.connect(alice).setOperator(bob.address, true))
@@ -174,13 +175,13 @@ describe("WithdrawalQueue", () => {
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("0"));
 
-    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
-      .withArgs();
+    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address));
     await expect(withdrawalQueue.connect(alice).redeem(parseEther("5"), bob.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
-    await withdrawalQueue.connect(bob).redeem(parseEther("5"), bob.address);
+    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), bob.address))
+      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
+      .withArgs();
     await withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address);
 
     await advanceTimeAndBlock(epoch);
@@ -237,16 +238,19 @@ describe("WithdrawalQueue", () => {
 
   it("request redeem(total request amount is less than 32 ether) from another operator(operator functionality check)", async () => {
     await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
-      .withArgs();
+      .to.be.emit(withdrawalQueue, "RedeemRequest")
+      .withArgs(alice.address, alice.address, 0, alice.address, parseEther("1"));
+    // .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
+    // .withArgs();
 
     await expect(withdrawalQueue.connect(bob).setOperator(alice.address, true))
       .to.be.emit(withdrawalQueue, "OperatorSet")
       .withArgs(bob.address, alice.address, true);
 
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), bob.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
-      .withArgs(alice.address, bob.address, 0, alice.address, parseEther("1"));
+      .withArgs(bob.address, alice.address, 1, alice.address, parseEther("1"));
+
     expect(await withdrawalQueue.pendingRedeemRequest(alice.address)).to.eq(parseEther("1"));
   });
 
@@ -351,5 +355,13 @@ describe("WithdrawalQueue", () => {
     expect(prevBalance - afterBalance).to.eq(parseEther("20"));
     // 10 - 10 = 0
     expect(queuePrevBalance - queueAfterBalance).to.eq(0);
+  });
+
+  it("test governance", async () => {
+    await expect(
+      withdrawalQueue.connect(alice).grantRole(ethers.keccak256(ethers.toUtf8Bytes("GOV")), alice.address),
+    ).to.be.revertedWith(
+      "AccessControl: account 0x90f79bf6eb2c4f870365e785982e1f101e93b906 is missing role 0x0000000000000000000000000000000000000000000000000000000000000000",
+    );
   });
 });

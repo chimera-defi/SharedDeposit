@@ -88,7 +88,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     function requestRedeem(
         uint256 shares,
         address requester
-    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -100,7 +100,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         // use assets for tracking
         uint256 assets = IERC4626(WSGETH).previewRedeem(shares);
 
-        _stakeForWithdrawal(owner, assets);
+        _stakeForWithdrawal(requester, assets);
         totalPendingRequest += assets;
         redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
 
@@ -118,7 +118,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     function redeem(
         uint256 shares,
         address receiver
-    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(receiver) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -127,14 +127,14 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
         // checks if we have enough assets to fulfill the request and if epoch has passed
-        if (claimableRedeemRequest(requester) < assets) {
-            _checkWithdraw(requester, totalBalance(), assets);
+        if (claimableRedeemRequest(receiver) < assets) {
+            _checkWithdraw(receiver, totalBalance(), assets);
             return 0; // should never happen. previous fn will generate a rich error
         }
 
-        _withdraw(requester, assets);
+        _withdraw(receiver, assets);
         // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
-        redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
+        redeemRequests[receiver] -= assets; // underflow would revert if not enough claimable shares
         totalPendingRequest -= assets;
         // Track total returned
         totalAssetsOut += assets;
@@ -157,7 +157,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired
     function cancelRedeem(
         address receiver
-    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(receiver) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
         address requester = msg.sender;
         uint256 shares = pendingRedeemRequest(requester);
         assets = IERC4626(WSGETH).previewRedeem(shares);
