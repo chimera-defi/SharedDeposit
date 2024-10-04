@@ -46,10 +46,10 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     address public immutable MINTER;
     address public immutable WSGETH;
 
-    uint256 internal totalPendingRequest;
     uint256 internal requestsCreated;
     uint256 internal requestsFulfilled;
     uint256 public totalAssetsOut;
+    uint256 public totalPendingRequest;
 
     bytes32 public constant GOV = keccak256("GOV"); // Governance for settings - normally timelock controlled by multisig
 
