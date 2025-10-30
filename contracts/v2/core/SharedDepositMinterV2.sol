@@ -256,20 +256,37 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
 
     function _withdrawAccounting(uint256 amount) internal returns (uint256) {
         uint256 fee;
+        uint256 finalAmount = amount;
+        uint256 requiredAdminFeeReserve = adminFeeTotal;
+        
         if (address(_feeCalc) != address(0)) {
-            (amount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
+            (finalAmount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
+            
+            // Calculate what adminFeeTotal will be after this transaction
+            if (refundFeesOnWithdraw) {
+                requiredAdminFeeReserve = adminFeeTotal - fee;
+            } else {
+                requiredAdminFeeReserve = adminFeeTotal + fee;
+            }
+        }
+        
+        // CRITICAL FIX: Check balance requirements BEFORE modifying adminFeeTotal
+        // We need enough balance for: withdrawal amount + admin fee reserve (after this tx)
+        if (address(this).balance < (finalAmount + requiredAdminFeeReserve)) {
+            revert AmountTooHigh();
+        }
+        
+        // Now safe to modify adminFeeTotal
+        if (address(_feeCalc) != address(0)) {
             if (refundFeesOnWithdraw) {
                 adminFeeTotal = adminFeeTotal - fee;
             } else {
                 adminFeeTotal = adminFeeTotal + fee;
             }
         }
-        if (address(this).balance < (amount + adminFeeTotal)) {
-            revert AmountTooHigh();
-        }
 
-        curValidatorShares = curValidatorShares - amount;
-        return amount;
+        curValidatorShares = curValidatorShares - finalAmount;
+        return finalAmount;
     }
 
     function _deposit(address dest) internal nonReentrant whenNotPaused returns (uint256 amt) {
