@@ -46,6 +46,10 @@ contract FeeCalc is Ownable2Step {
         if (config.chargeOnDeposit) {
             fee = (value * adminFee) / BIPS;
             amt = value - fee;
+        } else {
+            // CRITICAL FIX: Initialize return values when no fee is charged
+            fee = 0;
+            amt = value;
         }
     }
 
