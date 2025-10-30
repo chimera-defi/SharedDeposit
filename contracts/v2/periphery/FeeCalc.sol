@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {Errors} from "../lib/Errors.sol";
 
 contract FeeCalc is Ownable2Step {
     struct Settings {
@@ -17,9 +16,9 @@ contract FeeCalc is Ownable2Step {
     uint256 public costPerValidator;
 
     uint256 private immutable BIPS = 10000;
-    
+
     error FeeTooHigh();
-    
+
     constructor(Settings memory _settings) Ownable2Step() {
         // admin fee in bips (10000 = 100%)
         if (_settings.adminFee > BIPS) revert FeeTooHigh();
@@ -64,7 +63,7 @@ contract FeeCalc is Ownable2Step {
     /// @param _sender The address making the deposit (currently unused, reserved for future fee reduction logic)
     /// @return amt The amount to mint after fees
     /// @return fee The fee amount deducted
-    function processDeposit(uint256 value, address _sender) external view returns (uint256 amt, uint256 fee) {
+    function processDeposit(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee) {
         // TODO: _sender is currently unused but can be used later to calculate a fee reduction based on token holdings
         if (config.chargeOnDeposit) {
             fee = (value * adminFee) / BIPS;
@@ -81,7 +80,7 @@ contract FeeCalc is Ownable2Step {
     /// @param _sender The address making the withdrawal (currently unused, reserved for future fee reduction logic)
     /// @return amt The amount to return after fees
     /// @return fee The fee amount (positive if refunding, negative if charging)
-    function processWithdraw(uint256 value, address _sender) external view returns (uint256 amt, uint256 fee) {
+    function processWithdraw(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee) {
         // TODO: _sender is currently unused but can be used later to calculate a fee reduction based on token holdings
         if (config.refundFeesOnWithdraw) {
             fee = (value * adminFee) / BIPS;

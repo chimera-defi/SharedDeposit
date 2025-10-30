@@ -152,7 +152,7 @@ describe("SharedDepositMinterV2", () => {
 
       // Verify adminFeeTotal decreased (refunded)
       const finalAdminFeeTotal = await minter.adminFeeTotal();
-      const expectedFee = withdrawAmount * BigInt(100) / BigInt(10000);
+      const expectedFee = (withdrawAmount * BigInt(100)) / BigInt(10000);
       expect(finalAdminFeeTotal).to.eq(initialAdminFeeTotal - expectedFee);
 
       // Verify accounting is correct (balance check passed)
@@ -189,7 +189,7 @@ describe("SharedDepositMinterV2", () => {
 
       // Verify adminFeeTotal increased (fee collected)
       const finalAdminFeeTotal = await minter.adminFeeTotal();
-      const expectedFee = withdrawAmount * BigInt(50) / BigInt(10000);
+      const expectedFee = (withdrawAmount * BigInt(50)) / BigInt(10000);
       expect(finalAdminFeeTotal).to.eq(initialAdminFeeTotal + expectedFee);
 
       // Verify accounting is correct

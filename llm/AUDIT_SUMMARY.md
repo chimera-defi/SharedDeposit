@@ -16,14 +16,14 @@ The function now properly initializes return values in all code paths:
 
 ```solidity
 function processDeposit(uint256 value, address _sender) external view returns (uint256 amt, uint256 fee) {
-    if (config.chargeOnDeposit) {
-        fee = (value * adminFee) / BIPS;
-        amt = value - fee;
-    } else {
-        // CRITICAL FIX: Initialize return values when no fee is charged
-        fee = 0;
-        amt = value;
-    }
+  if (config.chargeOnDeposit) {
+    fee = (value * adminFee) / BIPS;
+    amt = value - fee;
+  } else {
+    // CRITICAL FIX: Initialize return values when no fee is charged
+    fee = 0;
+    amt = value;
+  }
 }
 ```
 
@@ -31,16 +31,17 @@ function processDeposit(uint256 value, address _sender) external view returns (u
 
 ### Vulnerabilities Found
 
-| Severity | Count | Status |
-|----------|-------|--------|
-| 🔴 Critical | 1 | **FIXED** ✅ |
-| 🟠 High | 2 | Needs Review |
-| 🟡 Medium | 5 | Needs Review |
-| 🟢 Low | 2 | Needs Review |
+| Severity    | Count | Status       |
+| ----------- | ----- | ------------ |
+| 🔴 Critical | 1     | **FIXED** ✅ |
+| 🟠 High     | 2     | Needs Review |
+| 🟡 Medium   | 5     | Needs Review |
+| 🟢 Low      | 2     | Needs Review |
 
 ### Backdoor Analysis
 
 ✅ **No malicious backdoors detected**
+
 - No unauthorized delegatecall found
 - No selfdestruct found
 - No hidden functions detected

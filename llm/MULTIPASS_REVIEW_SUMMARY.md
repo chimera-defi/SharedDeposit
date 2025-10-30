@@ -55,23 +55,31 @@ Performed multipass review following `.cursorrules` guidelines (4 passes complet
 ## Changes Made
 
 ### 1. Critical Bug Fix ✅
+
 **File**: `contracts/v2/periphery/FeeCalc.sol`
+
 - Fixed `processDeposit()` to initialize return values when `chargeOnDeposit` is false
 - Prevents total loss of user funds
 
 ### 2. Added NatSpec Documentation ✅
+
 **File**: `contracts/v2/periphery/FeeCalc.sol`
+
 - Added `@notice`, `@param`, and `@return` documentation for all public/external functions
 - Follows OpenZeppelin NatSpec patterns
 
 ### 3. Input Validation ✅
+
 **File**: `contracts/v2/periphery/FeeCalc.sol`
+
 - Added bounds checking in constructor
 - Added bounds checking in `set()`, `setExitFee()`, and `setAdminFee()`
 - Prevents fees > 100% (BIPS)
 
 ### 4. Error Handling ✅
+
 **File**: `contracts/v2/periphery/FeeCalc.sol`
+
 - Added custom error `FeeTooHigh()` following project conventions
 - Replaced `require()` statements with `revert FeeTooHigh()`
 - Matches project's error handling patterns

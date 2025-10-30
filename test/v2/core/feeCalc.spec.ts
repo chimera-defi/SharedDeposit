@@ -65,7 +65,7 @@ describe("FeeCalc - Critical Bug Fixes", () => {
 
       const depositAmount = parseEther("10");
       const result = await feeCalc.processDeposit(depositAmount, alice.address);
-      
+
       expect(result.amt).to.eq(depositAmount);
       expect(result.fee).to.eq(0);
     });
@@ -82,10 +82,10 @@ describe("FeeCalc - Critical Bug Fixes", () => {
 
       const depositAmount = parseEther("10");
       const result = await feeCalc.processDeposit(depositAmount, alice.address);
-      
-      const expectedFee = depositAmount * BigInt(100) / BigInt(10000); // 1%
+
+      const expectedFee = (depositAmount * BigInt(100)) / BigInt(10000); // 1%
       const expectedAmt = depositAmount - expectedFee;
-      
+
       expect(result.amt).to.eq(expectedAmt);
       expect(result.fee).to.eq(expectedFee);
     });
@@ -93,13 +93,13 @@ describe("FeeCalc - Critical Bug Fixes", () => {
     it("should allow deposits when chargeOnDeposit is false (integration test)", async () => {
       // Integration test: deposit through minter when chargeOnDeposit is false
       const depositAmount = parseEther("5");
-      
+
       const prevBalance = await sgEth.balanceOf(alice.address);
       await minter.connect(alice).deposit({
         value: depositAmount,
       });
       const afterBalance = await sgEth.balanceOf(alice.address);
-      
+
       // User should receive tokens equal to deposit (no fee when chargeOnDeposit is false)
       expect(afterBalance - prevBalance).to.eq(depositAmount);
     });
@@ -117,10 +117,10 @@ describe("FeeCalc - Critical Bug Fixes", () => {
 
       const withdrawAmount = parseEther("10");
       const result = await feeCalc.processWithdraw(withdrawAmount, alice.address);
-      
-      const expectedFee = withdrawAmount * BigInt(100) / BigInt(10000);
+
+      const expectedFee = (withdrawAmount * BigInt(100)) / BigInt(10000);
       const expectedAmt = withdrawAmount + expectedFee; // Refund adds to amount
-      
+
       expect(result.amt).to.eq(expectedAmt);
       expect(result.fee).to.eq(expectedFee);
     });
@@ -136,10 +136,10 @@ describe("FeeCalc - Critical Bug Fixes", () => {
 
       const withdrawAmount = parseEther("10");
       const result = await feeCalc.processWithdraw(withdrawAmount, alice.address);
-      
-      const expectedFee = withdrawAmount * BigInt(50) / BigInt(10000);
+
+      const expectedFee = (withdrawAmount * BigInt(50)) / BigInt(10000);
       const expectedAmt = withdrawAmount - expectedFee;
-      
+
       expect(result.amt).to.eq(expectedAmt);
       expect(result.fee).to.eq(expectedFee);
     });
@@ -155,7 +155,7 @@ describe("FeeCalc - Critical Bug Fixes", () => {
 
       const withdrawAmount = parseEther("10");
       const result = await feeCalc.processWithdraw(withdrawAmount, alice.address);
-      
+
       expect(result.amt).to.eq(withdrawAmount);
       expect(result.fee).to.eq(0);
     });
@@ -170,7 +170,7 @@ describe("FeeCalc - Critical Bug Fixes", () => {
           refundFeesOnWithdraw: false,
           chargeOnDeposit: false,
           chargeOnExit: false,
-        })
+        }),
       ).to.be.revertedWithCustomError(feeCalc, "FeeTooHigh");
     });
 
@@ -182,7 +182,7 @@ describe("FeeCalc - Critical Bug Fixes", () => {
           refundFeesOnWithdraw: false,
           chargeOnDeposit: false,
           chargeOnExit: false,
-        })
+        }),
       ).to.be.revertedWithCustomError(feeCalc, "FeeTooHigh");
     });
 
@@ -194,7 +194,7 @@ describe("FeeCalc - Critical Bug Fixes", () => {
           refundFeesOnWithdraw: false,
           chargeOnDeposit: false,
           chargeOnExit: false,
-        })
+        }),
       ).to.not.be.reverted;
     });
   });

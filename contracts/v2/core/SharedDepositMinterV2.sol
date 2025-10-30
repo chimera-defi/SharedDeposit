@@ -258,10 +258,10 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
         uint256 fee;
         uint256 finalAmount = amount;
         uint256 requiredAdminFeeReserve = adminFeeTotal;
-        
+
         if (address(_feeCalc) != address(0)) {
             (finalAmount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
-            
+
             // Calculate what adminFeeTotal will be after this transaction
             if (refundFeesOnWithdraw) {
                 requiredAdminFeeReserve = adminFeeTotal - fee;
@@ -269,13 +269,14 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
                 requiredAdminFeeReserve = adminFeeTotal + fee;
             }
         }
-        
+
         // CRITICAL FIX: Check balance requirements BEFORE modifying adminFeeTotal
         // We need enough balance for: withdrawal amount + admin fee reserve (after this tx)
+        // This prevents race conditions and ensures accounting correctness
         if (address(this).balance < (finalAmount + requiredAdminFeeReserve)) {
             revert AmountTooHigh();
         }
-        
+
         // Now safe to modify adminFeeTotal
         if (address(_feeCalc) != address(0)) {
             if (refundFeesOnWithdraw) {
