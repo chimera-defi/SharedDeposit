@@ -16,6 +16,7 @@ contract FeeCalc is Ownable2Step {
     uint256 public costPerValidator;
 
     uint256 private immutable BIPS = 10000;
+
     constructor(Settings memory _settings) Ownable2Step() {
         // admin fee in bips (10000 = 100%)
         adminFee = _settings.adminFee;
@@ -41,16 +42,16 @@ contract FeeCalc is Ownable2Step {
         config.adminFee = amount;
     }
 
-    function processDeposit(uint256 value, address _sender) external view returns (uint256 amt, uint256 fee) {
-        // TODO: semder is currently unsused but can be used later to calculate a fee reduction based on token holdings
+    function processDeposit(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee) {
+        // TODO: sender is currently unused but can be used later to calculate a fee reduction based on token holdings
         if (config.chargeOnDeposit) {
             fee = (value * adminFee) / BIPS;
             amt = value - fee;
         }
     }
 
-    function processWithdraw(uint256 value, address _sender) external view returns (uint256 amt, uint256 fee) {
-        // TODO: semder is currently unsused but can be used later to calculate a fee reduction based on token holdings
+    function processWithdraw(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee) {
+        // TODO: sender is currently unused but can be used later to calculate a fee reduction based on token holdings
         if (config.refundFeesOnWithdraw) {
             fee = (value * adminFee) / BIPS;
             amt = value + fee;

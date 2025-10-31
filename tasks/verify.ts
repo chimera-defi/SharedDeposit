@@ -7,6 +7,7 @@ task("upload", "Verifies deployed contract")
     const contractName = taskArgs.contract;
     const contract = await getContractSource(hre, contractName);
     const networkName = hre.network.name;
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const artifacts = require(`../deployments/${networkName}/${contractName}.json`);
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructorArguments = (artifacts.args as any[]) || [];
@@ -27,6 +28,7 @@ task("upload:batch", "Verifies deployed contracts")
     for (const contractName of contractNames) {
       const contract = await getContractSource(hre, contractName);
       const networkName = hre.network.name;
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const artifacts = require(`../deployments/${networkName}/${contractName}.json`);
       //eslint-disable-next-line @typescript-eslint/no-explicit-any
       const constructorArguments = (artifacts.args as any[]) || [];
@@ -38,6 +40,7 @@ task("upload:batch", "Verifies deployed contracts")
           contract,
         });
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(error);
       }
     }

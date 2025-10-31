@@ -11,8 +11,6 @@ import {
   FeeCalc,
   FeeCalc__factory,
 } from "../types";
-import {ZeroAddress} from "ethers";
-
 const func: DeployFunction = async hre => {
   const {deploy, connect, accounts} = await Ship.init(hre);
 
@@ -20,11 +18,11 @@ const func: DeployFunction = async hre => {
   const wsgEth = (await connect(WSGETH__factory)) as WSGETH;
   const feeCalc = (await connect(FeeCalc__factory)) as FeeCalc;
 
-  let chainId = await hre.getChainId();
+  const chainId = await hre.getChainId();
 
   let depositContractAddr;
   if (chainId != "1") {
-    let depositContract = (await connect(DepositContract__factory)) as DepositContract;
+    const depositContract = (await connect(DepositContract__factory)) as DepositContract;
     depositContractAddr = depositContract.target;
   } else {
     depositContractAddr = "0x00000000219ab540356cBB839Cbe05303d7705Fa";
@@ -54,6 +52,7 @@ const func: DeployFunction = async hre => {
 
   if (minter.newlyDeployed) {
     const tx = await sgEth.addMinter(minter.address);
+    // eslint-disable-next-line no-console
     console.log("Adding minter role at", tx.hash);
     await tx.wait();
   }
