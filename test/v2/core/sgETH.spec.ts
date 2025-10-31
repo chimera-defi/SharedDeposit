@@ -8,7 +8,7 @@ import chai from "chai";
 const {expect} = chai;
 
 let ship: Ship;
-let sgEth: SgETH, deployer: SignerWithAddress, alice: SignerWithAddress, multiSig: SignerWithAddress;
+let sgEth: SgETH, deployer: SignerWithAddress, alice: SignerWithAddress, _multiSig: SignerWithAddress;
 let MINTER_ROLE: string;
 
 const setup = deployments.createFixture(async hre => {
@@ -31,7 +31,7 @@ describe("SgETH.sol", () => {
 
     deployer = accounts.deployer;
     alice = accounts.alice;
-    multiSig = accounts.multiSig;
+    _multiSig = accounts.multiSig;
 
     MINTER_ROLE = await sgEth.MINTER();
   });

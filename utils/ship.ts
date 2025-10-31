@@ -1,7 +1,7 @@
 import hardhatRuntimeEnvironment, {ethers} from "hardhat";
 import {Contract, ContractFactory} from "ethers";
 import {HardhatRuntimeEnvironment} from "hardhat/types";
-import {DeployOptions, DiamondOptions} from "hardhat-deploy/types";
+import {DeployOptions} from "hardhat-deploy/types";
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
 type Modify<T, R> = Omit<T, keyof R> & R;

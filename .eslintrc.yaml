@@ -21,6 +21,7 @@ rules:
   "@typescript-eslint/no-unused-vars":
     - error
     - argsIgnorePattern: "^_"
+      varsIgnorePattern: "^_"
   no-console: warn
 
 ignorePatterns:

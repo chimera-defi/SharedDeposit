@@ -17,13 +17,13 @@ import {parseEther} from "ethers";
 const {expect} = chai;
 
 let ship: Ship;
-let sgEth: SgETH,
-  minter: SharedDepositMinterV2,
-  wsgEth: WSGETH,
+let _sgEth: SgETH,
+  _minter: SharedDepositMinterV2,
+  _wsgEth: WSGETH,
   rewardsReceiver: RewardsReceiver,
   deployer: SignerWithAddress,
   alice: SignerWithAddress,
-  multiSig: SignerWithAddress;
+  _multiSig: SignerWithAddress;
 
 const setup = deployments.createFixture(async hre => {
   ship = await Ship.init(hre);
@@ -41,14 +41,14 @@ describe("RewardsReceiver", () => {
   beforeEach(async () => {
     const {ship, accounts} = await setup();
 
-    sgEth = await ship.connect(SgETH__factory);
-    minter = await ship.connect(SharedDepositMinterV2__factory);
-    wsgEth = await ship.connect(WSGETH__factory);
+    _sgEth = await ship.connect(SgETH__factory);
+    _minter = await ship.connect(SharedDepositMinterV2__factory);
+    _wsgEth = await ship.connect(WSGETH__factory);
     rewardsReceiver = await ship.connect(RewardsReceiver__factory);
 
     deployer = accounts.deployer;
     alice = accounts.alice;
-    multiSig = accounts.multiSig;
+    _multiSig = accounts.multiSig;
   });
 
   it("work", async () => {
