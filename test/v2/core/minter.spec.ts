@@ -122,6 +122,85 @@ describe("SharedDepositMinterV2", () => {
       expect(afterBalance).to.eq(prevBalance - parseEther("0.5"));
     });
 
+    it("withdraw with fee refund - accounting fix test", async () => {
+      // Deploy FeeCalc with chargeOnDeposit to collect fees first
+      const FeeCalcFactory = await ship.hre.ethers.getContractFactory("FeeCalc");
+      const feeCalc = await FeeCalcFactory.deploy({
+        adminFee: 100, // 1%
+        exitFee: 50,
+        refundFeesOnWithdraw: false,
+        chargeOnDeposit: true, // Charge fees on deposit to build up adminFeeTotal
+        chargeOnExit: false,
+      });
+
+      // Set feeCalc
+      await minter.connect(multiSig).setFeeCalc(feeCalc.target);
+
+      // Deposit some ETH with fees charged to build up adminFeeTotal
+      await minter.connect(alice).deposit({
+        value: parseEther("10"),
+      });
+
+      // Now enable refundFeesOnWithdraw
+      await feeCalc.setRefundFeesOnWithdraw(true);
+      await minter.connect(multiSig).toggleWithdrawRefund();
+
+      // Get initial balances
+      const initialEthBalance = await ship.hre.ethers.provider.getBalance(minter.target);
+      const initialAdminFeeTotal = await minter.adminFeeTotal();
+
+      // Withdraw should refund fees
+      const withdrawAmount = parseEther("5");
+      await minter.connect(alice).withdraw(withdrawAmount);
+
+      // Verify adminFeeTotal decreased (refunded)
+      const finalAdminFeeTotal = await minter.adminFeeTotal();
+      const expectedFee = (withdrawAmount * BigInt(100)) / BigInt(10000);
+      expect(finalAdminFeeTotal).to.eq(initialAdminFeeTotal - expectedFee);
+
+      // Verify accounting is correct (balance check passed)
+      const finalEthBalance = await ship.hre.ethers.provider.getBalance(minter.target);
+      const expectedRefund = withdrawAmount + expectedFee; // User gets amount + fee refund
+      expect(initialEthBalance - finalEthBalance).to.eq(expectedRefund);
+    });
+
+    it("withdraw with exit fee - accounting fix test", async () => {
+      // Deploy FeeCalc with chargeOnExit = true
+      const FeeCalcFactory = await ship.hre.ethers.getContractFactory("FeeCalc");
+      const feeCalc = await FeeCalcFactory.deploy({
+        adminFee: 100,
+        exitFee: 50, // 0.5%
+        refundFeesOnWithdraw: false,
+        chargeOnDeposit: false,
+        chargeOnExit: true,
+      });
+
+      await minter.connect(multiSig).setFeeCalc(feeCalc.target);
+
+      // Deposit some ETH
+      await minter.connect(alice).deposit({
+        value: parseEther("10"),
+      });
+
+      // Get initial balances
+      const initialEthBalance = await ship.hre.ethers.provider.getBalance(minter.target);
+      const initialAdminFeeTotal = await minter.adminFeeTotal();
+
+      // Withdraw should charge exit fee
+      const withdrawAmount = parseEther("5");
+      await minter.connect(alice).withdraw(withdrawAmount);
+
+      // Verify adminFeeTotal increased (fee collected)
+      const finalAdminFeeTotal = await minter.adminFeeTotal();
+      const expectedFee = (withdrawAmount * BigInt(50)) / BigInt(10000);
+      expect(finalAdminFeeTotal).to.eq(initialAdminFeeTotal + expectedFee);
+
+      // Verify accounting is correct
+      const finalEthBalance = await ship.hre.ethers.provider.getBalance(minter.target);
+      const expectedWithdrawal = withdrawAmount - expectedFee; // User gets amount - fee
+      expect(initialEthBalance - finalEthBalance).to.eq(expectedWithdrawal);
+    });
+
     it("unstakeAndWithdraw", async () => {
       await minter.connect(alice).depositAndStake({
         value: parseEther("1"),

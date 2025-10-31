@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.20;
 
 // Modulate how much user ETH node operators can stake
 // Sliding scale starting at 100% user ETH going to protocol staking
@@ -7,5 +8,5 @@
 // This contract will own the minter
 
 contract ETHDepositScaler {
-    constructor() {}
+    constructor() {} // solhint-disable-line no-empty-blocks
 }
