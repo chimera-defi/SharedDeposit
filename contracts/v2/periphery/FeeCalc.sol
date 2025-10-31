@@ -60,7 +60,6 @@ contract FeeCalc is Ownable2Step {
 
     /// @notice Calculates deposit amount and fee after processing
     /// @param value The deposit amount in wei
-    /// @param _sender The address making the deposit (currently unused, reserved for future fee reduction logic)
     /// @return amt The amount to mint after fees
     /// @return fee The fee amount deducted
     function processDeposit(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee) {
@@ -77,7 +76,6 @@ contract FeeCalc is Ownable2Step {
 
     /// @notice Calculates withdrawal amount and fee after processing
     /// @param value The withdrawal amount in wei
-    /// @param _sender The address making the withdrawal (currently unused, reserved for future fee reduction logic)
     /// @return amt The amount to return after fees
     /// @return fee The fee amount (positive if refunding, negative if charging)
     function processWithdraw(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee) {

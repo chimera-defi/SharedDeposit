@@ -123,24 +123,27 @@ describe("SharedDepositMinterV2", () => {
     });
 
     it("withdraw with fee refund - accounting fix test", async () => {
-      // Deploy FeeCalc with refundFeesOnWithdraw = true
+      // Deploy FeeCalc with chargeOnDeposit to collect fees first
       const FeeCalcFactory = await ship.hre.ethers.getContractFactory("FeeCalc");
       const feeCalc = await FeeCalcFactory.deploy({
         adminFee: 100, // 1%
         exitFee: 50,
-        refundFeesOnWithdraw: true,
-        chargeOnDeposit: false,
+        refundFeesOnWithdraw: false,
+        chargeOnDeposit: true, // Charge fees on deposit to build up adminFeeTotal
         chargeOnExit: false,
       });
 
-      // Set feeCalc and enable refund
+      // Set feeCalc
       await minter.connect(multiSig).setFeeCalc(feeCalc.target);
-      await minter.connect(multiSig).toggleWithdrawRefund();
 
-      // Deposit some ETH
+      // Deposit some ETH with fees charged to build up adminFeeTotal
       await minter.connect(alice).deposit({
         value: parseEther("10"),
       });
+
+      // Now enable refundFeesOnWithdraw
+      await feeCalc.setRefundFeesOnWithdraw(true);
+      await minter.connect(multiSig).toggleWithdrawRefund();
 
       // Get initial balances
       const initialEthBalance = await ship.hre.ethers.provider.getBalance(minter.target);

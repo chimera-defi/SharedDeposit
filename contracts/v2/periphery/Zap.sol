@@ -9,26 +9,26 @@ import {ISharedDeposit} from "../../interfaces/ISharedDeposit.sol";
 contract Zap {
     IERC20MintableBurnable public sgeth;
     IWSGEth public wsgeth;
-    ISharedDeposit public MINTER;
+    ISharedDeposit public minter; // solhint-disable-line var-name-mixedcase
 
     constructor(IERC20MintableBurnable _sgETHAddr, IWSGEth _wsgETHAddr, ISharedDeposit _minter) {
         sgeth = _sgETHAddr;
         wsgeth = _wsgETHAddr;
-        MINTER = _minter;
-        uint256 MAX_INT = 2 ** 256 - 1;
+        minter = _minter;
+        uint256 maxInt = 2 ** 256 - 1; // solhint-disable-line var-name-mixedcase
 
-        sgeth.approve(address(_wsgETHAddr), MAX_INT);
-        sgeth.approve(address(_minter), MAX_INT);
+        sgeth.approve(address(_wsgETHAddr), maxInt);
+        sgeth.approve(address(_minter), maxInt);
     }
 
     function depositAndStake() external payable {
         uint256 amt = msg.value;
-        MINTER.deposit{value: amt}();
+        minter.deposit{value: amt}();
         wsgeth.deposit(amt, msg.sender);
     }
 
     function unstakeAndWithdraw(uint256 amount) external {
         uint256 assets = wsgeth.redeem(amount, address(this), msg.sender);
-        MINTER.withdraw(assets, msg.sender);
+        minter.withdraw(assets, msg.sender);
     }
 }

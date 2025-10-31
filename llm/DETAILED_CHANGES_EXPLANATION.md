@@ -6,7 +6,7 @@ This document provides a detailed explanation of all code changes made during th
 
 ---
 
-## Change #1: SharedDepositMinterV2._withdrawAccounting() - Fix Accounting Order
+## Change #1: SharedDepositMinterV2.\_withdrawAccounting() - Fix Accounting Order
 
 ### What Changed
 
@@ -17,20 +17,21 @@ This document provides a detailed explanation of all code changes made during th
 
 ```solidity
 function _withdrawAccounting(uint256 amount) internal returns (uint256) {
-    uint256 fee;
-    if (address(_feeCalc) != address(0)) {
-        (amount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
-        if (refundFeesOnWithdraw) {
-            adminFeeTotal = adminFeeTotal - fee;  // ❌ MODIFY STATE FIRST
-        } else {
-            adminFeeTotal = adminFeeTotal + fee;
-        }
+  uint256 fee;
+  if (address(_feeCalc) != address(0)) {
+    (amount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
+    if (refundFeesOnWithdraw) {
+      adminFeeTotal = adminFeeTotal - fee; // ❌ MODIFY STATE FIRST
+    } else {
+      adminFeeTotal = adminFeeTotal + fee;
     }
-    if (address(this).balance < (amount + adminFeeTotal)) {  // ❌ CHECK AFTER MODIFICATION
-        revert AmountTooHigh();
-    }
-    curValidatorShares = curValidatorShares - amount;
-    return amount;
+  }
+  if (address(this).balance < (amount + adminFeeTotal)) {
+    // ❌ CHECK AFTER MODIFICATION
+    revert AmountTooHigh();
+  }
+  curValidatorShares = curValidatorShares - amount;
+  return amount;
 }
 ```
 
@@ -38,41 +39,41 @@ function _withdrawAccounting(uint256 amount) internal returns (uint256) {
 
 ```solidity
 function _withdrawAccounting(uint256 amount) internal returns (uint256) {
-    uint256 fee;
-    uint256 finalAmount = amount;
-    uint256 requiredAdminFeeReserve = adminFeeTotal;  // ✅ Calculate future state
-    
-    if (address(_feeCalc) != address(0)) {
-        (finalAmount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
-        
-        // Calculate what adminFeeTotal will be after this transaction
-        if (refundFeesOnWithdraw) {
-            requiredAdminFeeReserve = adminFeeTotal - fee;  // ✅ Calculate, don't modify
-        } else {
-            requiredAdminFeeReserve = adminFeeTotal + fee;
-        }
-    }
-    
-    // ✅ CHECK BEFORE MODIFYING STATE
-    // CRITICAL FIX: Check balance requirements BEFORE modifying adminFeeTotal
-    // We need enough balance for: withdrawal amount + admin fee reserve (after this tx)
-    // This prevents race conditions and ensures accounting correctness
-    if (address(this).balance < (finalAmount + requiredAdminFeeReserve)) {
-        revert AmountTooHigh();
-    }
-    
-    // ✅ NOW SAFE TO MODIFY STATE
-    // Now safe to modify adminFeeTotal
-    if (address(_feeCalc) != address(0)) {
-        if (refundFeesOnWithdraw) {
-            adminFeeTotal = adminFeeTotal - fee;  // ✅ Modify after check
-        } else {
-            adminFeeTotal = adminFeeTotal + fee;
-        }
-    }
+  uint256 fee;
+  uint256 finalAmount = amount;
+  uint256 requiredAdminFeeReserve = adminFeeTotal; // ✅ Calculate future state
 
-    curValidatorShares = curValidatorShares - finalAmount;
-    return finalAmount;
+  if (address(_feeCalc) != address(0)) {
+    (finalAmount, fee) = _feeCalc.processWithdraw(amount, msg.sender);
+
+    // Calculate what adminFeeTotal will be after this transaction
+    if (refundFeesOnWithdraw) {
+      requiredAdminFeeReserve = adminFeeTotal - fee; // ✅ Calculate, don't modify
+    } else {
+      requiredAdminFeeReserve = adminFeeTotal + fee;
+    }
+  }
+
+  // ✅ CHECK BEFORE MODIFYING STATE
+  // CRITICAL FIX: Check balance requirements BEFORE modifying adminFeeTotal
+  // We need enough balance for: withdrawal amount + admin fee reserve (after this tx)
+  // This prevents race conditions and ensures accounting correctness
+  if (address(this).balance < (finalAmount + requiredAdminFeeReserve)) {
+    revert AmountTooHigh();
+  }
+
+  // ✅ NOW SAFE TO MODIFY STATE
+  // Now safe to modify adminFeeTotal
+  if (address(_feeCalc) != address(0)) {
+    if (refundFeesOnWithdraw) {
+      adminFeeTotal = adminFeeTotal - fee; // ✅ Modify after check
+    } else {
+      adminFeeTotal = adminFeeTotal + fee;
+    }
+  }
+
+  curValidatorShares = curValidatorShares - finalAmount;
+  return finalAmount;
 }
 ```
 
@@ -84,11 +85,13 @@ function _withdrawAccounting(uint256 amount) internal returns (uint256) {
 The original code violated the Checks-Effects-Interactions (CEI) pattern by modifying state before checking if the operation is valid. This is a fundamental security anti-pattern in Solidity.
 
 **Standard CEI Pattern:**
+
 1. **CHECKS**: Validate all conditions
 2. **EFFECTS**: Modify state variables
 3. **INTERACTIONS**: Make external calls
 
 **Why CEI Matters:**
+
 - Prevents reentrancy attacks
 - Prevents race conditions
 - Ensures atomic operations
@@ -97,6 +100,7 @@ The original code violated the Checks-Effects-Interactions (CEI) pattern by modi
 #### 2. Race Condition Vulnerability
 
 **Scenario:**
+
 ```
 Contract state: balance = 100 ETH, adminFeeTotal = 10 ETH
 
@@ -119,6 +123,7 @@ Both transactions pass because they're checking against modified values.
 ```
 
 **With the Fix:**
+
 ```
 Transaction 1:
 1. Calculate: requiredAdminFeeReserve = 10 - 1 = 9 ETH (future state)
@@ -141,12 +146,14 @@ state at the start of the transaction, not a modified state mid-transaction.
 #### 3. Accounting Correctness
 
 **The Fix Ensures:**
+
 - Balance check uses the calculated FUTURE state (`requiredAdminFeeReserve`)
 - This represents what `adminFeeTotal` WILL BE after this transaction
 - We verify we have enough balance for: `finalAmount + requiredAdminFeeReserve`
 - This ensures we always have enough ETH for both the withdrawal AND the admin fee reserve
 
 **Example:**
+
 ```
 Initial: balance = 100 ETH, adminFeeTotal = 10 ETH
 Withdraw: 90 ETH, refundFeesOnWithdraw = true, fee = 1 ETH
@@ -189,20 +196,24 @@ SUFFICIENT!
 ### Changes Made
 
 1. **Removed Unused Import** (Line 5)
+
    ```solidity
    // REMOVED:
    import {Errors} from "../lib/Errors.sol";
    ```
+
    **Reason**: The `Errors` library was imported but never used. The contract uses its own `FeeTooHigh()` error instead.
 
 2. **Fixed Unused Parameter Warnings** (Lines 66, 83)
+
    ```solidity
    // BEFORE:
    function processDeposit(uint256 value, address _sender) external view returns (uint256 amt, uint256 fee)
-   
+
    // AFTER:
    function processDeposit(uint256 value, address /* _sender */) external view returns (uint256 amt, uint256 fee)
    ```
+
    **Reason**: The `_sender` parameter is reserved for future use (documented in TODO comment). Using `/* _sender */` syntax suppresses the linting warning while maintaining the function signature for interface compliance.
 
 ### Why These Changes Matter
@@ -225,12 +236,14 @@ The critical bug (uninitialized return values in `processDeposit()`) was already
 **Purpose**: Comprehensive testing of FeeCalc contract, especially the critical bug fix.
 
 **Key Tests:**
+
 1. **Critical Bug Fix Test**: Verifies `processDeposit()` returns correct values when `chargeOnDeposit = false`
 2. **Integration Test**: Tests through the minter contract to verify end-to-end functionality
 3. **Fee Scenarios**: Tests all fee calculation combinations
 4. **Validation Tests**: Tests bounds checking (fees cannot exceed 100%)
 
 **Why This Test Is Critical:**
+
 - Verifies the bug is actually fixed
 - Prevents regression if code is modified later
 - Documents expected behavior
@@ -239,7 +252,9 @@ The critical bug (uninitialized return values in `processDeposit()`) was already
 ### Modified Test Files
 
 #### `test/v2/core/minter.spec.ts`
+
 **Added Tests:**
+
 1. "withdraw with fee refund - accounting fix test"
    - Verifies withdrawal accounting works correctly when fees are refunded
    - Tests that `adminFeeTotal` decreases correctly
@@ -251,19 +266,23 @@ The critical bug (uninitialized return values in `processDeposit()`) was already
    - Verifies balance accounting
 
 **Why These Tests Matter:**
+
 - Verify the accounting fix works correctly
 - Test both fee scenarios (refund and charge)
 - Ensure balance checks work properly
 - Prevent regressions
 
 #### `test/v2/core/withdrawQueue.spec.ts`
+
 **Added Test:**
+
 - "redeem - balance fix test (MINTER.balance syntax fix)"
   - Verifies the balance syntax fix works correctly
   - Tests ETH transfer logic when minter balance is low
   - Verifies accounting correctness
 
 **Why This Test Matters:**
+
 - Verifies the syntax fix doesn't break functionality
 - Tests edge case where minter balance < requested assets
 - Ensures ETH transfers work correctly
@@ -284,6 +303,7 @@ The critical bug (uninitialized return values in `processDeposit()`) was already
 ### Are These Changes Safe?
 
 ✅ **YES** - All changes are:
+
 - Defensive (fix bugs, improve safety)
 - Following best practices
 - Well-documented
@@ -293,6 +313,7 @@ The critical bug (uninitialized return values in `processDeposit()`) was already
 ### Could These Changes Be Malicious?
 
 ❌ **NO** - Evidence:
+
 1. Changes fix EXPLOITABLE bugs, not introduce them
 2. Changes follow SECURITY best practices
 3. Changes IMPROVE code quality
@@ -306,25 +327,26 @@ The critical bug (uninitialized return values in `processDeposit()`) was already
 
 ### Before Fixes
 
-| Vulnerability | Impact | Exploitability |
-|---------------|--------|----------------|
-| FeeCalc uninitialized returns | Total user fund loss | High - Easy to trigger |
-| WithdrawalQueue balance syntax | Compilation/behavior errors | Medium - Depends on Solidity version |
-| Minter accounting order | Race conditions, accounting errors | Medium - Requires concurrent transactions |
+| Vulnerability                  | Impact                             | Exploitability                            |
+| ------------------------------ | ---------------------------------- | ----------------------------------------- |
+| FeeCalc uninitialized returns  | Total user fund loss               | High - Easy to trigger                    |
+| WithdrawalQueue balance syntax | Compilation/behavior errors        | Medium - Depends on Solidity version      |
+| Minter accounting order        | Race conditions, accounting errors | Medium - Requires concurrent transactions |
 
 ### After Fixes
 
-| Vulnerability | Status | Protection |
-|---------------|--------|------------|
-| FeeCalc uninitialized returns | ✅ FIXED | Users always receive correct tokens |
-| WithdrawalQueue balance syntax | ✅ FIXED | Correct syntax, no compilation errors |
-| Minter accounting order | ✅ FIXED | CEI pattern followed, race conditions prevented |
+| Vulnerability                  | Status   | Protection                                      |
+| ------------------------------ | -------- | ----------------------------------------------- |
+| FeeCalc uninitialized returns  | ✅ FIXED | Users always receive correct tokens             |
+| WithdrawalQueue balance syntax | ✅ FIXED | Correct syntax, no compilation errors           |
+| Minter accounting order        | ✅ FIXED | CEI pattern followed, race conditions prevented |
 
 ---
 
 ## Conclusion
 
 All changes made are:
+
 1. ✅ **Necessary**: Fix critical security vulnerabilities
 2. ✅ **Safe**: Follow security best practices
 3. ✅ **Defensive**: Improve safety, not compromise it

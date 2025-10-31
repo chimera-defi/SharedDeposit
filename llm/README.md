@@ -20,11 +20,13 @@ This folder contains documentation generated during the security audit and multi
 ## Key Documents
 
 For understanding the changes made:
+
 - **Start with**: `DETAILED_CHANGES_EXPLANATION.md` - Comprehensive explanation
 - **Quick reference**: `CHANGES_SUMMARY.md` - Brief overview
 - **Full audit**: `SECURITY_AUDIT_REPORT.md` - Complete security findings
 
 For review process:
+
 - **Process**: `MULTIPASS_REVIEW_REPORT.md` - Detailed review process
 - **Results**: `FINAL_MULTIPASS_REVIEW.md` - Final results
 

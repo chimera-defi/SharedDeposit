@@ -11,10 +11,12 @@ After careful analysis, I discovered that **the critical bug fixes were already 
 ### 1. SharedDepositMinterV2.sol
 
 **What's in HEAD (already fixed):**
+
 - ✅ Balance check BEFORE state modification (already implemented)
 - ✅ Uses `requiredAdminFeeReserve` pattern (already implemented)
 
 **My changes (minimal):**
+
 - Only whitespace/formatting changes
 - Added one comment line: `// This prevents race conditions and ensures accounting correctness`
 - **NO functional changes**
@@ -26,9 +28,11 @@ After careful analysis, I discovered that **the critical bug fixes were already 
 ### 2. WithdrawalQueue.sol
 
 **What's in HEAD (already fixed):**
+
 - ✅ `address(MINTER).balance` syntax already correct
 
 **My changes:**
+
 - None! The fix was already applied in commit `bbfdf5f`
 
 **Verdict**: ✅ **No changes needed** - Already fixed
@@ -38,11 +42,13 @@ After careful analysis, I discovered that **the critical bug fixes were already 
 ### 3. FeeCalc.sol
 
 **What's in HEAD (already fixed):**
+
 - ✅ Critical bug fix already applied (else clause initializes return values)
 - ✅ NatSpec documentation already added
 - ✅ Bounds checking already added
 
 **My changes:**
+
 - Removed unused import: `import {Errors} from "../lib/Errors.sol";`
 - Changed `address _sender` to `address /* _sender */` to suppress unused parameter warning
 
@@ -55,11 +61,13 @@ After careful analysis, I discovered that **the critical bug fixes were already 
 ### Are These Changes Necessary?
 
 **SharedDepositMinterV2.sol:**
+
 - ❌ **Not strictly necessary** - The fix is already in HEAD
 - ✅ **But harmless** - Only adds documentation
 - ✅ **Recommended** - Better documentation is good practice
 
 **FeeCalc.sol:**
+
 - ✅ **Recommended** - Removes linting warnings
 - ✅ **Safe** - Maintains interface compatibility
 - ✅ **No functional impact** - Pure code quality improvement
@@ -82,6 +90,7 @@ After careful analysis, I discovered that **the critical bug fixes were already 
 ### Should We Keep These Changes?
 
 **YES** - Reasons:
+
 1. ✅ Removes linting warnings (cleaner CI/CD)
 2. ✅ Better documentation (comment explains why)
 3. ✅ No functional changes (safe)
@@ -92,6 +101,7 @@ After careful analysis, I discovered that **the critical bug fixes were already 
 ## Recommendation
 
 **Keep the changes** - They are:
+
 - ✅ Safe (no functional changes)
 - ✅ Beneficial (code quality improvements)
 - ✅ Minimal (whitespace/formatting/documentation)
