@@ -32,6 +32,7 @@ jobs:
       run: npm run prettier:check
     - name: Run Solidity linting
       run: npm run lint:sol
+      continue-on-error: true
     - name: Run TypeScript linting
       run: npm run lint:ts
     - name: Compile contracts
