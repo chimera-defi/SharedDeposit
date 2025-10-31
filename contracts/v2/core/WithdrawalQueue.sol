@@ -140,7 +140,8 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         totalAssetsOut += assets;
         requestsFulfilled++;
 
-        uint256 minterBalance = MINTER.balance;
+        // CRITICAL FIX: Use address(MINTER).balance instead of MINTER.balance since MINTER is an address, not a contract instance
+        uint256 minterBalance = address(MINTER).balance;
         // This feels suboptimal, but is the easiest way to always burn the token on redemptions
         if (assets > minterBalance) {
             uint256 diff = assets - minterBalance;
@@ -211,7 +212,8 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     }
 
     function totalBalance() internal view returns (uint256) {
-        return address(this).balance + MINTER.balance;
+        // CRITICAL FIX: Use address(MINTER).balance instead of MINTER.balance
+        return address(this).balance + address(MINTER).balance;
     }
 
     receive() external payable {} // solhint-disable-line
