@@ -3,17 +3,20 @@
 ## Completed Improvements
 
 ### 1. ? Fixed Critical Dependency Vulnerabilities
+
 - **OpenZeppelin Contracts**: Updated from `^4.8.0` to `^4.9.6` (fixes base64 encoding vulnerability)
 - **OpenZeppelin Contracts Upgradeable**: Updated from `^4.3.1` to `^4.9.6`
 - **Ethers**: Updated from `^6.13.1` to `^6.15.0`
 - **Solmate**: Updated from `^6.7.0` to `^6.8.0`
 
 ### 2. ? Resolved Dependency Conflicts
+
 - **hardhat-deploy**: Updated from `^0.11.43` to `^0.12.0`
 - **hardhat-deploy-ethers**: Updated from `^0.4.1` to `^0.4.2` (resolves peer dependency conflict)
 - **solhint**: Updated from `^4.0.0` to `^6.0.1`
 
 ### 3. ? Fixed Solidity Compilation Errors
+
 - **ETHDepositGaurd.sol**: Added missing `pragma solidity ^0.8.20;` statement
 - **FeeCalc.sol**: Fixed unused variable warnings by commenting out unused parameters (`_sender`)
 - **Import paths**: Fixed incorrect solmate import paths:
@@ -21,15 +24,18 @@
   - Changed `solmate/src/mixins/ERC4626.sol` ? `solmate/src/tokens/ERC20.sol` in `WSGEth.sol`
 
 ### 4. ? Standardized Build Scripts
+
 - Replaced deprecated `npm run-script` with `npm run` throughout `package.json`
 - Changed command chaining from `;` to `&&` for better error handling
 
 ### 5. ? Created Missing ESLint Configuration
+
 - Created `.eslintrc.yaml` with TypeScript ESLint configuration
 - Created `.eslintignore` file
 - Configured ESLint to work with TypeScript and Prettier
 
 ### 6. ? Improved CI/CD Workflow
+
 - Updated GitHub Actions workflow (`.github/workflows/node.js.yml`):
   - Updated `actions/setup-node` from v3 to v4
   - Changed from `yarn` to `npm ci --legacy-peer-deps` for consistency
@@ -39,16 +45,19 @@
 ## Remaining Issues (Lower Priority)
 
 ### 1. ?? Remaining Vulnerabilities
+
 - **Total vulnerabilities**: 40 (20 low, 5 moderate, 10 high, 5 critical)
 - Most critical vulnerabilities are in transitive dependencies (axios, async, babel packages via ganache-core)
 - Many vulnerabilities are in deprecated packages (ethereum-waffle, ganache-core) that are indirect dependencies
 
 ### 2. ?? Deprecated Packages
+
 - ESLint 8.x is deprecated (consider upgrading to ESLint 9.x, but requires significant config changes)
 - Several deprecated glob, rimraf versions in transitive dependencies
 - Some deprecated babel packages via ganache-core
 
 ### 3. ?? Solidity Linting Warnings
+
 - 381 warnings remain (mostly NatSpec documentation warnings)
 - These are non-blocking and don't affect compilation
 - Can be addressed incrementally as code is updated
@@ -88,6 +97,7 @@
 ## Next Steps
 
 The project build is now functional with:
+
 - ? Fixed critical vulnerabilities
 - ? Resolved dependency conflicts
 - ? Fixed compilation errors

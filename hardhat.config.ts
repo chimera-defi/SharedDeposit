@@ -209,7 +209,9 @@ function getSortedFiles(dependenciesGraph: Record<string, unknown[]>) {
 
   // If an entry has no dependency it won't be included in the graph, so we
   // add them and then dedup the array
-  const withEntries: string[] = topologicalSortedNames.concat(resolvedFiles.map((f: {sourceName: string}) => f.sourceName as string));
+  const withEntries: string[] = topologicalSortedNames.concat(
+    resolvedFiles.map((f: {sourceName: string}) => f.sourceName as string),
+  );
 
   const sortedNames = [...new Set(withEntries)];
   return sortedNames.map((n: string) => filesMap[n]);
