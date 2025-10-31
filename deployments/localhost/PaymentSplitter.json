@@ -320,9 +320,7 @@
         "blockNumber": 6233737,
         "transactionHash": "0xadc5adf052dae7d4df5121c7424908cac387d7fb61cc7debe5252ace15941d3c",
         "address": "0x2889C4940e2540202c6C365D9070A2F2c1be18D4",
-        "topics": [
-          "0x40c340f65e17194d14ddddb073d3c9f888e3cb52b5aae0c6c7706b4fbc905fac"
-        ],
+        "topics": ["0x40c340f65e17194d14ddddb073d3c9f888e3cb52b5aae0c6c7706b4fbc905fac"],
         "data": "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000006",
         "logIndex": 0,
         "blockHash": "0x15370e4be5237e2a949532b9bbb3180e9e46918ec6c3770dc365afa49cbf8c8d"
@@ -332,9 +330,7 @@
         "blockNumber": 6233737,
         "transactionHash": "0xadc5adf052dae7d4df5121c7424908cac387d7fb61cc7debe5252ace15941d3c",
         "address": "0x2889C4940e2540202c6C365D9070A2F2c1be18D4",
-        "topics": [
-          "0x40c340f65e17194d14ddddb073d3c9f888e3cb52b5aae0c6c7706b4fbc905fac"
-        ],
+        "topics": ["0x40c340f65e17194d14ddddb073d3c9f888e3cb52b5aae0c6c7706b4fbc905fac"],
         "data": "0x000000000000000000000000610c92c70eb55dfeafe8970513d13771da79f2e00000000000000000000000000000000000000000000000000000000000000003",
         "logIndex": 1,
         "blockHash": "0x15370e4be5237e2a949532b9bbb3180e9e46918ec6c3770dc365afa49cbf8c8d"
@@ -344,9 +340,7 @@
         "blockNumber": 6233737,
         "transactionHash": "0xadc5adf052dae7d4df5121c7424908cac387d7fb61cc7debe5252ace15941d3c",
         "address": "0x2889C4940e2540202c6C365D9070A2F2c1be18D4",
-        "topics": [
-          "0x40c340f65e17194d14ddddb073d3c9f888e3cb52b5aae0c6c7706b4fbc905fac"
-        ],
+        "topics": ["0x40c340f65e17194d14ddddb073d3c9f888e3cb52b5aae0c6c7706b4fbc905fac"],
         "data": "0x00000000000000000000000006d889f4678058d95058ef431035b2f5d4a27b1a000000000000000000000000000000000000000000000000000000000000001f",
         "logIndex": 2,
         "blockHash": "0x15370e4be5237e2a949532b9bbb3180e9e46918ec6c3770dc365afa49cbf8c8d"
@@ -363,11 +357,7 @@
       "0x610c92c70eb55dfeafe8970513d13771da79f2e0",
       "0x06d889F4678058D95058Ef431035b2f5d4A27B1a"
     ],
-    [
-      6,
-      3,
-      31
-    ]
+    [6, 3, 31]
   ],
   "numDeployments": 1,
   "solcInputHash": "7444b97d0dac89b4a6ba2e839ed33e0a",
