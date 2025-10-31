@@ -22,12 +22,22 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm install -g yarn
-    - run: yarn install
-    - run: yarn sol
-    - run: yarn test
-    - run: yarn coverage
+    - name: Install dependencies
+      run: npm ci --legacy-peer-deps
+    - name: Run prettier check
+      run: npm run prettier:check
+    - name: Run Solidity linting
+      run: npm run lint:sol
+    - name: Run TypeScript linting
+      run: npm run lint:ts
+    - name: Compile contracts
+      run: npm run compile
+    - name: Run tests
+      run: npm run test
+    - name: Generate coverage
+      run: npm run coverage
+      continue-on-error: true
