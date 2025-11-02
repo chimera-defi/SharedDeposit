@@ -66,7 +66,7 @@
     "deploy": "hardhat deploy:Greeter",
     "sol": "npm run prettier && npm run lint:sol && npx hardhat compile",
     "sol:fix": "solhint --config .solhint.json --max-warnings 50 \"contracts/v2/**/*.sol\" --fix",
-    "lint": "yarn run lint:sol && yarn run lint:ts && yarn run prettier:check",
+    "lint": "npm run lint:sol && npm run lint:ts && npm run prettier:check",
     "lint:sol": "solhint --config .solhint.json --max-warnings 50 \"contracts/v2/**/*.sol\"",
     "lint:ts": "eslint --config ./.eslintrc.yaml --ignore-path ./.eslintignore --ext .js,.ts .",
     "prettier": "prettier --config ./.prettierrc.yaml --write \"**/*.{js,json,md,sol,ts}\"",
@@ -76,6 +76,10 @@
     "loc:sol": "cloc contracts/v2/",
     "deploy:sepolia": "npx hardhat deploy --network sepolia",
     "script:sepolia": "npx hardhat run --network sepolia",
-    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts"
-  }
+    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts",
+    "pre-commit": "bash scripts/pre-commit-check.sh",
+    "pre-commit:fix": "bash scripts/fix-pre-commit-issues.sh",
+    "pre-commit:install": "bash scripts/install-pre-commit-hook.sh"
+  },
+  "postinstall": "bash scripts/install-pre-commit-hook.sh"
 }
