@@ -1,9 +1,4 @@
 # Semgrep configuration for smart contract security scanning
-# This file configures Semgrep to scan Solidity contracts
-
-rules:
-  - id: solidity-security
-    pattern: semgrep
-    languages:
-      - solidity
-    severity: ERROR
+# Semgrep uses 'auto' config by default which includes security rules
+# This file can be extended with custom rules if needed
+# Usage: semgrep --config=auto contracts/
