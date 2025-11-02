@@ -39,17 +39,104 @@ export ALCHEMY_GOERLI_KEY='xx'
 // see deploy_minterv2.js or deploy tasks in package.json for hardhat deploy usage
 ```
 
-# Slither
+# Security Analysis Tools
 
-Slither run results and howto:
+## Automated Security Scanning
 
-- start venv
-- `pip3 install slither-analyzer`
-- `slither . --ignore-compile`
-  ./contracts/
-  --compile-force-framework hardhat
-  --solc-remaps @openzeppelin/=$(pwd)/node_modules/@openzeppelin/
-  --solc solc-0.8.10 --solc-args "--optimize --optimize-runs 200"`
+The project includes automated security scanning in CI/CD and via npm scripts. Security scans run automatically on every push/PR and can be run locally.
+
+### Quick Start
+
+```bash
+# Run all security checks
+npm run security:all
+
+# Run individual checks
+npm run security:slither    # Static analysis with Slither
+npm run security:semgrep     # Pattern-based analysis with Semgrep
+npm run security:audit       # Dependency vulnerability check
+```
+
+### Security Tools
+
+#### Slither (Static Analysis)
+
+**What it does**: Detects vulnerabilities, bugs, and code smells in Solidity contracts
+
+**Local setup**:
+```bash
+pip3 install slither-analyzer
+npm run security:slither
+```
+
+**Configuration**: `.slither.config.json`
+
+**CI/CD**: Automatically runs on every push/PR, reports uploaded as artifacts
+
+**Manual usage** (if needed):
+```bash
+slither . \
+  --ignore-compile \
+  --compile-force-framework hardhat \
+  --solc-remaps @openzeppelin/=$(pwd)/node_modules/@openzeppelin/ \
+  --exclude-dependencies \
+  --exclude-informational \
+  --exclude-optimization
+```
+
+#### Semgrep (Pattern-based Analysis)
+
+**What it does**: Finds security vulnerabilities using semantic patterns
+
+**Local setup**:
+```bash
+pip3 install semgrep
+npm run security:semgrep
+```
+
+**Configuration**: `.semgrep.yml`
+
+**CI/CD**: Automatically runs on every push/PR, reports uploaded as artifacts
+
+#### npm audit (Dependency Scanning)
+
+**What it does**: Checks npm dependencies for known vulnerabilities
+
+**Usage**:
+```bash
+npm run security:audit
+```
+
+**CI/CD**: Automatically runs on every push/PR
+
+### Foundry (Optional - Fuzzing)
+
+**What it does**: Property-based testing and fuzzing for advanced security testing
+
+**Setup**:
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+**Configuration**: `foundry.toml`
+
+**Usage**:
+```bash
+forge test --fuzz-runs 10000  # Run fuzz tests
+forge snapshot                 # Generate gas reports
+```
+
+### CI/CD Integration
+
+Security scanning runs automatically in GitHub Actions:
+- **Slither**: Static analysis report
+- **Semgrep**: Pattern-based analysis report
+- **npm audit**: Dependency vulnerability check
+
+All reports are uploaded as artifacts and available for download from the Actions tab.
+
+See `.github/workflows/node.js.yml` for the full CI/CD configuration.
 
 # Archival
 

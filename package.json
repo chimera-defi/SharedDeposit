@@ -2,8 +2,8 @@
   "name": "SharedDeposit",
   "license": "BUSL-1.1",
   "devDependencies": {
-    "@nomicfoundation/hardhat-chai-matchers": "^2.0.2",
-    "@nomicfoundation/hardhat-ethers": "^3.0.5",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.2",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@nomiclabs/hardhat-solhint": "^3.0.1",
     "@typechain/ethers-v6": "^0.5.1",
@@ -16,7 +16,7 @@
     "dotenv": "^16.3.1",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
-    "hardhat": "^2.19.1",
+    "hardhat": "^2.26.5",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-deploy": "^0.12.0",
@@ -36,11 +36,11 @@
     "solidity-coverage": "^0.8.5",
     "ts-node": "^10.9.1",
     "typechain": "^8.3.2",
-    "typescript": "^5.2.2"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@fei-protocol/erc4626": "^0.0.0",
-    "@nomicfoundation/hardhat-network-helpers": "^1.0.11",
+    "@nomicfoundation/hardhat-network-helpers": "^1.1.2",
     "@openzeppelin/contracts": "^4.9.6",
     "@openzeppelin/contracts-upgradeable": "^4.9.6",
     "ethers": "^6.15.0",
@@ -76,6 +76,10 @@
     "loc:sol": "cloc contracts/v2/",
     "deploy:sepolia": "npx hardhat deploy --network sepolia",
     "script:sepolia": "npx hardhat run --network sepolia",
-    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts"
+    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts",
+    "security:slither": "slither . --ignore-compile --compile-force-framework hardhat --solc-remaps @openzeppelin/=$(pwd)/node_modules/@openzeppelin/ --exclude-dependencies --exclude-informational --exclude-optimization",
+    "security:semgrep": "semgrep --config=auto contracts/",
+    "security:audit": "npm audit --audit-level=high",
+    "security:all": "npm run security:audit && npm run security:slither && npm run security:semgrep"
   }
 }
