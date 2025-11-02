@@ -6,23 +6,30 @@
 # This script is automatically run via postinstall when you run 'npm install'
 # It ensures the hook is installed for all developers cloning the repo.
 
-set -e
+# Don't exit on error - we want to gracefully handle CI environments
+set +e
 
 # Only install if .git exists (we're in a git repo)
 if [ ! -d ".git" ]; then
-    # Silently exit if not in a git repo (e.g., npm pack scenario)
+    # Silently exit if not in a git repo (e.g., npm pack scenario, CI without full git)
     exit 0
 fi
 
 # Verify hook source exists
 if [ ! -f "scripts/pre-commit-check.sh" ]; then
-    echo "??  Warning: scripts/pre-commit-check.sh not found, skipping hook installation"
+    # Silently exit if script doesn't exist (e.g., during npm pack)
     exit 0
 fi
 
-# Install the hook
-mkdir -p .git/hooks
-cp scripts/pre-commit-check.sh .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+# Install the hook (suppress errors if mkdir/cp/chmod fail)
+mkdir -p .git/hooks 2>/dev/null || true
+cp scripts/pre-commit-check.sh .git/hooks/pre-commit 2>/dev/null || true
+chmod +x .git/hooks/pre-commit 2>/dev/null || true
 
-echo "? Pre-commit hook installed"
+# Only print if we actually installed something (avoid noise in CI)
+if [ -f ".git/hooks/pre-commit" ]; then
+    echo "? Pre-commit hook installed"
+fi
+
+# Always exit successfully to avoid breaking npm install/ci
+exit 0
