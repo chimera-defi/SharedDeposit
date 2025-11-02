@@ -12,7 +12,7 @@ import {
 import chai from "chai";
 import {deployments} from "hardhat";
 import Ship from "../../../utils/ship";
-import {parseEther} from "ethers";
+import {parseEther, ethers} from "ethers";
 import {advanceTimeAndBlock} from "../../../utils/time";
 
 const {expect} = chai;
@@ -351,5 +351,31 @@ describe("WithdrawalQueue", () => {
     expect(prevBalance - afterBalance).to.eq(parseEther("20"));
     // 10 - 10 = 0
     expect(queuePrevBalance - queueAfterBalance).to.eq(0);
+  });
+
+  it("should revert when redeeming with zero receiver address", async () => {
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
+    await advanceTimeAndBlock(1);
+
+    await expect(
+      withdrawalQueue.connect(alice).redeem(parseEther("5"), ethers.ZeroAddress, alice.address)
+    ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
+  });
+
+  it("should revert when canceling with zero receiver address", async () => {
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
+    await advanceTimeAndBlock(epoch);
+
+    await expect(
+      withdrawalQueue.connect(alice).cancelRedeem(ethers.ZeroAddress, alice.address)
+    ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
+  });
+
+  it("should revert when canceling with zero pending request", async () => {
+    await advanceTimeAndBlock(epoch);
+
+    await expect(
+      withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address)
+    ).to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount");
   });
 });

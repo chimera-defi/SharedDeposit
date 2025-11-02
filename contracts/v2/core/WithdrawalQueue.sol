@@ -16,6 +16,7 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 /**
  * @title WithdrawalQueue
+ * @notice ERC-7540 inspired withdrawal contract with FIFO queue and epoch delay
  * @author @ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
  * @dev -
  * ERC-7540 inspired withdrawal contract
@@ -67,6 +68,13 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     event CancelRedeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
 
     constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
+        if (_minter == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+        if (_wsgEth == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+
         MINTER = _minter;
         WSGETH = _wsgEth;
 
@@ -109,11 +117,10 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
     /// @notice Allows a user to redeem their vault shares.
     /// @dev This function must be called by either the owner or an operator of the requester's vault, and is only allowed when the contract is not paused.
-
+    /// @dev The function checks if the epoch has elapsed and if sufficient funds are available before processing the redemption.
     /// @param shares The number of shares to redeem.
-    /// @param receiver The address that will receive the redeemed assets.
+    /// @param receiver The address that will receive the redeemed assets. Must not be zero address.
     /// @param requester The address requesting the redemption.
-
     /// @return assets The amount of assets that were successfully redeemed.
     function redeem(
         uint256 shares,
@@ -123,13 +130,22 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
+        if (receiver == address(0)) {
+            revert Errors.ZeroAddress();
+        }
 
         assets = IERC4626(WSGETH).previewRedeem(shares);
 
-        // checks if we have enough assets to fulfill the request and if epoch has passed
-        if (claimableRedeemRequest(requester) < assets) {
+        // Verify that the requester has sufficient claimable redemption request and epoch has elapsed
+        uint256 claimable = claimableRedeemRequest(requester);
+        if (claimable < assets) {
+            // If not claimable, check if epoch has elapsed and sufficient balance exists
             _checkWithdraw(requester, totalBalance(), assets);
-            return 0; // should never happen. previous fn will generate a rich error
+            // If check passes but claimable is still insufficient, revert
+            // This can happen if balance is insufficient even after epoch elapsed
+            if (totalBalance() < assets) {
+                revert Errors.InsufficientBalance();
+            }
         }
 
         _withdraw(requester, assets);
@@ -154,35 +170,51 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         emit Redeem(requester, receiver, shares, assets);
     }
 
-    /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired
+    /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired.
+    /// @dev This function allows canceling a redemption request after the epoch delay has passed.
+    /// @dev The shares are calculated from the pending redeem request amount (stored in assets).
+    /// @param receiver The address that will receive the returned shares. Must not be zero address.
+    /// @param requester The address requesting the cancellation.
+    /// @return assets The amount of assets that were canceled (converted from shares).
     function cancelRedeem(
         address receiver,
         address requester
     ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
-        uint256 shares = pendingRedeemRequest(requester);
-        assets = IERC4626(WSGETH).previewRedeem(shares);
+        assets = pendingRedeemRequest(requester);
 
-        if (shares == 0) {
+        if (assets == 0) {
             revert Errors.InvalidAmount();
+        }
+        if (receiver == address(0)) {
+            revert Errors.ZeroAddress();
         }
 
         _verifyEpochHasElapsed(requester);
 
-        // checks if we have enough assets to fulfill the request and if epoch has passed
-        if (claimableRedeemRequest(requester) < assets) {
-            _checkWithdraw(requester, totalBalance(), assets);
-            return 0; // should never happen. previous fn will generate a rich error
+        // Convert assets back to shares using current exchange rate
+        // Note: This uses the current exchange rate, which may differ from when the request was made
+        uint256 shares = IERC4626(WSGETH).convertToShares(assets);
+        
+        // Get the total shares we have in the contract
+        uint256 contractShares = IERC20(WSGETH).balanceOf(address(this));
+        // Ensure we don't try to transfer more shares than we have
+        if (shares > contractShares) {
+            // If we don't have enough shares, use what we have and adjust assets accordingly
+            shares = contractShares;
+            assets = IERC4626(WSGETH).convertToAssets(shares);
         }
 
-        // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
+        // Update accounting - subtract the actual assets being canceled
         redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
         totalPendingRequest -= assets;
         _withdraw(requester, assets);
-        IERC20(WSGETH).transfer(receiver, shares); // asset here is the Vault underlying asset
+        IERC20(WSGETH).transfer(receiver, shares);
 
         emit CancelRedeem(requester, receiver, shares, assets);
     }
 
+    /// @notice Toggles the pause state of a specific function.
+    /// @param func The function ID to toggle pause state for (1=requestRedeem, 2=redeem, 3=cancelRedeem).
     function togglePause(uint16 func) external onlyRole(GOV) {
         bool paused = paused[func];
         if (paused) {
@@ -192,17 +224,25 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         }
     }
 
+    /// @notice Sets the epoch length (delay period) for withdrawals.
+    /// @param value The new epoch length in blocks.
     function setEpochLength(uint256 value) external onlyRole(GOV) {
         _setEpochLength(value);
     }
 
-    function pendingRedeemRequest(address owner) public view returns (uint256 shares) {
+    /// @notice Returns the pending redemption request amount for an owner.
+    /// @dev This returns the total assets requested for redemption, not the number of shares.
+    /// @param owner The address to check pending requests for.
+    /// @return assets The amount of assets pending redemption (not shares).
+    function pendingRedeemRequest(address owner) public view returns (uint256 assets) {
         return redeemRequests[owner];
     }
 
-    // claimableRedeemRequest - returns owners shares in claimable state,
-    // i.e. epoch has elapsed and sufficient funds exist
-    function claimableRedeemRequest(address owner) public view returns (uint256 shares) {
+    /// @notice Returns the claimable redemption request amount for an owner.
+    /// @dev This returns the amount of assets that can be redeemed now (epoch elapsed and sufficient balance).
+    /// @param owner The address to check claimable requests for.
+    /// @return assets The amount of assets that can be redeemed now (0 if not claimable).
+    function claimableRedeemRequest(address owner) public view returns (uint256 assets) {
         if (redeemRequests[owner] > 0 && _isWithdrawalAllowed(owner, totalBalance(), redeemRequests[owner])) {
             return redeemRequests[owner];
         } else {
@@ -210,6 +250,9 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         }
     }
 
+    /// @notice Returns the total balance available for redemptions.
+    /// @dev This includes both the contract's balance and the minter's balance.
+    /// @return The total balance available for fulfilling redemption requests.
     function totalBalance() internal view returns (uint256) {
         return address(this).balance + MINTER.balance;
     }
