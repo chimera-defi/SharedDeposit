@@ -1,0 +1,18 @@
+{
+  "detectors_to_run": "all",
+  "exclude_dependencies": true,
+  "exclude_informational": true,
+  "exclude_optimization": true,
+  "filter_paths": [
+    "node_modules",
+    "test",
+    "scripts",
+    "deploy",
+    "flats",
+    "drafts"
+  ],
+  "solc_remaps": [
+    "@openzeppelin/=node_modules/@openzeppelin/"
+  ],
+  "compile_force_framework": "hardhat"
+}

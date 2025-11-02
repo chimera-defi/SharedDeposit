@@ -1,0 +1,27 @@
+# Foundry configuration for fuzzing and advanced testing
+# Install Foundry: curl -L https://foundry.paradigm.xyz | bash && foundryup
+
+[profile.default]
+src = "contracts"
+out = "out"
+libs = ["node_modules"]
+solc = "0.8.20"
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+evm_version = "paris"
+auto_detect_solc = false
+
+[profile.ci]
+optimizer_runs = 200
+fuzz = { runs = 10000 }
+invariant = { runs = 10000 }
+
+[fmt]
+line_length = 200
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "all"
+quote_style = "double"
+number_underscore = "thousands"

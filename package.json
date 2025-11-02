@@ -76,6 +76,10 @@
     "loc:sol": "cloc contracts/v2/",
     "deploy:sepolia": "npx hardhat deploy --network sepolia",
     "script:sepolia": "npx hardhat run --network sepolia",
-    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts"
+    "verify:sepolia": "npx hardhat upload:batch --network sepolia --contracts",
+    "security:slither": "slither . --ignore-compile --compile-force-framework hardhat --solc-remaps @openzeppelin/=$(pwd)/node_modules/@openzeppelin/ --exclude-dependencies --exclude-informational --exclude-optimization",
+    "security:semgrep": "semgrep --config=auto contracts/",
+    "security:audit": "npm audit --audit-level=high",
+    "security:all": "npm run security:audit && npm run security:slither && npm run security:semgrep"
   }
 }
