@@ -81,5 +81,5 @@
     "pre-commit:fix": "bash scripts/fix-pre-commit-issues.sh",
     "pre-commit:install": "bash scripts/install-pre-commit-hook.sh"
   },
-  "postinstall": "bash scripts/install-pre-commit-hook.sh"
+  "postinstall": "sh scripts/install-pre-commit-hook.sh"
 }
