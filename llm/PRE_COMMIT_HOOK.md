@@ -30,6 +30,7 @@ If any of these checks fail, the commit will be blocked until the issues are fix
 **IMPORTANT**: The pre-commit hook runs **automatically** on every `git commit`. You cannot forget about it - git will run it automatically.
 
 **When committing code:**
+
 1. Run `git commit` as normal
 2. Git **automatically** runs `.git/hooks/pre-commit` before the commit
 3. Hook runs: `prettier`, `prettier:check`, `lint`, `compile`
@@ -50,6 +51,7 @@ If any of these checks fail, the commit will be blocked until the issues are fix
 ## Common Issues and Fixes
 
 ### Prettier Errors
+
 - Most formatting errors can be auto-fixed by running `npm run prettier`
 - Remaining errors will be shown and need manual fixes
 - Check `.prettierrc.yaml` for formatting rules
@@ -57,17 +59,20 @@ If any of these checks fail, the commit will be blocked until the issues are fix
 ### Linting Errors
 
 #### Solidity Linting
+
 - Solidity linting is done by `solhint` (configured in `.solhint.json`)
 - Run `npm run lint:sol` to see Solidity-specific errors
 - Some errors can be auto-fixed with `npm run sol:fix`
 - Common issues: missing SPDX license, incorrect import order, function visibility
 
 #### TypeScript/JavaScript Linting
+
 - TypeScript linting is done by `eslint` (configured in `.eslintrc.yaml`)
 - Run `npm run lint:ts` to see TypeScript-specific errors
 - Common issues: unused imports, type errors, code style violations
 
 ### Compilation Errors
+
 - Compilation errors usually indicate syntax errors or missing dependencies
 - Check the compilation output for specific file and line numbers
 - Ensure all Solidity imports resolve correctly
@@ -86,6 +91,7 @@ git commit --no-verify -m "your message"
 ## Automatic Installation
 
 The hook is automatically installed when you run:
+
 - `npm install` (via postinstall script)
 - `npm run setup` (if you add this script)
 
@@ -124,16 +130,19 @@ This project performs the following checks:
 ## Troubleshooting
 
 ### Hook not running
+
 - Verify the hook is installed: `ls -la .git/hooks/pre-commit`
 - Ensure it's executable: `chmod +x .git/hooks/pre-commit`
 - Reinstall: `npm run pre-commit:install`
 
 ### Hook runs but checks fail
+
 - Run `npm run pre-commit:fix` to see detailed errors
 - Fix issues manually or use auto-fix commands
 - Verify all dependencies are installed: `npm install`
 
 ### Hook is too slow
+
 - The hook runs all checks which can take time
 - Consider running checks manually before committing: `npm run pre-commit`
 - For emergency commits, use `--no-verify` (not recommended)
