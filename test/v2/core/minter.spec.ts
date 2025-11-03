@@ -134,9 +134,9 @@ describe("SharedDepositMinterV2", () => {
       );
 
       await wsgEth.connect(alice).approve(minter.target, MaxUint256);
-      let prevBalance = await wsgEth.balanceOf(alice.address);
+      const prevBalance = await wsgEth.balanceOf(alice.address);
       await minter.connect(alice).unstakeAndWithdraw(parseEther("0.5"), alice.address);
-      let afterBalance = await wsgEth.balanceOf(alice.address);
+      const afterBalance = await wsgEth.balanceOf(alice.address);
 
       expect(afterBalance).to.eq(prevBalance - parseEther("0.5"));
     });

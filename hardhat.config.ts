@@ -16,9 +16,8 @@ import "hardhat-watcher";
 import "hardhat-storage-layout";
 import "dotenv/config";
 import "hardhat-contract-sizer";
+import * as path from "path";
 import * as fs from "fs";
-
-import "./tasks/verify";
 
 // Environment sourced variables
 const GOERLIPK = process.env.GOERLIPK
@@ -50,8 +49,6 @@ const ACTIVE_DEPLOYER_PK = GOERLIPK; // use for test
 
 // END required user input
 
-const path = require("path");
-
 const chainIds = {
   ganache: 1337,
   goerli: 5,
@@ -65,7 +62,6 @@ const chainIds = {
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
-let maxRunsOnEtherscan = 1000000;
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
@@ -190,16 +186,18 @@ if (ETHERSCAN_API) {
     ],
   };
 } else {
+  // eslint-disable-next-line no-console
   console.log("No Etherscan API key found. Skipping Etherscan verification.");
 }
 
-function getSortedFiles(dependenciesGraph: any) {
+function getSortedFiles(dependenciesGraph: Record<string, unknown[]>) {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const tsort = require("tsort");
   const graph = tsort();
 
-  const filesMap: Record<string, any> = {};
+  const filesMap: Record<string, unknown> = {};
   const resolvedFiles = dependenciesGraph.getResolvedFiles();
-  resolvedFiles.forEach((f: any) => (filesMap[f.sourceName] = f));
+  resolvedFiles.forEach((f: {sourceName: string}) => (filesMap[f.sourceName] = f));
 
   for (const [from, deps] of dependenciesGraph.entries()) {
     for (const to of deps) {
@@ -211,7 +209,9 @@ function getSortedFiles(dependenciesGraph: any) {
 
   // If an entry has no dependency it won't be included in the graph, so we
   // add them and then dedup the array
-  const withEntries: string[] = topologicalSortedNames.concat(resolvedFiles.map((f: any) => f.sourceName as string));
+  const withEntries: string[] = topologicalSortedNames.concat(
+    resolvedFiles.map((f: {sourceName: string}) => f.sourceName as string),
+  );
 
   const sortedNames = [...new Set(withEntries)];
   return sortedNames.map((n: string) => filesMap[n]);
@@ -287,7 +287,9 @@ task("flat", "Flattens and prints contracts and their dependencies")
   .addOptionalVariadicPositionalParam("files", "The files to flatten", undefined, types.inputFile)
   .addOptionalParam("output", "Specify the output file", undefined, types.string)
   .setAction(async ({files, output}, {run}) => {
+    // eslint-disable-next-line no-console
     console.log(files, output);
+    // eslint-disable-next-line no-console
     console.log(
       await run("flat:get-flattened-sources", {
         files,
@@ -296,7 +298,7 @@ task("flat", "Flattens and prints contracts and their dependencies")
     );
   });
 
-task("flattenAll", "Flatten all files we care about").setAction(async ({}, {run}) => {
+task("flattenAll", "Flatten all files we care about").setAction(async (_taskArgs, {run}) => {
   let srcpath = "contracts";
   let files = fs.readdirSync(srcpath).map(file => `${srcpath}/${file}`);
   srcpath = `${srcpath}/governance`;
@@ -304,7 +306,9 @@ task("flattenAll", "Flatten all files we care about").setAction(async ({}, {run}
 
   try {
     fs.mkdirSync("flats/contracts/governance", {recursive: true});
-  } catch (e) {}
+  } catch (_e) {
+    // Directory might already exist, ignore error
+  }
 
   await Promise.all(
     files.map(async file => {

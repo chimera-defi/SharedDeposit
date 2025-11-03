@@ -15,12 +15,13 @@ import {
   WithdrawalQueue__factory,
 } from "../types";
 
-function makeWithdrawalCred(params: any) {
+function makeWithdrawalCred(params: string) {
   // see https://github.com/ethereum/consensus-specs/pull/2149/files & https://github.com/stakewise/contracts/blob/0e51a35e58676491060df84d665e7ebb0e735d17/test/pool/depositDataMerkleRoot.js#L140
   // pubkey is 0x01 + (11 bytes?) 20 0s + eth1 addr 20 bytes (40 characters)  ? = final length 66
   //
-  let withdrawalCredsPrefix = `0x010000000000000000000000`;
-  let eth1Withdraw = `${withdrawalCredsPrefix}${params.split("x")[1]}`;
+  const withdrawalCredsPrefix = `0x010000000000000000000000`;
+  const eth1Withdraw = `${withdrawalCredsPrefix}${params.split("x")[1]}`;
+  // eslint-disable-next-line no-console
   console.log(`setWithdrawalCredential ${eth1Withdraw}`);
 
   return eth1Withdraw;
@@ -39,7 +40,7 @@ const func: DeployFunction = async hre => {
     args: [withdrawalQueue.target, [sgEth.target, wsgEth.target, paymentSplitter.target, minter.target]],
   });
 
-  let rr = (await connect(RewardsReceiver__factory)) as RewardsReceiver;
+  const rr = (await connect(RewardsReceiver__factory)) as RewardsReceiver;
   await minter.setWithdrawalCredential(makeWithdrawalCred(rr.target));
 };
 

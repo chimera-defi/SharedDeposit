@@ -293,7 +293,7 @@ describe("WithdrawalQueue", () => {
     await sgEth.connect(deployer).addMinter(alice.address);
     await sgEth.connect(alice).mint(alice.address, parseEther("100"));
     // Boost minter shares for accounting
-    let cvs = await minter.curValidatorShares();
+    const cvs = await minter.curValidatorShares();
     await minter.connect(multiSig).migrateShares(cvs + parseEther("100"));
     await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
 
@@ -324,7 +324,7 @@ describe("WithdrawalQueue", () => {
     await sgEth.connect(deployer).addMinter(alice.address);
     await sgEth.connect(alice).mint(alice.address, parseEther("100"));
     // Boost minter shares for accounting
-    let cvs = await minter.curValidatorShares();
+    const cvs = await minter.curValidatorShares();
     await minter.connect(multiSig).migrateShares(cvs + parseEther("100"));
     await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
 

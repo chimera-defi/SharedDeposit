@@ -9,7 +9,7 @@ import {FeeCalc__factory} from "../types";
 const func: DeployFunction = async hre => {
   const {deploy} = await Ship.init(hre);
 
-  const fc = await deploy(FeeCalc__factory, {
+  await deploy(FeeCalc__factory, {
     args: [
       {
         adminFee: 0,
