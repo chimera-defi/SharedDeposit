@@ -8,6 +8,7 @@ import {
   WSGETH__factory,
   WithdrawalQueue,
   WithdrawalQueue__factory,
+  ERC20MintableBurnableByMinter,
 } from "../../../types";
 import chai from "chai";
 import {deployments, ethers as hreEthers} from "hardhat";
@@ -478,12 +479,11 @@ describe("WithdrawalQueue", () => {
 // Fixed Price Mode Tests (VETH2 style)
 describe("WithdrawalQueue - Fixed Price Mode", () => {
   let ship: Ship;
-  let mockToken: any; // Mock ERC20 token for fixed price mode
+  let mockToken: ERC20MintableBurnableByMinter;
   let withdrawalQueueFixed: WithdrawalQueue;
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
-  let multiSig: SignerWithAddress;
 
   const VIRTUAL_PRICE = parseEther("1"); // 1:1 exchange rate
   const EPOCH_LENGTH = 1;
