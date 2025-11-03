@@ -1,5 +1,42 @@
 # SharedDeposit - Solidity/Hardhat Project Guidelines
 
+## 🤖 AI Agent Guidelines
+
+### Pre-Commit Hook System
+**IMPORTANT**: This project uses a git pre-commit hook that runs automatically on every `git commit`. 
+
+**When committing code:**
+- The hook automatically runs `prettier`, `prettier:check`, `lint`, and `compile`
+- If any check fails, the commit is blocked with clear error messages
+- **DO NOT** bypass with `--no-verify` unless absolutely necessary
+
+**If pre-commit fails:**
+1. Read the error output carefully
+2. Run `npm run pre-commit:fix` to see all errors
+3. Use `read_lints` tool to read linter errors programmatically
+4. Fix the issues in code
+5. Commit again (hook runs automatically)
+
+**Documentation**: See [`llm/PRE_COMMIT_HOOK.md`](./llm/PRE_COMMIT_HOOK.md) for complete details.
+
+### Development Workflow
+- **Package Manager**: Use `npm` (NOT yarn for scripts, though yarn.lock exists)
+- **Installation**: `npm install` (automatically installs pre-commit hook)
+- **Development**: `npm run test` to run tests
+- **Build**: `npm run build` (runs prettier, lint, and compile)
+- **Linting**: `npm run lint` (runs solhint + eslint + prettier check)
+
+### Code Quality
+- **Always** ensure prettier, lint, and compile pass before committing
+- The pre-commit hook enforces this automatically
+- Run `npm run pre-commit` to test manually before committing
+
+### Documentation
+- All AI documentation is in the `llm/` folder
+- See [`llm/PRE_COMMIT_HOOK.md`](./llm/PRE_COMMIT_HOOK.md) for pre-commit hook details
+
+---
+
 ## Project Overview
 This is a Solidity smart contract project for Ethereum liquid staking derivatives, built with Hardhat, TypeScript, and supporting multiple Solidity compiler versions.
 
