@@ -131,7 +131,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         totalPendingRequest += assets;
         redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
 
-        emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
+        emit RedeemRequest(requester, owner, requestId, msg.sender, assets);
     }
 
     /// @notice Allows a user to redeem their vault shares.
