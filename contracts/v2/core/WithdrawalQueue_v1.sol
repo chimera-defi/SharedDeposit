@@ -15,7 +15,7 @@ import {GranularPause} from "../lib/GranularPause.sol";
 import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 /**
- * @title WithdrawalQueue
+ * @title WithdrawalQueue_v1 - veth2 / v1 variant of withdrawalQueue
  * @author @ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
  * @dev -
  * ERC-7540 inspired withdrawal contract
@@ -35,7 +35,7 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
  * 3. Fulfill any remaining redeemRequests i.e. totalPendingRequest,
  * for all RedeemRequest events from requestsFulfilled to requestsCreated
  */
-contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQueue, OperatorSettable {
+contract WithdrawalQueueV1 is AccessControl, ReentrancyGuard, GranularPause, FIFOQueue, OperatorSettable {
     using Address for address payable;
 
     struct Request {
@@ -44,7 +44,8 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     }
     // SharedDepositMinterV2 public immutable MINTER;
     address public immutable MINTER;
-    address public immutable WSGETH;
+    uint256 public immutable VIRTUALPRICE;
+    IERC20 public immutable underlying;
 
     uint256 internal requestsCreated;
     uint256 internal requestsFulfilled;
@@ -66,13 +67,19 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
     event CancelRedeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
 
-    constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
+    constructor(
+        address _minter,
+        address _underlying,
+        uint256 _epochLength,
+        uint256 _virtualPrice
+    ) FIFOQueue(_epochLength) {
         MINTER = _minter;
-        WSGETH = _wsgEth;
+        underlying = IERC20(_underlying);
+        VIRTUALPRICE = _virtualPrice;
 
         uint256 maxUint256 = 2 ** 256 - 1;
 
-        IERC20(WSGETH).approve(_minter, maxUint256);
+        underlying.approve(_minter, maxUint256);
 
         _grantRole(GOV, msg.sender);
     }
@@ -93,18 +100,20 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
             revert Errors.InvalidAmount();
         }
         address owner = msg.sender;
-        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
+        // IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
-        requestId = requestsCreated++;
-        requests[requestId] = Request({requester: requester, shares: shares});
-        // use assets for tracking
-        uint256 assets = IERC4626(WSGETH).previewRedeem(shares);
+        if (underlying.transferFrom(owner, address(this), shares)) {
+            requestId = requestsCreated++;
+            requests[requestId] = Request({requester: requester, shares: shares});
+            // use assets for tracking
+            uint256 assets = _getAmountGivenShares(shares, VIRTUALPRICE);
 
-        _stakeForWithdrawal(requester, assets);
-        totalPendingRequest += assets;
-        redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
+            _stakeForWithdrawal(requester, assets);
+            totalPendingRequest += assets;
+            redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
 
-        emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
+            emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
+        }
     }
 
     /// @notice Allows a user to redeem their vault shares.
@@ -124,10 +133,10 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         }
 
         address requester = msg.sender;
-        assets = IERC4626(WSGETH).previewRedeem(shares);
+        assets = _getAmountGivenShares(shares, VIRTUALPRICE);
 
         // checks if we have enough assets to fulfill the request and if epoch has passed
-        if (claimableRedeemRequest(receiver) < assets) {
+        if (claimableRedeemRequest(receiver) <= assets) {
             _checkWithdraw(receiver, totalBalance(), assets);
             return 0; // should never happen. previous fn will generate a rich error
         }
@@ -140,16 +149,11 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         totalAssetsOut += assets;
         requestsFulfilled++;
 
-        uint256 minterBalance = MINTER.balance;
-        // This feels suboptimal, but is the easiest way to always burn the token on redemptions
-        if (assets > minterBalance) {
-            uint256 diff = assets - minterBalance;
-            // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
-            payable(MINTER).transfer(diff);
+        if (assets > address(this).balance) {
+            revert Errors.InvalidAmount();
         }
 
-        // Always burn redeemed tokens
-        SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
+        payable(msg.sender).transfer(assets);
 
         emit Redeem(requester, receiver, shares, assets);
     }
@@ -160,9 +164,8 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     ) external onlyOwnerOrOperator(receiver) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
         address requester = msg.sender;
         assets = pendingRedeemRequest(requester);
-        uint256 shares = IERC4626(WSGETH).previewDeposit(assets);
 
-        if (shares == 0) {
+        if (assets == 0) {
             revert Errors.InvalidAmount();
         }
 
@@ -176,7 +179,10 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
         totalPendingRequest -= assets;
         _withdraw(requester, assets);
-        IERC20(WSGETH).transfer(receiver, shares); // asset here is the Vault underlying asset
+
+        uint256 shares = _getSharesGivenAssets(assets, VIRTUALPRICE);
+
+        underlying.transferFrom(address(this), msg.sender, shares); // asset here is the Vault underlying asset
 
         emit CancelRedeem(requester, receiver, shares, assets);
     }
@@ -210,6 +216,14 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
     function totalBalance() internal view returns (uint256) {
         return address(this).balance + MINTER.balance;
+    }
+
+    function _getAmountGivenShares(uint256 shares, uint256 _vp) internal pure returns (uint256) {
+        return ((shares * _vp) / 1e18);
+    }
+
+    function _getSharesGivenAssets(uint256 assets, uint256 _vp) internal pure returns (uint256) {
+        return ((assets * 1e18) / _vp);
     }
 
     receive() external payable {} // solhint-disable-line

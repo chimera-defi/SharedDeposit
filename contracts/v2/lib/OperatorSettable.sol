@@ -12,7 +12,7 @@ abstract contract OperatorSettable {
     event OperatorSet(address indexed owner, address indexed operator, bool value);
 
     modifier onlyOwnerOrOperator(address owner) {
-        if (owner != msg.sender && !isOperator[owner][msg.sender]) {
+        if (owner != msg.sender && !(isOperator[owner][msg.sender] == true)) {
             revert Errors.PermissionDenied();
         }
         _;
