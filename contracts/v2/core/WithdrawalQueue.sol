@@ -194,7 +194,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         // Convert assets back to shares using current exchange rate
         // Note: This uses the current exchange rate, which may differ from when the request was made
         uint256 shares = IERC4626(WSGETH).convertToShares(assets);
-        
+
         // Get the total shares we have in the contract
         uint256 contractShares = IERC20(WSGETH).balanceOf(address(this));
         // Ensure we don't try to transfer more shares than we have

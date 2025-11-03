@@ -358,7 +358,7 @@ describe("WithdrawalQueue", () => {
     await advanceTimeAndBlock(1);
 
     await expect(
-      withdrawalQueue.connect(alice).redeem(parseEther("5"), ethers.ZeroAddress, alice.address)
+      withdrawalQueue.connect(alice).redeem(parseEther("5"), ethers.ZeroAddress, alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
   });
 
@@ -367,7 +367,7 @@ describe("WithdrawalQueue", () => {
     await advanceTimeAndBlock(epoch);
 
     await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(ethers.ZeroAddress, alice.address)
+      withdrawalQueue.connect(alice).cancelRedeem(ethers.ZeroAddress, alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
   });
 
@@ -375,7 +375,7 @@ describe("WithdrawalQueue", () => {
     await advanceTimeAndBlock(epoch);
 
     await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address)
+      withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount");
   });
 });
