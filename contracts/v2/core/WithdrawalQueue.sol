@@ -16,10 +16,15 @@ import {SharedDepositMinterV2} from "./SharedDepositMinterV2.sol";
 
 /**
  * @title WithdrawalQueue
+ * @notice ERC-7540 inspired withdrawal contract with FIFO queue and epoch delay
  * @author @ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
  * @dev -
  * ERC-7540 inspired withdrawal contract
- * This contract is designed to be used with SharedDepositMinterV2 contract
+ * Supports two modes based on deployment parameters:
+ * - ERC4626 mode (virtualPrice = 0): For WSGETH tokens using dynamic exchange rates via IERC4626
+ * - Fixed price mode (virtualPrice > 0): For VETH2 tokens using fixed virtual price
+ * This contract is designed to be used with SharedDepositMinterV2 contract (ERC4626 mode)
+ * or as standalone for VETH2 (fixed price mode)
  * As a module extension that adds 7540 methods requestRedeem and redeem
  * Example flow ->
  * user calls requestRedeem(user, user, userShares)
@@ -44,7 +49,8 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     }
     // SharedDepositMinterV2 public immutable MINTER;
     address public immutable MINTER;
-    address public immutable WSGETH;
+    address public immutable UNDERLYING; // WSGETH or VETH2 token address
+    uint256 public immutable VIRTUAL_PRICE; // 0 = use ERC4626 mode, non-zero = use fixed price mode
 
     uint256 internal totalPendingRequest;
     uint256 internal requestsCreated;
@@ -66,13 +72,34 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
     event CancelRedeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
 
-    constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
+    /// @param _minter The minter contract address (can be zero for fixed price mode)
+    /// @param _underlying The underlying token address (WSGETH for ERC4626 mode, VETH2 for fixed price mode)
+    /// @param _epochLength The delay period in blocks before withdrawal is allowed
+    /// @param _virtualPrice The virtual price for fixed price mode (1e18 = 1:1). Set to 0 for ERC4626 mode
+    constructor(
+        address _minter,
+        address _underlying,
+        uint256 _epochLength,
+        uint256 _virtualPrice
+    ) FIFOQueue(_epochLength) {
+        if (_underlying == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+        // For ERC4626 mode, minter must be non-zero. For fixed price mode, minter can be zero
+        if (_virtualPrice == 0 && _minter == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+
         MINTER = _minter;
-        WSGETH = _wsgEth;
+        UNDERLYING = _underlying;
+        VIRTUAL_PRICE = _virtualPrice;
 
         uint256 maxUint256 = 2 ** 256 - 1;
 
-        IERC20(WSGETH).approve(_minter, maxUint256);
+        // Only approve minter if using ERC4626 mode
+        if (_virtualPrice == 0 && _minter != address(0)) {
+            IERC20(UNDERLYING).approve(_minter, maxUint256);
+        }
 
         _grantRole(GOV, msg.sender);
     }
@@ -93,27 +120,26 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
-        IERC20(WSGETH).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
+        IERC20(UNDERLYING).transferFrom(owner, address(this), shares); // asset here is the Vault underlying asset
 
         requestId = requestsCreated++;
         requests[requestId] = Request({requester: requester, shares: shares});
         // use assets for tracking
-        uint256 assets = IERC4626(WSGETH).previewRedeem(shares);
+        uint256 assets = _convertSharesToAssets(shares);
 
         _stakeForWithdrawal(owner, assets);
         totalPendingRequest += assets;
         redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
 
-        emit RedeemRequest(requester, owner, requestId, msg.sender, shares);
+        emit RedeemRequest(requester, owner, requestId, msg.sender, assets);
     }
 
     /// @notice Allows a user to redeem their vault shares.
     /// @dev This function must be called by either the owner or an operator of the requester's vault, and is only allowed when the contract is not paused.
-
+    /// @dev The function checks if the epoch has elapsed and if sufficient funds are available before processing the redemption.
     /// @param shares The number of shares to redeem.
-    /// @param receiver The address that will receive the redeemed assets.
+    /// @param receiver The address that will receive the redeemed assets. Must not be zero address.
     /// @param requester The address requesting the redemption.
-
     /// @return assets The amount of assets that were successfully redeemed.
     function redeem(
         uint256 shares,
@@ -123,13 +149,22 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
+        if (receiver == address(0)) {
+            revert Errors.ZeroAddress();
+        }
 
-        assets = IERC4626(WSGETH).previewRedeem(shares);
+        assets = _convertSharesToAssets(shares);
 
-        // checks if we have enough assets to fulfill the request and if epoch has passed
-        if (claimableRedeemRequest(requester) < assets) {
+        // Verify that the requester has sufficient claimable redemption request and epoch has elapsed
+        uint256 claimable = claimableRedeemRequest(requester);
+        if (claimable < assets) {
+            // If not claimable, check if epoch has elapsed and sufficient balance exists
             _checkWithdraw(requester, totalBalance(), assets);
-            return 0; // should never happen. previous fn will generate a rich error
+            // If check passes but claimable is still insufficient, revert
+            // This can happen if balance is insufficient even after epoch elapsed
+            if (totalBalance() < assets) {
+                revert Errors.InsufficientBalance();
+            }
         }
 
         _withdraw(requester, assets);
@@ -140,49 +175,78 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         totalAssetsOut += assets;
         requestsFulfilled++;
 
-        uint256 minterBalance = MINTER.balance;
-        // This feels suboptimal, but is the easiest way to always burn the token on redemptions
-        if (assets > minterBalance) {
-            uint256 diff = assets - minterBalance;
-            // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
-            payable(MINTER).transfer(diff);
-        }
+        if (VIRTUAL_PRICE == 0) {
+            // ERC4626 mode: use minter to unstake and withdraw
+            uint256 minterBalance = MINTER.balance;
+            // This feels suboptimal, but is the easiest way to always burn the token on redemptions
+            if (assets > minterBalance) {
+                uint256 diff = assets - minterBalance;
+                // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
+                payable(MINTER).transfer(diff);
+            }
 
-        // Always burn redeemed tokens
-        SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
+            // Always burn redeemed tokens
+            SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
+        } else {
+            // Fixed price mode: direct ETH transfer
+            if (assets > address(this).balance) {
+                revert Errors.InsufficientBalance();
+            }
+            payable(receiver).transfer(assets);
+        }
 
         emit Redeem(requester, receiver, shares, assets);
     }
 
-    /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired
+    /// @notice Cancel a redeem request and return funds to owner. Can only be done after the epoch has expired.
+    /// @dev This function allows canceling a redemption request after the epoch delay has passed.
+    /// @dev The shares are calculated from the pending redeem request amount (stored in assets).
+    /// @param receiver The address that will receive the returned shares. Must not be zero address.
+    /// @param requester The address requesting the cancellation.
+    /// @return assets The amount of assets that were canceled (converted from shares).
     function cancelRedeem(
         address receiver,
         address requester
     ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
-        uint256 shares = pendingRedeemRequest(requester);
-        assets = IERC4626(WSGETH).previewRedeem(shares);
+        assets = pendingRedeemRequest(requester);
 
-        if (shares == 0) {
+        if (assets == 0) {
             revert Errors.InvalidAmount();
+        }
+        if (receiver == address(0)) {
+            revert Errors.ZeroAddress();
         }
 
         _verifyEpochHasElapsed(requester);
 
-        // checks if we have enough assets to fulfill the request and if epoch has passed
-        if (claimableRedeemRequest(requester) < assets) {
-            _checkWithdraw(requester, totalBalance(), assets);
-            return 0; // should never happen. previous fn will generate a rich error
+        // Convert assets back to shares using current exchange rate
+        // Note: This uses the current exchange rate, which may differ from when the request was made
+        uint256 shares = _convertAssetsToShares(assets);
+
+        // Get the total shares we have in the contract
+        uint256 contractShares = IERC20(UNDERLYING).balanceOf(address(this));
+        // Ensure we don't try to transfer more shares than we have
+        if (shares > contractShares) {
+            // If we don't have enough shares, use what we have and adjust assets accordingly
+            shares = contractShares;
+            if (VIRTUAL_PRICE == 0) {
+                assets = IERC4626(UNDERLYING).convertToAssets(shares);
+            } else {
+                assets = _convertSharesToAssets(shares);
+            }
         }
 
-        // Treat everything as claimableRedeemRequest and validate here if there's adequate funds
+        // Update accounting - subtract the actual assets being canceled
         redeemRequests[requester] -= assets; // underflow would revert if not enough claimable shares
         totalPendingRequest -= assets;
         _withdraw(requester, assets);
-        IERC20(WSGETH).transfer(receiver, shares); // asset here is the Vault underlying asset
+        IERC20(UNDERLYING).transfer(receiver, shares);
 
         emit CancelRedeem(requester, receiver, shares, assets);
     }
 
+    /// @notice Toggles the pause state of a specific function.
+    /// @param func The function ID to toggle pause state for (1=requestRedeem, 2=redeem, 3=cancelRedeem).
     function togglePause(uint16 func) external onlyRole(GOV) {
         bool paused = paused[func];
         if (paused) {
@@ -192,17 +256,25 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         }
     }
 
+    /// @notice Sets the epoch length (delay period) for withdrawals.
+    /// @param value The new epoch length in blocks.
     function setEpochLength(uint256 value) external onlyRole(GOV) {
         _setEpochLength(value);
     }
 
-    function pendingRedeemRequest(address owner) public view returns (uint256 shares) {
+    /// @notice Returns the pending redemption request amount for an owner.
+    /// @dev This returns the total assets requested for redemption, not the number of shares.
+    /// @param owner The address to check pending requests for.
+    /// @return assets The amount of assets pending redemption (not shares).
+    function pendingRedeemRequest(address owner) public view returns (uint256 assets) {
         return redeemRequests[owner];
     }
 
-    // claimableRedeemRequest - returns owners shares in claimable state,
-    // i.e. epoch has elapsed and sufficient funds exist
-    function claimableRedeemRequest(address owner) public view returns (uint256 shares) {
+    /// @notice Returns the claimable redemption request amount for an owner.
+    /// @dev This returns the amount of assets that can be redeemed now (epoch elapsed and sufficient balance).
+    /// @param owner The address to check claimable requests for.
+    /// @return assets The amount of assets that can be redeemed now (0 if not claimable).
+    function claimableRedeemRequest(address owner) public view returns (uint256 assets) {
         if (redeemRequests[owner] > 0 && _isWithdrawalAllowed(owner, totalBalance(), redeemRequests[owner])) {
             return redeemRequests[owner];
         } else {
@@ -210,8 +282,43 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         }
     }
 
+    /// @notice Returns the total balance available for redemptions.
+    /// @dev This includes both the contract's balance and the minter's balance (if applicable).
+    /// @return The total balance available for fulfilling redemption requests.
     function totalBalance() internal view returns (uint256) {
-        return address(this).balance + MINTER.balance;
+        if (VIRTUAL_PRICE == 0 && MINTER != address(0)) {
+            return address(this).balance + MINTER.balance;
+        } else {
+            return address(this).balance;
+        }
+    }
+
+    /// @notice Converts shares to assets based on the configured mode.
+    /// @dev Uses ERC4626 previewRedeem if virtualPrice is 0, otherwise uses fixed price calculation.
+    /// @param shares The number of shares to convert.
+    /// @return assets The equivalent amount of assets.
+    function _convertSharesToAssets(uint256 shares) internal view returns (uint256 assets) {
+        if (VIRTUAL_PRICE == 0) {
+            // ERC4626 mode: use dynamic exchange rate
+            return IERC4626(UNDERLYING).previewRedeem(shares);
+        } else {
+            // Fixed price mode: use virtual price
+            return (shares * VIRTUAL_PRICE) / 1e18;
+        }
+    }
+
+    /// @notice Converts assets to shares based on the configured mode.
+    /// @dev Uses ERC4626 convertToShares if virtualPrice is 0, otherwise uses fixed price calculation.
+    /// @param assets The amount of assets to convert.
+    /// @return shares The equivalent number of shares.
+    function _convertAssetsToShares(uint256 assets) internal view returns (uint256 shares) {
+        if (VIRTUAL_PRICE == 0) {
+            // ERC4626 mode: use dynamic exchange rate
+            return IERC4626(UNDERLYING).convertToShares(assets);
+        } else {
+            // Fixed price mode: use virtual price
+            return (assets * 1e18) / VIRTUAL_PRICE;
+        }
     }
 
     receive() external payable {} // solhint-disable-line

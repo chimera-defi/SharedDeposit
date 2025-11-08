@@ -15,9 +15,10 @@ const func: DeployFunction = async hre => {
   const minter = (await connect(SharedDepositMinterV2__factory)) as SharedDepositMinterV2;
 
   const epoch = 1; // 1 block for quick tests
+  const virtualPrice = 0; // 0 = ERC4626 mode (for WSGETH), non-zero = fixed price mode (for VETH2)
 
   await deploy(WithdrawalQueue__factory, {
-    args: [minter.target, wsgEth.target, epoch],
+    args: [minter.target, wsgEth.target, epoch, virtualPrice],
   });
 };
 
