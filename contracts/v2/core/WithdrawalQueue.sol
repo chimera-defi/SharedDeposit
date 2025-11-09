@@ -198,6 +198,12 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
             }
         }
 
+        // Ensure assets doesn't exceed recorded request (prevents underflow if exchange rate changed)
+        // _checkWithdraw already validates ue.amount >= assets, but we add explicit check for redeemRequests
+        if (assets > redeemRequests[requester]) {
+            revert Errors.InvalidAmount();
+        }
+
         _withdraw(requester, assets);
         redeemRequests[requester] -= assets;
         totalPendingRequest -= assets;
@@ -263,6 +269,12 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
             }
         }
 
+        // Ensure assets doesn't exceed recorded request (prevents underflow if exchange rate changed)
+        // _checkWithdraw already validates ue.amount >= assets, but we add explicit check for redeemRequests
+        if (assets > redeemRequests[requester]) {
+            revert Errors.InvalidAmount();
+        }
+
         _withdraw(requester, assets);
         redeemRequests[requester] -= assets;
         totalPendingRequest -= assets;
@@ -319,18 +331,13 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
         // Get the total shares we have in the contract
         uint256 contractShares = IERC20(UNDERLYING).balanceOf(address(this));
-        // Ensure we don't try to transfer more shares than we have
+        // Revert if we don't have enough shares to fulfill the full cancellation
+        // This prevents accounting inconsistencies from partial cancellations
         if (shares > contractShares) {
-            // If we don't have enough shares, use what we have and adjust assets accordingly
-            shares = contractShares;
-            if (VIRTUAL_PRICE == 0) {
-                assets = IERC4626(UNDERLYING).convertToAssets(shares);
-            } else {
-                assets = _convertSharesToAssets(shares);
-            }
+            revert Errors.InsufficientBalance();
         }
 
-        // Update accounting - subtract the actual assets being canceled
+        // Update accounting - subtract the full assets being canceled
         redeemRequests[requester] -= assets;
         totalPendingRequest -= assets;
         _withdraw(requester, assets);
@@ -369,18 +376,13 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
         // Get the total shares we have in the contract
         uint256 contractShares = IERC20(UNDERLYING).balanceOf(address(this));
-        // Ensure we don't try to transfer more shares than we have
+        // Revert if we don't have enough shares to fulfill the full cancellation
+        // This prevents accounting inconsistencies from partial cancellations
         if (shares > contractShares) {
-            // If we don't have enough shares, use what we have and adjust assets accordingly
-            shares = contractShares;
-            if (VIRTUAL_PRICE == 0) {
-                assets = IERC4626(UNDERLYING).convertToAssets(shares);
-            } else {
-                assets = _convertSharesToAssets(shares);
-            }
+            revert Errors.InsufficientBalance();
         }
 
-        // Update accounting - subtract the actual assets being canceled
+        // Update accounting - subtract the full assets being canceled
         redeemRequests[requester] -= assets;
         totalPendingRequest -= assets;
         _withdraw(requester, assets);
