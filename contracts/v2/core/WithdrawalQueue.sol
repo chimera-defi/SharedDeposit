@@ -127,7 +127,9 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         // use assets for tracking
         uint256 assets = _convertSharesToAssets(shares);
 
-        _stakeForWithdrawal(owner, assets);
+        // Use requester for FIFO queue to ensure consistency with redeem() which accesses by requester
+        // Note: If owner != requester, the FIFO queue entry is created for requester, not owner
+        _stakeForWithdrawal(requester, assets);
         totalPendingRequest += assets;
         redeemRequests[requester] += assets; // underflow would revert if not enough claimable shares
 
@@ -243,6 +245,42 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         IERC20(UNDERLYING).transfer(receiver, shares);
 
         emit CancelRedeem(requester, receiver, shares, assets);
+    }
+
+    /// @notice Allows the contract owner (GOV role) to submit redemption requests on behalf of users.
+    /// @dev This function bypasses operator checks and allows the owner to initiate redemptions for any user.
+    /// @dev Useful for protocol-initiated redemptions, migrations, or emergency situations.
+    /// @param shares The number of shares to redeem.
+    /// @param requester The address requesting the redemption (will receive the redemption).
+    /// @param owner The owner of the vault tokens being redeemed from.
+    /// @return requestId The unique ID assigned to this redemption request.
+    function requestRedeemForUser(
+        uint256 shares,
+        address requester,
+        address owner
+    ) external onlyRole(GOV) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
+        if (shares == 0) {
+            revert Errors.InvalidAmount();
+        }
+        if (requester == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+        if (owner == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+        
+        IERC20(UNDERLYING).transferFrom(owner, address(this), shares);
+
+        requestId = requestsCreated++;
+        requests[requestId] = Request({requester: requester, shares: shares});
+        uint256 assets = _convertSharesToAssets(shares);
+
+        // Use requester for FIFO queue to match redeem() behavior
+        _stakeForWithdrawal(requester, assets);
+        totalPendingRequest += assets;
+        redeemRequests[requester] += assets;
+
+        emit RedeemRequest(requester, owner, requestId, msg.sender, assets);
     }
 
     /// @notice Toggles the pause state of a specific function.
