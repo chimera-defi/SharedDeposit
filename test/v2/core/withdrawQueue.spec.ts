@@ -79,10 +79,10 @@ describe("WithdrawalQueue", () => {
     // Note: Event emits assets (converted from shares), not shares directly
     const aliceAssets = await wsgEth.connect(alice).previewRedeem.staticCall(parseEther("10"));
     const bobAssets = await wsgEth.connect(bob).previewRedeem.staticCall(parseEther("30"));
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, aliceAssets);
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, bobAssets);
 
@@ -94,24 +94,24 @@ describe("WithdrawalQueue", () => {
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("30"));
 
     // cancel 1
-    await expect(withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).cancelRedeem(alice.address))
       .to.be.emit(withdrawalQueue, "CancelRedeem")
       .withArgs(alice.address, alice.address, parseEther("10"), parseEther("10"));
 
-    await expect(withdrawalQueue.connect(alice).redeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).redeem(parseEther("10"), alice.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
       .withArgs();
 
-    await withdrawalQueue.connect(bob).redeem(parseEther("30"), bob.address, bob.address);
+    await withdrawalQueue.connect(bob).redeem(parseEther("30"), bob.address);
   });
 
   it("request redeem flow", async () => {
     const aliceAssets = await wsgEth.connect(alice).previewRedeem.staticCall(parseEther("10"));
     const bobAssets = await wsgEth.connect(bob).previewRedeem.staticCall(parseEther("30"));
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, aliceAssets);
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, bobAssets);
 
@@ -121,17 +121,17 @@ describe("WithdrawalQueue", () => {
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("30"));
 
-    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address);
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("0"));
     expect(await withdrawalQueue.pendingRedeemRequest(alice.address)).to.eq(parseEther("5"));
   });
 
   it("request redeem(flow with secondary operator)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
 
-    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, alice.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
 
@@ -145,13 +145,13 @@ describe("WithdrawalQueue", () => {
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("0"));
 
-    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address);
 
     await advanceTimeAndBlock(epoch);
 
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("5"));
 
-    await withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, alice.address);
+    await withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, alice.address);
     await advanceTimeAndBlock(epoch);
 
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("0"));
@@ -159,14 +159,11 @@ describe("WithdrawalQueue", () => {
   });
 
   it("request redeem(flow with secondary operator recv shares)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
 
-    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, bob.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
-      .withArgs();
-    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), bob.address, alice.address))
+    await expect(withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, bob.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
 
@@ -180,14 +177,9 @@ describe("WithdrawalQueue", () => {
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("0"));
 
-    await expect(withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, bob.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
-      .withArgs();
-    await expect(withdrawalQueue.connect(alice).redeem(parseEther("5"), bob.address, bob.address))
-      .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
-      .withArgs();
-    await withdrawalQueue.connect(bob).redeem(parseEther("5"), bob.address, alice.address);
-    await withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, alice.address);
+    // Operator can redeem for alice and send to bob (different receiver)
+    await withdrawalQueue.connect(bob).redeemFor(parseEther("5"), bob.address, alice.address);
+    await withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, alice.address);
 
     await advanceTimeAndBlock(epoch);
 
@@ -196,10 +188,10 @@ describe("WithdrawalQueue", () => {
   });
 
   it("request redeem(flow with secondary operator with own holdings)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
@@ -213,13 +205,13 @@ describe("WithdrawalQueue", () => {
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueue.claimableRedeemRequest(bob.address)).to.eq(parseEther("30"));
 
-    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address);
 
     await advanceTimeAndBlock(epoch);
 
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("5"));
 
-    await withdrawalQueue.connect(bob).redeem(parseEther("5"), alice.address, alice.address);
+    await withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, alice.address);
     await advanceTimeAndBlock(epoch);
 
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.eq(parseEther("0"));
@@ -230,11 +222,11 @@ describe("WithdrawalQueue", () => {
   });
 
   it("request redeem(total request amount is less than 32 ether)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(0, alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(0))
       .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
       .withArgs();
 
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("1"));
 
@@ -242,7 +234,7 @@ describe("WithdrawalQueue", () => {
   });
 
   it("request redeem(total request amount is less than 32 ether) from another operator(operator functionality check)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address, bob.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeemFor(parseEther("1"), alice.address, bob.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
 
@@ -250,17 +242,17 @@ describe("WithdrawalQueue", () => {
       .to.be.emit(withdrawalQueue, "OperatorSet")
       .withArgs(bob.address, alice.address, true);
 
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address, bob.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeemFor(parseEther("1"), alice.address, bob.address))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, bob.address, 0, alice.address, parseEther("1"));
     expect(await withdrawalQueue.pendingRedeemRequest(alice.address)).to.eq(parseEther("1"));
   });
 
   it("request redeem(total request amount is bigger than 32 ether)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
@@ -272,10 +264,10 @@ describe("WithdrawalQueue", () => {
   });
 
   it("redeem(amount is less than queue balance) and minter is empty", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
@@ -290,11 +282,11 @@ describe("WithdrawalQueue", () => {
     await minter.connect(alice).withdrawTo(parseEther("100"), alice.address);
 
     const prevBalance = await deployer.provider.getBalance(withdrawalQueue.target);
-    await expect(withdrawalQueue.connect(alice).redeem(parseEther("50"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).redeem(parseEther("50"), alice.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount")
       .withArgs();
 
-    await expect(withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).redeem(parseEther("5"), alice.address))
       .to.emit(withdrawalQueue, "Redeem")
       .withArgs(alice.address, alice.address, parseEther("5"), parseEther("5"));
     const afterBalance = await deployer.provider.getBalance(withdrawalQueue.target);
@@ -303,10 +295,10 @@ describe("WithdrawalQueue", () => {
   });
 
   it("redeem(amount > queue + minter, cannot be fulfilled)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
@@ -322,7 +314,7 @@ describe("WithdrawalQueue", () => {
 
     // Empty the queue
     const prevBalance = await deployer.provider.getBalance(withdrawalQueue.target);
-    await expect(withdrawalQueue.connect(alice).redeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).redeem(parseEther("10"), alice.address))
       .to.emit(withdrawalQueue, "Redeem")
       .withArgs(alice.address, alice.address, parseEther("10"), parseEther("10"));
     const afterBalance = await deployer.provider.getBalance(withdrawalQueue.target);
@@ -337,17 +329,17 @@ describe("WithdrawalQueue", () => {
   });
 
   it("redeem(amount is bigger than queue balance)", async () => {
-    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address))
+    await expect(withdrawalQueue.connect(alice).requestRedeem(parseEther("10")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
-    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).requestRedeem(parseEther("30")))
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(bob.address, bob.address, 1, bob.address, parseEther("30"));
 
     const prevBalance = await deployer.provider.getBalance(minter.target);
     const queuePrevBalance = await deployer.provider.getBalance(withdrawalQueue.target);
 
-    await expect(withdrawalQueue.connect(bob).redeem(parseEther("20"), bob.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).redeem(parseEther("20"), bob.address))
       .to.emit(withdrawalQueue, "Redeem")
       .withArgs(bob.address, bob.address, parseEther("20"), parseEther("20"));
     const afterBalance = await deployer.provider.getBalance(minter.target);
@@ -360,20 +352,20 @@ describe("WithdrawalQueue", () => {
   });
 
   it("should revert when redeeming with zero receiver address", async () => {
-    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"));
     await advanceTimeAndBlock(1);
 
     await expect(
-      withdrawalQueue.connect(alice).redeem(parseEther("5"), hreEthers.ZeroAddress, alice.address),
+      withdrawalQueue.connect(alice).redeem(parseEther("5"), hreEthers.ZeroAddress),
     ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
   });
 
   it("should revert when canceling with zero receiver address", async () => {
-    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"));
     await advanceTimeAndBlock(epoch);
 
     await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(hreEthers.ZeroAddress, alice.address),
+      withdrawalQueue.connect(alice).cancelRedeem(hreEthers.ZeroAddress),
     ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
   });
 
@@ -381,23 +373,23 @@ describe("WithdrawalQueue", () => {
     await advanceTimeAndBlock(epoch);
 
     await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address),
+      withdrawalQueue.connect(alice).cancelRedeem(alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount");
   });
 
   // Edge case: test with zero shares in requestRedeem
   it("should revert when requesting redeem with zero shares", async () => {
     await expect(
-      withdrawalQueue.connect(alice).requestRedeem(0, alice.address, alice.address),
+      withdrawalQueue.connect(alice).requestRedeem(0),
     ).to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount");
   });
 
   // Edge case: test with zero shares in redeem
   it("should revert when redeeming with zero shares", async () => {
-    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"));
     await advanceTimeAndBlock(epoch);
 
-    await expect(withdrawalQueue.connect(alice).redeem(0, alice.address, alice.address)).to.be.revertedWithCustomError(
+    await expect(withdrawalQueue.connect(alice).redeem(0, alice.address)).to.be.revertedWithCustomError(
       withdrawalQueue,
       "InvalidAmount",
     );
@@ -434,7 +426,7 @@ describe("WithdrawalQueue", () => {
   // Skip this test if epoch is already elapsed due to auto block advancement
   it("should revert when redeeming before epoch elapsed with sufficient balance", async () => {
     const blockBefore = await hreEthers.provider.getBlockNumber();
-    await withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("1"));
     const blockAfter = await hreEthers.provider.getBlockNumber();
 
     // Check if epoch has already elapsed due to auto block advancement
@@ -460,7 +452,7 @@ describe("WithdrawalQueue", () => {
 
     // Now _checkWithdraw will pass balance check but fail epoch check
     await expect(
-      withdrawalQueue.connect(alice).redeem(parseEther("1"), alice.address, alice.address),
+      withdrawalQueue.connect(alice).redeem(parseEther("1"), alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueue, "TooEarly");
   });
 
@@ -468,7 +460,7 @@ describe("WithdrawalQueue", () => {
   // Note: Hardhat auto-advances blocks, so we need to check block numbers
   it("should revert when canceling before epoch elapsed", async () => {
     const blockBefore = await hreEthers.provider.getBlockNumber();
-    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"));
     const blockAfter = await hreEthers.provider.getBlockNumber();
 
     // Check if epoch has already elapsed due to auto block advancement
@@ -479,14 +471,14 @@ describe("WithdrawalQueue", () => {
     }
 
     await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(alice.address, alice.address),
+      withdrawalQueue.connect(alice).cancelRedeem(alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueue, "TooEarly");
   });
 
   // Edge case: test totalBalance view function
   it("should return correct totalBalance for ERC4626 mode", async () => {
     // totalBalance is internal, but we can test it indirectly through claimableRedeemRequest
-    await withdrawalQueue.connect(alice).requestRedeem(parseEther("1"), alice.address, alice.address);
+    await withdrawalQueue.connect(alice).requestRedeem(parseEther("1"));
     await advanceTimeAndBlock(epoch);
     // If claimable works, totalBalance is working correctly
     expect(await withdrawalQueue.claimableRedeemRequest(alice.address)).to.be.gt(0);
@@ -552,7 +544,7 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     const shares = parseEther("10");
     const expectedAssets = (shares * VIRTUAL_PRICE) / parseEther("1"); // 1:1 conversion
 
-    await expect(withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address))
+    await expect(withdrawalQueueFixed.connect(alice).requestRedeem(shares))
       .to.emit(withdrawalQueueFixed, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, expectedAssets);
 
@@ -562,13 +554,13 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
 
   it("should redeem in fixed price mode after epoch", async () => {
     const shares = parseEther("10");
-    await withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address);
+    await withdrawalQueueFixed.connect(alice).requestRedeem(shares);
     await advanceTimeAndBlock(EPOCH_LENGTH);
 
     const receiverBalanceBefore = await hreEthers.provider.getBalance(alice.address);
     const queueBalanceBefore = await hreEthers.provider.getBalance(await withdrawalQueueFixed.getAddress());
 
-    await expect(withdrawalQueueFixed.connect(alice).redeem(shares, alice.address, alice.address)).to.emit(
+    await expect(withdrawalQueueFixed.connect(alice).redeem(shares, alice.address)).to.emit(
       withdrawalQueueFixed,
       "Redeem",
     );
@@ -587,12 +579,12 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
 
   it("should cancel redeem in fixed price mode", async () => {
     const shares = parseEther("10");
-    await withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address);
+    await withdrawalQueueFixed.connect(alice).requestRedeem(shares);
     await advanceTimeAndBlock(EPOCH_LENGTH);
 
     const aliceBalanceBefore = await mockToken.balanceOf(alice.address);
 
-    await expect(withdrawalQueueFixed.connect(alice).cancelRedeem(alice.address, alice.address)).to.emit(
+    await expect(withdrawalQueueFixed.connect(alice).cancelRedeem(alice.address)).to.emit(
       withdrawalQueueFixed,
       "CancelRedeem",
     );
@@ -604,14 +596,14 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
 
   it("should revert when redeeming with insufficient ETH balance in fixed price mode", async () => {
     const shares = parseEther("200"); // More than contract has
-    await withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address);
+    await withdrawalQueueFixed.connect(alice).requestRedeem(shares);
     await advanceTimeAndBlock(EPOCH_LENGTH);
 
     // The revert happens in _checkWithdraw which checks balance first
     // If balance is insufficient, it reverts with InvalidAmount before checking epoch
     // If balance is sufficient but assets > balance, it reverts with InsufficientBalance
     await expect(
-      withdrawalQueueFixed.connect(alice).redeem(shares, alice.address, alice.address),
+      withdrawalQueueFixed.connect(alice).redeem(shares, alice.address),
     ).to.be.revertedWithCustomError(withdrawalQueueFixed, "InvalidAmount");
   });
 
@@ -635,13 +627,13 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     const shares = parseEther("10");
     const expectedAssets = (shares * premiumPrice) / parseEther("1"); // Should be 10.5 ETH
 
-    await withdrawalQueuePremium.connect(alice).requestRedeem(shares, alice.address, alice.address);
+    await withdrawalQueuePremium.connect(alice).requestRedeem(shares);
     expect(await withdrawalQueuePremium.pendingRedeemRequest(alice.address)).to.eq(expectedAssets);
 
     await advanceTimeAndBlock(EPOCH_LENGTH);
     const receiverBalanceBefore = await hreEthers.provider.getBalance(alice.address);
 
-    await withdrawalQueuePremium.connect(alice).redeem(shares, alice.address, alice.address);
+    await withdrawalQueuePremium.connect(alice).redeem(shares, alice.address);
 
     const receiverBalanceAfter = await hreEthers.provider.getBalance(alice.address);
     expect(receiverBalanceAfter - receiverBalanceBefore).to.be.closeTo(expectedAssets, parseEther("0.01"));
@@ -649,19 +641,19 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
 
   it("should handle partial redemption in fixed price mode", async () => {
     const shares = parseEther("10");
-    await withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address);
+    await withdrawalQueueFixed.connect(alice).requestRedeem(shares);
     await advanceTimeAndBlock(EPOCH_LENGTH);
 
     const partialShares = parseEther("5");
-    await withdrawalQueueFixed.connect(alice).redeem(partialShares, alice.address, alice.address);
+    await withdrawalQueueFixed.connect(alice).redeem(partialShares, alice.address);
 
     // Should have half remaining
     expect(await withdrawalQueueFixed.pendingRedeemRequest(alice.address)).to.eq(parseEther("5"));
   });
 
   it("should handle multiple users in fixed price mode", async () => {
-    await withdrawalQueueFixed.connect(alice).requestRedeem(parseEther("10"), alice.address, alice.address);
-    await withdrawalQueueFixed.connect(bob).requestRedeem(parseEther("20"), bob.address, bob.address);
+    await withdrawalQueueFixed.connect(alice).requestRedeem(parseEther("10"));
+    await withdrawalQueueFixed.connect(bob).requestRedeem(parseEther("20"));
     await advanceTimeAndBlock(EPOCH_LENGTH);
 
     expect(await withdrawalQueueFixed.pendingRedeemRequest(alice.address)).to.eq(parseEther("10"));
@@ -669,8 +661,8 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     expect(await withdrawalQueueFixed.claimableRedeemRequest(alice.address)).to.eq(parseEther("10"));
     expect(await withdrawalQueueFixed.claimableRedeemRequest(bob.address)).to.eq(parseEther("20"));
 
-    await withdrawalQueueFixed.connect(alice).redeem(parseEther("10"), alice.address, alice.address);
-    await withdrawalQueueFixed.connect(bob).redeem(parseEther("20"), bob.address, bob.address);
+    await withdrawalQueueFixed.connect(alice).redeem(parseEther("10"), alice.address);
+    await withdrawalQueueFixed.connect(bob).redeem(parseEther("20"), bob.address);
 
     expect(await withdrawalQueueFixed.pendingRedeemRequest(alice.address)).to.eq(0);
     expect(await withdrawalQueueFixed.pendingRedeemRequest(bob.address)).to.eq(0);
@@ -696,7 +688,7 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
 
     // Request with shares that will convert to high assets
     const shares = parseEther("5");
-    await withdrawalQueueHigh.connect(alice).requestRedeem(shares, alice.address, alice.address);
+    await withdrawalQueueHigh.connect(alice).requestRedeem(shares);
     await advanceTimeAndBlock(EPOCH_LENGTH);
 
     // Transfer most tokens out to simulate edge case
@@ -705,7 +697,7 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     // For this test, we verify cancel works even with edge case conditions
 
     // Now cancel should work but adjust shares/assets
-    await withdrawalQueueHigh.connect(alice).cancelRedeem(alice.address, alice.address);
+    await withdrawalQueueHigh.connect(alice).cancelRedeem(alice.address);
     // Should not revert, but return adjusted amount
   });
 });
