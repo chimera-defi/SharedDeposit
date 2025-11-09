@@ -106,11 +106,12 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
     /// @notice Requests a redemption of vault assets for the caller.
     /// @dev This function uses msg.sender as both the requester and owner. Only allowed when the contract is not paused.
+    /// @dev Validates that msg.sender is authorized to act on their own behalf.
     /// @param shares The number of shares to redeem.
     /// @return requestId The unique ID assigned to this redemption request.
     function requestRedeem(
         uint256 shares
-    ) external nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
+    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -140,7 +141,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         uint256 shares,
         address requester,
         address owner
-    ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
+    ) external onlyOwnerOrOperator(owner) nonReentrant whenNotPaused(uint16(2)) returns (uint256 requestId) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -166,6 +167,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
     /// @notice Allows a user to redeem their vault shares.
     /// @dev This function uses msg.sender as the requester. Only allowed when the contract is not paused.
+    /// @dev Validates that msg.sender is authorized to act on their own behalf.
     /// @dev The function checks if the epoch has elapsed and if sufficient funds are available before processing the redemption.
     /// @param shares The number of shares to redeem.
     /// @param receiver The address that will receive the redeemed assets. Must not be zero address.
@@ -173,7 +175,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     function redeem(
         uint256 shares,
         address receiver
-    ) external nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -236,7 +238,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         uint256 shares,
         address receiver,
         address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(2)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(4)) returns (uint256 assets) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -292,12 +294,13 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
     /// @notice Cancel a redeem request and return funds to the caller. Can only be done after the epoch has expired.
     /// @dev This function uses msg.sender as the requester. Only allowed when the contract is not paused.
+    /// @dev Validates that msg.sender is authorized to act on their own behalf.
     /// @dev The shares are calculated from the pending redeem request amount (stored in assets).
     /// @param receiver The address that will receive the returned shares. Must not be zero address.
     /// @return assets The amount of assets that were canceled (converted from shares).
     function cancelRedeem(
         address receiver
-    ) external nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(msg.sender) nonReentrant whenNotPaused(uint16(5)) returns (uint256 assets) {
         address requester = msg.sender;
         assets = pendingRedeemRequest(requester);
 
@@ -345,7 +348,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     function cancelRedeemFor(
         address receiver,
         address requester
-    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(3)) returns (uint256 assets) {
+    ) external onlyOwnerOrOperator(requester) nonReentrant whenNotPaused(uint16(6)) returns (uint256 assets) {
         assets = pendingRedeemRequest(requester);
 
         if (assets == 0) {
@@ -397,7 +400,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         uint256 shares,
         address requester,
         address owner
-    ) external onlyRole(GOV) nonReentrant whenNotPaused(uint16(1)) returns (uint256 requestId) {
+    ) external onlyRole(GOV) nonReentrant whenNotPaused(uint16(7)) returns (uint256 requestId) {
         if (shares == 0) {
             revert Errors.InvalidAmount();
         }
@@ -422,7 +425,9 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     }
 
     /// @notice Toggles the pause state of a specific function.
-    /// @param func The function ID to toggle pause state for (1=requestRedeem, 2=redeem, 3=cancelRedeem).
+    /// @param func The function ID to toggle pause state for:
+    ///             1=requestRedeem, 2=requestRedeemFor, 3=redeem, 4=redeemFor,
+    ///             5=cancelRedeem, 6=cancelRedeemFor, 7=requestRedeemForUser
     function togglePause(uint16 func) external onlyRole(GOV) {
         bool paused = paused[func];
         if (paused) {
