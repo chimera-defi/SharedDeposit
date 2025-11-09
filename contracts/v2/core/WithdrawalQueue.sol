@@ -204,31 +204,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
             revert Errors.InvalidAmount();
         }
 
-        _withdraw(requester, assets);
-        redeemRequests[requester] -= assets;
-        totalPendingRequest -= assets;
-        totalAssetsOut += assets;
-        requestsFulfilled++;
-
-        if (VIRTUAL_PRICE == 0) {
-            // ERC4626 mode: use minter to unstake and withdraw
-            uint256 minterBalance = MINTER.balance;
-            // This feels suboptimal, but is the easiest way to always burn the token on redemptions
-            if (assets > minterBalance) {
-                uint256 diff = assets - minterBalance;
-                // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
-                payable(MINTER).transfer(diff);
-            }
-
-            // Always burn redeemed tokens
-            SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
-        } else {
-            // Fixed price mode: direct ETH transfer
-            if (assets > address(this).balance) {
-                revert Errors.InsufficientBalance();
-            }
-            payable(receiver).transfer(assets);
-        }
+        _processRedeem(requester, receiver, shares, assets);
 
         emit Redeem(requester, receiver, shares, assets);
     }
@@ -275,31 +251,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
             revert Errors.InvalidAmount();
         }
 
-        _withdraw(requester, assets);
-        redeemRequests[requester] -= assets;
-        totalPendingRequest -= assets;
-        totalAssetsOut += assets;
-        requestsFulfilled++;
-
-        if (VIRTUAL_PRICE == 0) {
-            // ERC4626 mode: use minter to unstake and withdraw
-            uint256 minterBalance = MINTER.balance;
-            // This feels suboptimal, but is the easiest way to always burn the token on redemptions
-            if (assets > minterBalance) {
-                uint256 diff = assets - minterBalance;
-                // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
-                payable(MINTER).transfer(diff);
-            }
-
-            // Always burn redeemed tokens
-            SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
-        } else {
-            // Fixed price mode: direct ETH transfer
-            if (assets > address(this).balance) {
-                revert Errors.InsufficientBalance();
-            }
-            payable(receiver).transfer(assets);
-        }
+        _processRedeem(requester, receiver, shares, assets);
 
         emit Redeem(requester, receiver, shares, assets);
     }
@@ -412,7 +364,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
         if (owner == address(0)) {
             revert Errors.ZeroAddress();
         }
-        
+
         IERC20(UNDERLYING).transferFrom(owner, address(this), shares);
 
         requestId = requestsCreated++;
@@ -462,6 +414,40 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
             return redeemRequests[owner];
         } else {
             return 0;
+        }
+    }
+
+    /// @notice Internal function to process redemption logic.
+    /// @dev Handles accounting updates and asset transfer based on mode (ERC4626 or fixed price).
+    /// @param requester The address requesting the redemption.
+    /// @param receiver The address that will receive the redeemed assets.
+    /// @param shares The number of shares being redeemed.
+    /// @param assets The amount of assets being redeemed.
+    function _processRedeem(address requester, address receiver, uint256 shares, uint256 assets) internal {
+        _withdraw(requester, assets);
+        redeemRequests[requester] -= assets;
+        totalPendingRequest -= assets;
+        totalAssetsOut += assets;
+        requestsFulfilled++;
+
+        if (VIRTUAL_PRICE == 0) {
+            // ERC4626 mode: use minter to unstake and withdraw
+            uint256 minterBalance = MINTER.balance;
+            // This feels suboptimal, but is the easiest way to always burn the token on redemptions
+            if (assets > minterBalance) {
+                uint256 diff = assets - minterBalance;
+                // We need to use donate/transfer etc. cant deposit and mint more shares as that messes up accouting
+                payable(MINTER).transfer(diff);
+            }
+
+            // Always burn redeemed tokens
+            SharedDepositMinterV2(payable(MINTER)).unstakeAndWithdraw(shares, receiver);
+        } else {
+            // Fixed price mode: direct ETH transfer
+            if (assets > address(this).balance) {
+                revert Errors.InsufficientBalance();
+            }
+            payable(receiver).transfer(assets);
         }
     }
 

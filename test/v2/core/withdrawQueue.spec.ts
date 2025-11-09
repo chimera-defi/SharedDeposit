@@ -163,7 +163,7 @@ describe("WithdrawalQueue", () => {
       .to.be.emit(withdrawalQueue, "RedeemRequest")
       .withArgs(alice.address, alice.address, 0, alice.address, parseEther("10"));
 
-    await expect(withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, bob.address))
+    await expect(withdrawalQueue.connect(bob).redeemFor(parseEther("5"), alice.address, alice.address))
       .to.be.revertedWithCustomError(withdrawalQueue, "PermissionDenied")
       .withArgs();
 
@@ -364,24 +364,27 @@ describe("WithdrawalQueue", () => {
     await withdrawalQueue.connect(alice).requestRedeem(parseEther("10"));
     await advanceTimeAndBlock(epoch);
 
-    await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(hreEthers.ZeroAddress),
-    ).to.be.revertedWithCustomError(withdrawalQueue, "ZeroAddress");
+    await expect(withdrawalQueue.connect(alice).cancelRedeem(hreEthers.ZeroAddress)).to.be.revertedWithCustomError(
+      withdrawalQueue,
+      "ZeroAddress",
+    );
   });
 
   it("should revert when canceling with zero pending request", async () => {
     await advanceTimeAndBlock(epoch);
 
-    await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(alice.address),
-    ).to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount");
+    await expect(withdrawalQueue.connect(alice).cancelRedeem(alice.address)).to.be.revertedWithCustomError(
+      withdrawalQueue,
+      "InvalidAmount",
+    );
   });
 
   // Edge case: test with zero shares in requestRedeem
   it("should revert when requesting redeem with zero shares", async () => {
-    await expect(
-      withdrawalQueue.connect(alice).requestRedeem(0),
-    ).to.be.revertedWithCustomError(withdrawalQueue, "InvalidAmount");
+    await expect(withdrawalQueue.connect(alice).requestRedeem(0)).to.be.revertedWithCustomError(
+      withdrawalQueue,
+      "InvalidAmount",
+    );
   });
 
   // Edge case: test with zero shares in redeem
@@ -451,9 +454,10 @@ describe("WithdrawalQueue", () => {
     }
 
     // Now _checkWithdraw will pass balance check but fail epoch check
-    await expect(
-      withdrawalQueue.connect(alice).redeem(parseEther("1"), alice.address),
-    ).to.be.revertedWithCustomError(withdrawalQueue, "TooEarly");
+    await expect(withdrawalQueue.connect(alice).redeem(parseEther("1"), alice.address)).to.be.revertedWithCustomError(
+      withdrawalQueue,
+      "TooEarly",
+    );
   });
 
   // Edge case: test cancelRedeem before epoch elapsed
@@ -470,9 +474,10 @@ describe("WithdrawalQueue", () => {
       return;
     }
 
-    await expect(
-      withdrawalQueue.connect(alice).cancelRedeem(alice.address),
-    ).to.be.revertedWithCustomError(withdrawalQueue, "TooEarly");
+    await expect(withdrawalQueue.connect(alice).cancelRedeem(alice.address)).to.be.revertedWithCustomError(
+      withdrawalQueue,
+      "TooEarly",
+    );
   });
 
   // Edge case: test totalBalance view function
@@ -602,9 +607,10 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     // The revert happens in _checkWithdraw which checks balance first
     // If balance is insufficient, it reverts with InvalidAmount before checking epoch
     // If balance is sufficient but assets > balance, it reverts with InsufficientBalance
-    await expect(
-      withdrawalQueueFixed.connect(alice).redeem(shares, alice.address),
-    ).to.be.revertedWithCustomError(withdrawalQueueFixed, "InvalidAmount");
+    await expect(withdrawalQueueFixed.connect(alice).redeem(shares, alice.address)).to.be.revertedWithCustomError(
+      withdrawalQueueFixed,
+      "InvalidAmount",
+    );
   });
 
   it("should handle non-1:1 virtual price", async () => {

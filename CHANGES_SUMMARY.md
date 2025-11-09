@@ -10,16 +10,19 @@ This document summarizes the changes made to the WithdrawalQueue contract based 
 
 ### 1. Fixed Owner/Requester Mismatch in FIFO Queue
 
-**Problem**: 
+**Problem**:
+
 - `requestRedeem()` created FIFO queue entry for `owner`
 - `redeem()` accessed FIFO queue entry for `requester`
 - If `owner != requester`, `redeem()` would fail because the entry doesn't exist
 
 **Solution**:
+
 - Changed `requestRedeem()` line 130 to use `requester` instead of `owner` for FIFO queue operations
 - Added comment explaining the change and consistency with `redeem()`
 
 **Code Change**:
+
 ```solidity
 // Before:
 _stakeForWithdrawal(owner, assets);
@@ -30,7 +33,8 @@ _stakeForWithdrawal(owner, assets);
 _stakeForWithdrawal(requester, assets);
 ```
 
-**Impact**: 
+**Impact**:
+
 - ✅ Fixes potential bug where `owner != requester` would cause redemption failures
 - ✅ Ensures consistency between request and redeem operations
 - ✅ No breaking changes - if `owner == requester` (common case), behavior is identical
@@ -39,11 +43,13 @@ _stakeForWithdrawal(requester, assets);
 
 ### 2. Added `requestRedeemForUser()` Function
 
-**Requirement**: 
+**Requirement**:
+
 - Contract owner (GOV role) should be able to submit redemption requests on behalf of other users
 - Only the owner should have this privilege
 
 **Implementation**:
+
 - New function `requestRedeemForUser()` added after `cancelRedeem()`
 - Access control: `onlyRole(GOV)` - only governance can call
 - Same logic as `requestRedeem()` but bypasses operator checks
@@ -51,6 +57,7 @@ _stakeForWithdrawal(requester, assets);
 - Uses `requester` for FIFO queue (consistent with fix above)
 
 **Function Signature**:
+
 ```solidity
 function requestRedeemForUser(
     uint256 shares,
@@ -60,12 +67,14 @@ function requestRedeemForUser(
 ```
 
 **Use Cases**:
+
 - Protocol-initiated redemptions
 - Contract migrations
 - Emergency situations where users need help
 - Batch redemptions for multiple users
 
 **Security**:
+
 - ✅ Only GOV role can call (contract owner/governance)
 - ✅ Still requires tokens to be transferred from `owner` (user must approve contract)
 - ✅ Same pause protection as `requestRedeem()` (function ID 1)
@@ -77,7 +86,9 @@ function requestRedeemForUser(
 ## Documentation Created
 
 ### 1. CONTRACT_CLARIFICATIONS.md
+
 Comprehensive documentation of confusing aspects:
+
 - Owner vs Requester parameter confusion
 - Assets vs Shares tracking system
 - FIFO Queue design (per-user vs global)
@@ -88,14 +99,18 @@ Comprehensive documentation of confusing aspects:
 - Granular pause function IDs
 
 ### 2. UNDERFLOW_ANALYSIS.md
+
 Detailed analysis of potential underflow scenarios:
+
 - All subtraction operations identified
 - Risk levels assessed
 - Protection mechanisms reviewed
 - Recommendations for explicit validation
 
 ### 3. WITHDRAWAL_QUEUE_AUDIT_REVISED.md
+
 Revised security audit focusing on actual bugs:
+
 - Owner/requester mismatch (now fixed)
 - Missing tests
 - Accounting issues
@@ -108,16 +123,17 @@ Revised security audit focusing on actual bugs:
 ### New Tests Needed
 
 1. **`requestRedeemForUser()` Tests**:
+
    ```typescript
    it("should allow GOV to request redemption for any user", async () => {
      await withdrawalQueue.connect(multiSig).requestRedeemForUser(
-       parseEther("10"), 
-       alice.address, 
+       parseEther("10"),
+       alice.address,
        bob.address
      );
      // Verify request created
    });
-   
+
    it("should revert when non-GOV tries to request for user", async () => {
      await expect(
        withdrawalQueue.connect(alice).requestRedeemForUser(...)
@@ -126,6 +142,7 @@ Revised security audit focusing on actual bugs:
    ```
 
 2. **Owner != Requester Tests**:
+
    ```typescript
    it("should work when owner != requester", async () => {
      // Request with owner != requester
@@ -140,6 +157,7 @@ Revised security audit focusing on actual bugs:
    ```
 
 3. **Granular Pause Tests**:
+
    ```typescript
    it("should pause requestRedeem independently", async () => {
      await withdrawalQueue.connect(multiSig).togglePause(1);
@@ -151,9 +169,7 @@ Revised security audit focusing on actual bugs:
 4. **Access Control Tests**:
    ```typescript
    it("should revert when non-GOV tries to togglePause", async () => {
-     await expect(
-       withdrawalQueue.connect(alice).togglePause(1)
-     ).to.be.reverted;
+     await expect(withdrawalQueue.connect(alice).togglePause(1)).to.be.reverted;
    });
    ```
 
@@ -162,14 +178,17 @@ Revised security audit focusing on actual bugs:
 ## Migration Considerations
 
 ### Breaking Changes
+
 - **None**: All changes are backward compatible
 
 ### Deployment Notes
+
 - Existing requests will continue to work
 - The owner/requester fix only affects new requests
 - `requestRedeemForUser()` is a new function, doesn't affect existing functionality
 
 ### Upgrade Path
+
 - No upgrade needed if deploying fresh
 - If upgrading existing contract, ensure:
   - GOV role is properly configured
@@ -181,15 +200,18 @@ Revised security audit focusing on actual bugs:
 ## Security Considerations
 
 ### Access Control
+
 - ✅ `requestRedeemForUser()` properly restricted to GOV role
 - ✅ Uses OpenZeppelin AccessControl for role management
 - ✅ No privilege escalation risks
 
 ### Reentrancy
+
 - ✅ Both functions use `nonReentrant` modifier
 - ✅ State updates before external calls (safe due to atomic transactions)
 
 ### Input Validation
+
 - ✅ Zero address checks added for `requestRedeemForUser()`
 - ✅ Zero amount checks in both functions
 - ⚠️ Consider adding explicit underflow checks (see UNDERFLOW_ANALYSIS.md)
@@ -224,6 +246,7 @@ Revised security audit focusing on actual bugs:
 ## Conclusion
 
 The contract has been improved with:
+
 - ✅ Bug fix for owner/requester mismatch
 - ✅ New functionality for owner-initiated redemptions
 - ✅ Comprehensive documentation of confusing aspects

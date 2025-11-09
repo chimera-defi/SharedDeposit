@@ -8,7 +8,8 @@
 
 **Issue**: When `shares > contractShares`, the code was adjusting `assets` down but only subtracting the adjusted amount from `redeemRequests[requester]` and `totalPendingRequest`, leaving stuck funds that could never be cleared.
 
-**Impact**: 
+**Impact**:
+
 - Accounting leak: `redeemRequests[requester]` and `totalPendingRequest` would have remainders
 - FIFO queue inconsistency: `userEntries[requester].amount` would have remainders
 - Funds stuck in contract forever
@@ -21,7 +22,8 @@
 
 **Issue**: If exchange rate changed such that `assets` (calculated from current rate) > `redeemRequests[requester]` (stored from original request), subtracting `assets` from `redeemRequests[requester]` would underflow.
 
-**Impact**: 
+**Impact**:
+
 - Underflow would revert (Solidity 0.8+), but this is a logic error that should be caught earlier
 - Inconsistent accounting between `redeemRequests[requester]` and `userEntries[requester].amount`
 
@@ -38,19 +40,22 @@
 The user raised concern about `onlyOwnerOrOperator(msg.sender)` checks using `msg.sender` instead of passed-in addresses.
 
 **Functions Using `onlyOwnerOrOperator(msg.sender)`**:
+
 1. `requestRedeem(uint256 shares)` - Line 114
-2. `redeem(uint256 shares, address receiver)` - Line 178  
+2. `redeem(uint256 shares, address receiver)` - Line 178
 3. `cancelRedeem(address receiver)` - Line 303
 
 **Assessment**: ✅ **CORRECT USAGE**
 
 These are **self-service functions** where:
+
 - `msg.sender` is used as both `requester` and `owner` (or just `requester`)
 - The modifier checks that `msg.sender` is authorized to act on their own behalf
 - The modifier will always pass (since `msg.sender == msg.sender`), which is correct - anyone can act on their own behalf
 - This is intentional design: these are simplified functions for users to call directly
 
 **Functions Using `onlyOwnerOrOperator(address)` with passed-in address**:
+
 1. `requestRedeemFor(uint256 shares, address requester, address owner)` - Line 144: checks `owner`
 2. `redeemFor(uint256 shares, address receiver, address requester)` - Line 241: checks `requester`
 3. `cancelRedeemFor(address receiver, address requester)` - Line 351: checks `requester`
@@ -58,6 +63,7 @@ These are **self-service functions** where:
 **Assessment**: ✅ **CORRECT USAGE**
 
 These are **operator functions** where:
+
 - The modifier checks authorization for the passed-in address (owner or requester)
 - This allows operators to act on behalf of users
 - Authorization is correctly validated before operations
@@ -65,6 +71,7 @@ These are **operator functions** where:
 ## Other Security Checks Performed
 
 ### ✅ Access Control
+
 - All external functions have appropriate access control:
   - Simple functions: `onlyOwnerOrOperator(msg.sender)` - self-service
   - Operator functions: `onlyOwnerOrOperator(address)` - operator-controlled
@@ -72,29 +79,35 @@ These are **operator functions** where:
 - No unprotected state-changing functions found
 
 ### ✅ Reentrancy Protection
+
 - All external functions use `nonReentrant` modifier
 - Checks-effects-interactions pattern followed
 
 ### ✅ Input Validation
+
 - Zero address checks for all address parameters
 - Zero amount checks for all amount parameters
 - Array bounds checking where applicable
 
 ### ✅ Granular Pause
+
 - All 7 external functions have unique pause IDs (1-7)
 - Pause checks applied to all state-changing functions
 
 ### ✅ Math Safety
+
 - Solidity 0.8+ provides automatic overflow/underflow protection
 - Explicit checks added for edge cases (exchange rate changes)
 - All subtractions validated before execution
 
 ### ✅ FIFO Queue Consistency
+
 - `_stakeForWithdrawal` uses `requester` address consistently
 - `_withdraw` uses `requester` address consistently
 - `_checkWithdraw` validates against correct user entry
 
 ### ✅ Accounting Consistency
+
 - `redeemRequests[requester]` and `totalPendingRequest` updated together
 - `userEntries[requester].amount` matches `redeemRequests[requester]` initially
 - Explicit checks prevent divergence due to exchange rate changes
@@ -102,7 +115,9 @@ These are **operator functions** where:
 ## Remaining Considerations
 
 ### 1. Exchange Rate Changes
+
 The contract handles exchange rate changes by:
+
 - Using current rate for conversions (`_convertSharesToAssets`, `_convertAssetsToShares`)
 - Validating that redemption amounts don't exceed recorded requests
 - Reverting if inconsistencies detected
@@ -110,14 +125,18 @@ The contract handles exchange rate changes by:
 **Status**: ✅ Handled correctly with explicit checks
 
 ### 2. Partial Redemptions
+
 The contract allows partial redemptions (user can redeem less than their full request), but:
+
 - Full cancellation requires sufficient shares (reverts if not)
 - Redemption validates against recorded amounts
 
 **Status**: ✅ Handled correctly
 
 ### 3. Operator Permissions
+
 Operators can act on behalf of users only if:
+
 - User has set them as operator via `setOperator(operator, true)`
 - Or operator is the user themselves
 
@@ -126,6 +145,7 @@ Operators can act on behalf of users only if:
 ## Conclusion
 
 **Critical Vulnerabilities**: 2 found and fixed
+
 1. Accounting bug in cancel functions (partial cancellation)
 2. Potential underflow in redeem functions (exchange rate changes)
 

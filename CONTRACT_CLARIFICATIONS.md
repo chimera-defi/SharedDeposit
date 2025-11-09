@@ -30,6 +30,7 @@ function requestRedeem(uint256 shares, address requester, address owner)
 ### Why This Design?
 
 The separation allows:
+
 - **Operator functionality**: An operator can request redemption on behalf of a token owner
 - **Different beneficiaries**: The requester (who initiated) might differ from owner (who owns tokens)
 
@@ -38,11 +39,13 @@ However, the FIFO queue implementation doesn't support this properly.
 ### Recommendation
 
 **Option 1**: Always use `requester` for FIFO queue operations (recommended):
+
 ```solidity
 _stakeForWithdrawal(requester, assets); // Use requester consistently
 ```
 
 **Option 2**: Document that `owner` must equal `requester` and add validation:
+
 ```solidity
 require(owner == requester, "Owner must equal requester");
 ```
@@ -63,6 +66,7 @@ The contract tracks **assets** in `redeemRequests` but operates on **shares** fo
 - **Token operations**: Use shares (actual tokens to burn/transfer)
 
 **Reasoning**:
+
 - Assets represent the **value** that needs to be paid out (can change with exchange rate)
 - Shares represent the **tokens** held in the contract (fixed until burned)
 - When exchange rate changes, assets change but shares don't
@@ -85,6 +89,7 @@ The contract tracks **assets** in `redeemRequests` but operates on **shares** fo
 ### Current Implementation
 
 The contract converts shares to assets at both request time AND redeem time:
+
 - **Request time**: `assets = _convertSharesToAssets(shares)` → stored in `redeemRequests`
 - **Redeem time**: `assets = _convertSharesToAssets(shares)` → used for deduction
 
@@ -93,12 +98,14 @@ This means the assets deducted might differ from assets stored if exchange rate 
 ### Recommendation
 
 **Option 1**: Track shares instead of assets (simpler):
+
 ```solidity
 mapping(address => uint256) public redeemShares; // Track shares
 // Convert to assets only when needed for display/validation
 ```
 
 **Option 2**: Keep current design but ensure consistency:
+
 - Always use the SAME exchange rate for deduction as was used for tracking
 - Or recalculate `redeemRequests` when exchange rate changes significantly
 
@@ -121,9 +128,11 @@ The contract is named "WithdrawalQueue" and inherits from "FIFOQueue", but it do
 ### Why "FIFO" in the Name?
 
 The FIFOQueue library comment says:
+
 > "Simple First in first out queue. Uses a system of cascading locks based on the block number. Users need to wait a minimum of epochLength blocks before withdrawing. Users past the epoch boundary can claim, allowing some time for earlier users to claim first"
 
 This suggests a "soft FIFO" where:
+
 - Users must wait an epoch period
 - Earlier users get priority (can claim first)
 - But no hard enforcement of global ordering
@@ -137,9 +146,11 @@ This suggests a "soft FIFO" where:
 ### Recommendation
 
 **Option 1**: Rename to clarify it's per-user epoch delay, not global FIFO:
+
 - `EpochDelayedWithdrawal` or `PerUserEpochQueue`
 
 **Option 2**: Implement true global FIFO using `requestsCreated` and `requestsFulfilled`:
+
 ```solidity
 uint256 nextRequestToProcess;
 function redeem(...) {
@@ -150,6 +161,7 @@ function redeem(...) {
 ```
 
 **Option 3**: Document current behavior clearly (recommended for now):
+
 - It's a per-user epoch delay system, not a global FIFO queue
 - Users can redeem independently once their epoch elapses
 
@@ -189,16 +201,18 @@ redeemRequests[requester] -= assets;       // Deducts 10 ETH, but tracked 11 ETH
 ### Recommendation
 
 **Option 1**: Track original shares in `requests` mapping:
+
 ```solidity
 struct Request {
-    address requester;
-    uint256 shares; // Store original shares
-    uint256 assets; // Store original assets
+  address requester;
+  uint256 shares; // Store original shares
+  uint256 assets; // Store original assets
 }
 // On cancel, return exact shares, deduct exact original assets
 ```
 
 **Option 2**: Deduct original assets, not recalculated:
+
 ```solidity
 uint256 originalAssets = pendingRedeemRequest(requester);
 // ... recalculation logic ...
@@ -244,6 +258,7 @@ The comment says: "This feels suboptimal, but is the easiest way to always burn 
 ### Recommendation
 
 **Document clearly**:
+
 - The contract must maintain ETH balance for redemptions in ERC4626 mode
 - The minter contract is trusted and expected to handle the withdrawal correctly
 - This is a design trade-off for simplicity
@@ -284,6 +299,7 @@ Standard pattern is "checks-effects-interactions" - do external calls last. But 
 ### Recommendation
 
 **Document clearly** that:
+
 - State updates happen before external calls for accounting purposes
 - This is safe due to atomic transactions and reentrancy guard
 - If minter fails, entire transaction reverts (no partial state)
@@ -307,6 +323,7 @@ The contract populates `mapping(uint256 => Request) internal requests;` but neve
 ### Recommendation
 
 **Document clearly** that:
+
 - The `requests` mapping is for off-chain indexing and future use
 - It's not used in contract logic currently
 - Events provide the primary way to track requests off-chain
@@ -328,6 +345,7 @@ The pause system uses function IDs (1, 2, 3) but these aren't clearly documented
 ### Recommendation
 
 **Add constants**:
+
 ```solidity
 uint16 public constant PAUSE_REQUEST_REDEEM = 1;
 uint16 public constant PAUSE_REDEEM = 2;
@@ -335,6 +353,7 @@ uint16 public constant PAUSE_CANCEL_REDEEM = 3;
 ```
 
 **Or document in NatSpec**:
+
 ```solidity
 /// @param func The function ID to toggle pause state for:
 ///             1 = requestRedeem, 2 = redeem, 3 = cancelRedeem
@@ -356,11 +375,13 @@ uint16 public constant PAUSE_CANCEL_REDEEM = 3;
 ## Changes Made
 
 ### 1. Fixed Owner/Requester Mismatch
+
 - **Changed**: `requestRedeem()` now uses `requester` for FIFO queue operations instead of `owner`
 - **Reason**: Ensures consistency with `redeem()` which accesses FIFO queue by `requester`
 - **Impact**: Fixes potential bug where `owner != requester` would cause `redeem()` to fail
 
 ### 2. Added `requestRedeemForUser()` Function
+
 - **New Function**: Allows GOV role to submit redemption requests on behalf of any user
 - **Access Control**: Only callable by GOV role (contract owner/governance)
 - **Use Cases**: Protocol-initiated redemptions, migrations, emergency situations

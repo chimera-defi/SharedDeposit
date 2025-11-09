@@ -19,9 +19,11 @@
 ## 🔴 Critical Missing Tests
 
 ### 1. Granular Pause Tests
+
 **Status**: ❌ **NO TESTS FOUND**
 
 **What to Test**:
+
 - Each function can be paused independently (IDs 1-7)
 - Paused functions revert with appropriate error
 - Unpaused functions work normally
@@ -31,6 +33,7 @@
 - Pausing one function doesn't affect others
 
 **Test Cases Needed**:
+
 ```typescript
 describe("Granular Pause", () => {
   it("should pause requestRedeem (ID 1) independently");
@@ -47,9 +50,11 @@ describe("Granular Pause", () => {
 ```
 
 ### 2. `requestRedeemForUser` (GOV Function) Tests
+
 **Status**: ❌ **NO TESTS FOUND**
 
 **What to Test**:
+
 - Only GOV role can call `requestRedeemForUser`
 - Non-GOV role cannot call it
 - Function works correctly when called by GOV
@@ -60,6 +65,7 @@ describe("Granular Pause", () => {
 - Zero shares validation
 
 **Test Cases Needed**:
+
 ```typescript
 describe("requestRedeemForUser (GOV)", () => {
   it("should allow GOV role to request redemption for any user");
@@ -76,9 +82,11 @@ describe("requestRedeemForUser (GOV)", () => {
 ```
 
 ### 3. Exchange Rate Change Tests
+
 **Status**: ⚠️ **PARTIALLY TESTED** (fixed price mode has some tests, but not comprehensive)
 
 **What to Test**:
+
 - When exchange rate increases: `assets` (current) > `redeemRequests[requester]` (original)
   - Should revert with `InvalidAmount` (our new fix)
 - When exchange rate decreases: `assets` (current) < `redeemRequests[requester]` (original)
@@ -88,6 +96,7 @@ describe("requestRedeemForUser (GOV)", () => {
 - Multiple requests with different exchange rates
 
 **Test Cases Needed**:
+
 ```typescript
 describe("Exchange Rate Changes", () => {
   it("should revert when redeeming with increased exchange rate (assets > redeemRequests)");
@@ -99,15 +108,18 @@ describe("Exchange Rate Changes", () => {
 ```
 
 ### 4. Underflow Protection Tests (New Fixes)
+
 **Status**: ❌ **NO TESTS FOR NEW FIXES**
 
 **What to Test**:
+
 - `redeem()` reverts when `assets > redeemRequests[requester]`
 - `redeemFor()` reverts when `assets > redeemRequests[requester]`
 - Error message is `InvalidAmount` (not underflow)
 - Normal redemption still works when `assets <= redeemRequests[requester]`
 
 **Test Cases Needed**:
+
 ```typescript
 describe("Underflow Protection", () => {
   it("should revert redeem when assets > redeemRequests[requester]");
@@ -118,9 +130,11 @@ describe("Underflow Protection", () => {
 ```
 
 ### 5. Cancel Accounting Bug Fix Tests
+
 **Status**: ❌ **NO TESTS FOR NEW FIX**
 
 **What to Test**:
+
 - `cancelRedeem()` reverts when `shares > contractShares` (new behavior)
 - `cancelRedeemFor()` reverts when `shares > contractShares` (new behavior)
 - Error message is `InsufficientBalance`
@@ -128,6 +142,7 @@ describe("Underflow Protection", () => {
 - Accounting remains consistent after cancellation
 
 **Test Cases Needed**:
+
 ```typescript
 describe("Cancel Accounting Fix", () => {
   it("should revert cancelRedeem when shares > contractShares");
@@ -139,9 +154,11 @@ describe("Cancel Accounting Fix", () => {
 ```
 
 ### 6. Comprehensive Operator "For" Variant Tests
+
 **Status**: ⚠️ **PARTIALLY TESTED** (some tests exist, but coverage could be better)
 
 **What to Test**:
+
 - `requestRedeemFor`: Operator can request for owner's tokens
 - `requestRedeemFor`: Non-operator cannot request
 - `requestRedeemFor`: Owner can request for themselves
@@ -155,6 +172,7 @@ describe("Cancel Accounting Fix", () => {
 - All "For" variants update accounting correctly
 
 **Test Cases Needed**:
+
 ```typescript
 describe("Operator 'For' Variants", () => {
   describe("requestRedeemFor", () => {
@@ -164,7 +182,7 @@ describe("Operator 'For' Variants", () => {
     it("should transfer tokens from owner, not operator");
     it("should create FIFO entry for requester");
   });
-  
+
   describe("redeemFor", () => {
     it("should allow operator to redeem for requester");
     it("should allow requester to redeem for themselves");
@@ -172,7 +190,7 @@ describe("Operator 'For' Variants", () => {
     it("should send funds to receiver, not operator");
     it("should respect epoch delay");
   });
-  
+
   describe("cancelRedeemFor", () => {
     it("should allow operator to cancel for requester");
     it("should allow requester to cancel for themselves");
@@ -188,9 +206,11 @@ describe("Operator 'For' Variants", () => {
 ## 🟡 Medium Priority Tests
 
 ### 7. Edge Case Tests
+
 **Status**: ⚠️ **SOME EXIST, BUT COULD BE MORE COMPREHENSIVE**
 
 **What to Test**:
+
 - Multiple partial redemptions
 - Redemption after multiple requests
 - Cancel after partial redemption
@@ -201,9 +221,11 @@ describe("Operator 'For' Variants", () => {
 - Operator revocation mid-operation
 
 ### 8. Access Control Tests
+
 **Status**: ⚠️ **PARTIALLY TESTED**
 
 **What to Test**:
+
 - All functions respect `onlyOwnerOrOperator` checks
 - All functions respect `onlyRole(GOV)` checks
 - Operator permissions work correctly
@@ -211,9 +233,11 @@ describe("Operator 'For' Variants", () => {
 - Multiple operators for same user
 
 ### 9. Accounting Consistency Tests
+
 **Status**: ⚠️ **PARTIALLY TESTED**
 
 **What to Test**:
+
 - `redeemRequests` matches `totalPendingRequest` sum
 - `userEntries[requester].amount` matches `redeemRequests[requester]` initially
 - Accounting remains consistent after all operations
@@ -224,16 +248,19 @@ describe("Operator 'For' Variants", () => {
 ## 📋 Test Implementation Priority
 
 ### Priority 1 (Critical - Security Fixes)
+
 1. ✅ Underflow protection tests (for new fixes)
 2. ✅ Cancel accounting bug fix tests (for new fixes)
 3. ✅ Granular pause tests (security feature)
 4. ✅ `requestRedeemForUser` GOV function tests (access control)
 
 ### Priority 2 (Important - Functionality)
+
 5. Exchange rate change tests
 6. Comprehensive operator "For" variant tests
 
 ### Priority 3 (Nice to Have)
+
 7. Edge case tests
 8. Access control comprehensive tests
 9. Accounting consistency tests
@@ -243,6 +270,7 @@ describe("Operator 'For' Variants", () => {
 ## 📝 Documentation Tasks
 
 ### Completed Documentation
+
 - ✅ `MULTIPASS_REVIEW_FINDINGS.md` - Security review findings
 - ✅ `REFACTOR_SUMMARY.md` - Refactoring summary
 - ✅ `CONTRACT_CLARIFICATIONS.md` - Confusing aspects
@@ -252,6 +280,7 @@ describe("Operator 'For' Variants", () => {
 - ✅ `FINAL_SECURITY_REVIEW.md` - Final security review
 
 ### Remaining Documentation
+
 - ⚠️ Consider consolidating docs into single comprehensive audit report
 - ⚠️ Add inline NatSpec comments for pause function IDs (already done in code)
 - ⚠️ Document exchange rate change handling behavior explicitly
@@ -261,6 +290,7 @@ describe("Operator 'For' Variants", () => {
 ## 🎯 Summary
 
 ### Critical Missing Tests: 5 categories
+
 1. ❌ Granular pause tests (0% coverage)
 2. ❌ `requestRedeemForUser` GOV tests (0% coverage)
 3. ⚠️ Exchange rate change tests (partial coverage)
@@ -268,11 +298,13 @@ describe("Operator 'For' Variants", () => {
 5. ❌ Cancel accounting bug fix tests (0% coverage for new fixes)
 
 ### Test Files to Create/Update
+
 - `test/v2/core/withdrawQueue.spec.ts` - Add missing test suites
 - Consider: `test/v2/core/withdrawQueueGranularPause.spec.ts` - Separate file for pause tests
 - Consider: `test/v2/core/withdrawQueueGov.spec.ts` - Separate file for GOV tests
 
 ### Estimated Test Cases Needed
+
 - **Granular Pause**: ~10 test cases
 - **GOV Function**: ~10 test cases
 - **Exchange Rate Changes**: ~5 test cases
