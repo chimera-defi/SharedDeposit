@@ -85,7 +85,7 @@ jobs:
       run: npm run compile
     - name: Run Slither
       run: |
-        slither . \
+        slither ./contracts/ \
           --ignore-compile \
           --compile-force-framework hardhat \
           --solc-remaps "@openzeppelin/=$(pwd)/node_modules/@openzeppelin/" \
