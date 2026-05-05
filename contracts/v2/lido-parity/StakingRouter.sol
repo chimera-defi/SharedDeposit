@@ -56,6 +56,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     /// @notice The module that `submit()` (no moduleId) routes to.
     bytes32 public defaultModuleId;
 
+    /// @notice Sanity bound (basis points) on per-report beacon balance gains.
+    ///         A module reporting `newBeaconBalance > prior * (1 + maxDeltaBps/10000)`
+    ///         reverts. Prevents a compromised/buggy module from inflating
+    ///         `totalPooledEther` and diluting all stakers' shares. Default 1000 = 10%.
+    ///         Skipped on first report (prior == 0) when ETH first lands on the beacon.
+    uint256 public maxDeltaBps = 1000;
+
     // ── Events ────────────────────────────────────────────────────────────────
     event Deposited(
         bytes32 indexed moduleId,
@@ -74,6 +81,8 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     event FeeSharesMinted(address indexed treasury, uint256 treasuryShares, address indexed operator, uint256 operatorShares);
     event LSTWrapped(bytes32 indexed moduleId, address indexed recipient, uint256 ethEquiv, uint256 sharesAmount);
     event LSTUnwrapped(bytes32 indexed moduleId, address indexed account, uint256 stTokenAmount, uint256 ethValue);
+    event MaxDeltaBpsSet(uint256 newValue);
+    event PoolInsolvent(bytes32 indexed moduleId, uint256 loss, uint256 pooledAtTime);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error ModuleNotRegistered(bytes32 moduleId);
@@ -83,6 +92,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     error MintCapExceeded(bytes32 moduleId, uint256 attempted, uint256 cap);
     error NotModule(bytes32 moduleId, address caller);
     error DefaultModuleNotSet();
+    error BeaconReportSanityFailed(bytes32 moduleId, uint256 gainBps, uint256 maxDeltaBps);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -180,6 +190,14 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
             uint256 gain = newBeaconBalance - prior;
             delta = int256(gain);
             if (gain > 0) {
+                // Sanity bound: cap gain relative to prior. Skipped when prior == 0
+                // (first report after ETH first lands on the beacon).
+                if (prior != 0) {
+                    uint256 gainBps = (gain * 10000) / prior;
+                    if (gainBps > maxDeltaBps) {
+                        revert BeaconReportSanityFailed(moduleId, gainBps, maxDeltaBps);
+                    }
+                }
                 uint256 postPool = currentPooled + gain;
                 ST_TOKEN.setTotalPooledEther(postPool);
                 if (address(feeController) != address(0)) {
@@ -189,8 +207,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         } else {
             uint256 loss = prior - newBeaconBalance;
             delta = -int256(loss);
-            uint256 postPool = currentPooled > loss ? currentPooled - loss : 0;
-            ST_TOKEN.setTotalPooledEther(postPool);
+            // Explicit branch on insolvency so we leave a trace before clamping to 0.
+            if (currentPooled <= loss) {
+                emit PoolInsolvent(moduleId, loss, currentPooled);
+                ST_TOKEN.setTotalPooledEther(0);
+            } else {
+                ST_TOKEN.setTotalPooledEther(currentPooled - loss);
+            }
         }
 
         moduleBeaconBalance[moduleId] = newBeaconBalance;
@@ -198,7 +221,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     }
 
     /// @inheritdoc IStakingRouter
-    function notifyBeaconDeposit(bytes32 moduleId, uint256 amount) external override {
+    function notifyBeaconDeposit(bytes32 moduleId, uint256 amount) external override nonReentrant {
         ModuleInfo storage m = _modules[moduleId];
         if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
         if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
@@ -346,6 +369,14 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (fc == address(0)) revert Errors.ZeroAddress();
         feeController = FeeController(fc);
         emit FeeControllerSet(fc);
+    }
+
+    /// @notice Update the per-report sanity bound on beacon-balance gains.
+    /// @param bps New maximum gain in basis points (10000 = 100%). Capped at 10000.
+    function setMaxDeltaBps(uint256 bps) external onlyRole(GOV) {
+        if (bps > 10000) revert Errors.InvalidAmount();
+        maxDeltaBps = bps;
+        emit MaxDeltaBpsSet(bps);
     }
 
     // ── GUARDIAN: pause hub ──────────────────────────────────────────────────

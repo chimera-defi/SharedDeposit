@@ -39,4 +39,15 @@ contract LidoPriceOracle is ILSTPriceOracle {
         uint256 shares = LIDO.getSharesByPooledEth(ethAmount);
         return LIDO.getPooledEthByShares(shares);
     }
+
+    /// @inheritdoc ILSTPriceOracle
+    /// @dev This oracle reads the live Lido contract on every call, so the price is
+    ///      always as fresh as the latest Lido oracle/rebase update reflected on-chain.
+    ///      Returning `block.timestamp` makes any reasonable staleness check pass while
+    ///      still letting consumers wire the same guard they would use against a
+    ///      push-style oracle. If a future implementation caches values, replace this
+    ///      with the timestamp of the cached read.
+    function lastUpdated() external view override returns (uint256) {
+        return block.timestamp;
+    }
 }

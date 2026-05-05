@@ -44,10 +44,15 @@ contract LSTWrapModule is AccessControl, ReentrancyGuard, GranularPause, IStakin
     ILSTPriceOracle public priceOracle;
     uint256 internal _lstHeld;
 
+    /// @notice Maximum allowed age (seconds) of the price oracle's last update before
+    ///         `wrapLST` reverts with `StaleOracle`. Default 3600 (1 hour).
+    uint256 public maxOracleAgeSecs = 3600;
+
     // ── Events ────────────────────────────────────────────────────────────────
     event PriceOracleSet(address indexed oracle);
     event LstWrapped(address indexed account, address indexed recipient, uint256 lstAmount, uint256 ethEquiv);
     event LstUnwrapped(address indexed account, address indexed recipient, uint256 stTokenAmount, uint256 lstAmount);
+    event MaxOracleAgeSet(uint256 newValue);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error PriceOracleNotSet();
@@ -84,6 +89,11 @@ contract LSTWrapModule is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
         ethEquiv = priceOracle.getEthValue(lstAmount);
         if (ethEquiv == 0) revert Errors.InvalidAmount();
+        // Reject stale oracle readings — protects against minting unbacked stToken
+        // if an LST depegs and the oracle hasn't updated.
+        if (block.timestamp - priceOracle.lastUpdated() > maxOracleAgeSecs) {
+            revert Errors.StaleOracle();
+        }
 
         // Pull LST in first so the router's totalEth() / mint-cap check sees the new balance.
         LST_TOKEN.safeTransferFrom(msg.sender, address(this), lstAmount);
@@ -146,6 +156,14 @@ contract LSTWrapModule is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (oracle == address(0)) revert Errors.ZeroAddress();
         priceOracle = ILSTPriceOracle(oracle);
         emit PriceOracleSet(oracle);
+    }
+
+    /// @notice Update the maximum tolerated price-oracle staleness (seconds).
+    /// @param secs New max age. `wrapLST` reverts when the oracle's `lastUpdated()`
+    ///        is older than this.
+    function setMaxOracleAge(uint256 secs) external onlyRole(GOV) {
+        maxOracleAgeSecs = secs;
+        emit MaxOracleAgeSet(secs);
     }
 
     function pause(uint16 fnId) external onlyRole(GUARDIAN) {

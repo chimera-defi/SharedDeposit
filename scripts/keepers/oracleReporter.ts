@@ -37,6 +37,34 @@ const ORACLE_ADAPTER_ABI = [
   "function submitReport(uint256 beaconValidators, uint256 beaconBalance, uint256 reportTimestamp)",
 ];
 
+// Explicit gas limit for submitReport — avoid relying on automatic estimation
+// which can fail under network congestion.
+const GAS_ORACLE_REPORT = 200_000n;
+
+// Timeout for Beacon API HTTP fetches. Without this, a hung beacon node would
+// stall the keeper indefinitely.
+const BEACON_API_TIMEOUT_MS = 10_000;
+
+/**
+ * Wrap fetch with an AbortController-backed timeout. A hung beacon node would
+ * otherwise stall the keeper indefinitely.
+ */
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {signal: controller.signal});
+    return res;
+  } catch (e) {
+    if ((e as Error).name === "AbortError") {
+      throw new Error(`Beacon API timeout after ${timeoutMs}ms: ${url}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface ValidatorInfo {
   pubkey: string;
   balanceGwei: bigint;
@@ -101,7 +129,7 @@ function isActiveStatus(status: string): boolean {
 async function fetchValidatorInfo(beaconApi: string, pubkey: string): Promise<ValidatorInfo | null> {
   // /eth/v1/beacon/states/head/validators?id=<pubkey> returns array of validators.
   const url = `${beaconApi}/eth/v1/beacon/states/head/validators?id=${pubkey}`;
-  const res = await fetch(url);
+  const res = await fetchWithTimeout(url, BEACON_API_TIMEOUT_MS);
   if (!res.ok) {
     if (res.status === 404) return null;
     throw new Error(`beacon API ${res.status}: ${await res.text()}`);
@@ -171,8 +199,8 @@ async function reportOnce(cfg: Config) {
   let backoff = cfg.initialBackoffMs;
   while (attempt < cfg.maxRetries) {
     try {
-      const tx = await adapter.submitReport(activeCount, totalBalanceWei, now);
-      console.log(`[oracle] tx submitted: ${tx.hash}`);
+      const tx = await adapter.submitReport(activeCount, totalBalanceWei, now, {gasLimit: GAS_ORACLE_REPORT});
+      console.log(`[oracle] tx submitted: ${tx.hash} (gasLimit=${GAS_ORACLE_REPORT})`);
       const rcpt = await tx.wait();
       console.log(`[oracle] confirmed in block ${rcpt?.blockNumber}`);
       return;

@@ -14,4 +14,11 @@ interface ILSTPriceOracle {
 
     /// @notice Inverse: how many LST tokens correspond to `ethAmount` wei.
     function getLstValue(uint256 ethAmount) external view returns (uint256);
+
+    /// @notice Unix timestamp of the most recent price update the oracle relied on.
+    /// @dev Consumers compare `block.timestamp - lastUpdated()` against a max age to
+    ///      reject stale prices. Live-read oracles (e.g. ones reading from a canonical
+    ///      LST contract each call) may return `block.timestamp` since freshness is
+    ///      sourced upstream rather than via push updates.
+    function lastUpdated() external view returns (uint256);
 }

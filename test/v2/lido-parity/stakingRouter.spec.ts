@@ -258,15 +258,72 @@ describe("StakingRouter", () => {
       ).to.be.revertedWithCustomError(router, "NotModule");
     });
 
-    it("positive delta increases totalPooledEther and mints fees", async () => {
-      // Validator module reports +0.5 ETH gain (delta vs. baseline 0).
-      // Module path: oracle → mod1.reportBeacon → router.reportModuleBeaconBalance.
+    it("positive delta increases totalPooledEther and mints fees with exact 50/50 split", async () => {
+      // Validator module reports +32.5 ETH gain (delta vs. baseline 0).
+      // FeeController is configured with feeBps=1000 (10%) and treasurySplitBps=5000 (50%).
+      // → totalFee = 3.25 ETH, treasuryAmount = 1.625 ETH, operatorAmount = 1.625 ETH.
+      // Treasury = gov, Operator = deployer.
       const govSharesBefore = await stToken.sharesOf(gov.address);
+      const deployerSharesBefore = await stToken.sharesOf(deployer.address);
       await mod1.connect(oracle).reportBeacon(1, parseEther("32.5"));
       const govSharesAfter = await stToken.sharesOf(gov.address);
+      const deployerSharesAfter = await stToken.sharesOf(deployer.address);
 
       expect(await stToken.totalPooledEther()).to.be.gt(parseEther("32"));
       expect(govSharesAfter).to.be.gt(govSharesBefore);
+      expect(deployerSharesAfter).to.be.gt(deployerSharesBefore);
+
+      // Exact-ish: under a 50/50 split, treasury and operator must end up with
+      // share counts within 5% of each other. (Discretization aside, both fee
+      // amounts are equal in ETH terms and minted at the same exchange rate.)
+      const treasuryShares = govSharesAfter - govSharesBefore;
+      const operatorShares = deployerSharesAfter - deployerSharesBefore;
+      expect(treasuryShares).to.be.gt(0n);
+      expect(operatorShares).to.be.gt(0n);
+      expect(treasuryShares).to.be.gte((operatorShares * 95n) / 100n);
+      expect(treasuryShares).to.be.lte((operatorShares * 105n) / 100n);
+    });
+
+    it("double notifyBeaconDeposit inflates baseline only once — second call adds to existing baseline", async () => {
+      // beforeEach already staked 32 ETH; top up with 32 more so we have 64 buffered.
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+      expect(await mod1.bufferedEther()).to.equal(parseEther("64"));
+
+      // First push: 32 ETH from buffer → baseline becomes 32.
+      const pubkey1 = ethers.hexlify(ethers.randomBytes(48));
+      const creds1 = ethers.hexlify(ethers.randomBytes(32));
+      const sig1 = ethers.hexlify(ethers.randomBytes(96));
+      const root1 = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey1, creds1, sig1, root1);
+      expect(await router.moduleBeaconBalance(SOLO)).to.equal(parseEther("32"));
+
+      // Malicious caller (non-module) cannot drive notifyBeaconDeposit directly.
+      await expect(
+        router.connect(impostor).notifyBeaconDeposit(SOLO, parseEther("1000"))
+      ).to.be.revertedWithCustomError(router, "NotModule");
+
+      // Second legitimate push: another 32 ETH → baseline accumulates to 64.
+      const pubkey2 = ethers.hexlify(ethers.randomBytes(48));
+      const creds2 = ethers.hexlify(ethers.randomBytes(32));
+      const sig2 = ethers.hexlify(ethers.randomBytes(96));
+      const root2 = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey2, creds2, sig2, root2);
+      expect(await router.moduleBeaconBalance(SOLO)).to.equal(parseEther("64"));
+
+      // Oracle reports the principal (64 ETH on beacon) — delta 0 vs. baseline,
+      // so totalPooledEther must remain at 64 and no fee shares are minted.
+      const totalPooledBefore = await stToken.totalPooledEther();
+      const govSharesBefore = await stToken.sharesOf(gov.address);
+      const deployerSharesBefore = await stToken.sharesOf(deployer.address);
+
+      await expect(mod1.connect(oracle).reportBeacon(2, parseEther("64")))
+        .to.emit(router, "ModuleBeaconReported")
+        .withArgs(SOLO, parseEther("64"), 0);
+
+      expect(await stToken.totalPooledEther()).to.equal(totalPooledBefore);
+      expect(await stToken.totalPooledEther()).to.equal(parseEther("64"));
+      expect(await stToken.sharesOf(gov.address)).to.equal(govSharesBefore);
+      expect(await stToken.sharesOf(deployer.address)).to.equal(deployerSharesBefore);
     });
 
     it("negative delta (slash) decreases totalPooledEther without minting fees", async () => {
@@ -346,6 +403,101 @@ describe("StakingRouter", () => {
       await router.connect(alice).submit(ZeroAddress, {value: parseEther("4")});
       await router.connect(alice).submitToModule(SECONDARY, ZeroAddress, {value: parseEther("6")});
       expect(await router.totalEthOf([SOLO, SECONDARY])).to.equal(parseEther("10"));
+    });
+  });
+
+  // ── LST wrap module — happy path ──────────────────────────────────────────
+
+  describe("LST wrap module — happy path", () => {
+    const LST_MOD = ethers.keccak256(ethers.toUtf8Bytes("LST_WRAP_TEST"));
+    let lstToken: any, lstModule: any, oracleContract: any;
+
+    beforeEach(async () => {
+      // Deploy a vanilla ERC20 to stand in as the LST.
+      const MockERC20 = await ethers.getContractFactory("MockERC20");
+      lstToken = await MockERC20.deploy("Mock LST", "mLST");
+
+      // 1:1 price oracle (1 LST = 1 ETH, both 18 decimals).
+      const MockLSTPriceOracle = await ethers.getContractFactory("MockLSTPriceOracle");
+      oracleContract = await MockLSTPriceOracle.deploy(parseEther("1"));
+
+      // Deploy LST module wired to router with a 10 ETH cap.
+      const LSTWrapModule = await ethers.getContractFactory("LSTWrapModule");
+      lstModule = await LSTWrapModule.deploy(
+        router.target,
+        LST_MOD,
+        lstToken.target,
+        gov.address,
+      );
+
+      await router.connect(gov).registerModule(LST_MOD, lstModule.target, parseEther("10"));
+      await lstModule.connect(gov).setPriceOracle(oracleContract.target);
+
+      // Fund Alice with LST and approve the module.
+      await lstToken.mint(alice.address, parseEther("100"));
+      await lstToken.connect(alice).approve(lstModule.target, parseEther("100"));
+    });
+
+    it("wrapLST mints stToken shares 1:1 and tracks LST custody", async () => {
+      const sharesBefore = await stToken.sharesOf(alice.address);
+      const totalPooledBefore = await stToken.totalPooledEther();
+
+      await lstModule.connect(alice).wrapLST(parseEther("1"), alice.address);
+
+      const sharesAfter = await stToken.sharesOf(alice.address);
+      const minted = sharesAfter - sharesBefore;
+
+      expect(minted).to.be.gt(0n);
+      // 1:1 oracle, fresh module, no rebases → expect exactly 1e18 shares.
+      expect(minted).to.equal(parseEther("1"));
+      expect(await lstModule.lstHeld()).to.equal(parseEther("1"));
+      expect(await lstToken.balanceOf(lstModule.target)).to.equal(parseEther("1"));
+      expect(await stToken.totalPooledEther()).to.equal(totalPooledBefore + parseEther("1"));
+    });
+
+    it("unwrapLST burns stToken and returns LST", async () => {
+      // Wrap first.
+      await lstModule.connect(alice).wrapLST(parseEther("1"), alice.address);
+      expect(await lstModule.lstHeld()).to.equal(parseEther("1"));
+
+      const stBalanceBefore = await stToken.balanceOf(alice.address);
+      const lstBalanceBefore = await lstToken.balanceOf(alice.address);
+      const sharesBefore = await stToken.sharesOf(alice.address);
+
+      // Unwrap exactly the amount we wrapped.
+      await lstModule.connect(alice).unwrapLST(stBalanceBefore, alice.address);
+
+      const sharesAfter = await stToken.sharesOf(alice.address);
+      expect(sharesAfter).to.be.lt(sharesBefore);
+      // Module's LST balance returns to 0.
+      expect(await lstModule.lstHeld()).to.equal(0n);
+      expect(await lstToken.balanceOf(lstModule.target)).to.equal(0n);
+      // Alice gets her LST back.
+      expect(await lstToken.balanceOf(alice.address)).to.equal(
+        lstBalanceBefore + parseEther("1"),
+      );
+    });
+
+    it("mint cap exceeded reverts with MintCapExceeded", async () => {
+      // Re-register a fresh LST module with a 0.5 ETH cap. Use a different
+      // moduleId since LST_MOD is already taken by beforeEach.
+      const TIGHT = ethers.keccak256(ethers.toUtf8Bytes("LST_WRAP_TIGHT"));
+      const LSTWrapModule = await ethers.getContractFactory("LSTWrapModule");
+      const tightModule = await LSTWrapModule.deploy(
+        router.target,
+        TIGHT,
+        lstToken.target,
+        gov.address,
+      );
+      await router.connect(gov).registerModule(TIGHT, tightModule.target, parseEther("0.5"));
+      await tightModule.connect(gov).setPriceOracle(oracleContract.target);
+
+      await lstToken.connect(alice).approve(tightModule.target, parseEther("100"));
+
+      // Attempt to wrap 1 LST (= 1 ETH equiv) into a 0.5 ETH cap → revert.
+      await expect(
+        tightModule.connect(alice).wrapLST(parseEther("1"), alice.address)
+      ).to.be.revertedWithCustomError(router, "MintCapExceeded");
     });
   });
 });

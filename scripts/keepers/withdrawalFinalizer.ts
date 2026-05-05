@@ -23,6 +23,9 @@
  *   BACKOFF_MS             Default 5000 (doubled on each retry)
  */
 import {ethers} from "ethers";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
 
 const QUEUE_ABI = [
   "function nextRequestId() view returns (uint256)",
@@ -30,6 +33,15 @@ const QUEUE_ABI = [
   "function getRequest(uint256) view returns (tuple(address owner, uint256 stShares, uint256 ethAmount, bool finalized, bool claimed))",
   "function finalize(uint256 lastRequestId) payable",
 ];
+
+// Explicit gas limits — avoid relying on automatic estimation, which can fail
+// under network congestion or near block-gas-limit conditions.
+const GAS_FINALIZE_BASE = 100_000n;
+const GAS_FINALIZE_PER_REQUEST = 50_000n;
+
+// Stale lock cleanup window. If a lock file is older than this, it is treated
+// as orphaned (e.g. a crashed prior instance) and reclaimed.
+const STALE_LOCK_MS = 5 * 60 * 1000;
 
 interface Config {
   rpcUrl: string;
@@ -75,69 +87,135 @@ async function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function finalizeOnce(cfg: Config) {
-  const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
-  const wallet = new ethers.Wallet(cfg.privateKey, provider);
-  const queue = new ethers.Contract(cfg.queueAddress, QUEUE_ABI, wallet);
+function lockPathFor(contractAddress: string): string {
+  // Lower-case the address so concurrent instances using mixed checksum
+  // formats still collide on the same lock file.
+  return path.join(os.tmpdir(), `withdrawal-finalizer-${contractAddress.toLowerCase()}.lock`);
+}
 
-  const lastFinalized: bigint = await queue.lastFinalizedRequestId();
-  const next: bigint = await queue.nextRequestId();
-
-  const fromId = lastFinalized + 1n;
-  const lastId = next - 1n;
-  if (lastId < fromId) {
-    console.log(`[finalize] queue empty (next=${next}, lastFinalized=${lastFinalized})`);
-    return;
-  }
-
-  const pending = lastId - fromId + 1n;
-  if (pending < BigInt(cfg.minBatchSize)) {
-    console.log(`[finalize] only ${pending} pending (< MIN_BATCH_SIZE=${cfg.minBatchSize}); skipping`);
-    return;
-  }
-
-  const batchEnd = fromId + BigInt(Math.min(cfg.maxBatchSize, Number(pending))) - 1n;
-  console.log(`[finalize] finalizing requests [${fromId}, ${batchEnd}]`);
-
-  let totalEth = 0n;
-  for (let id = fromId; id <= batchEnd; id += 1n) {
-    const req = await queue.getRequest(id);
-    if (req.finalized) {
-      console.warn(`[finalize] request ${id} already finalized; skipping`);
-      continue;
-    }
-    totalEth += req.ethAmount;
-  }
-  console.log(`[finalize] total ETH required: ${ethers.formatEther(totalEth)}`);
-
-  const balance: bigint = await provider.getBalance(wallet.address);
-  if (balance < totalEth) {
-    throw new Error(
-      `[finalize] guardian balance ${ethers.formatEther(balance)} ETH < required ${ethers.formatEther(totalEth)} ETH`
-    );
-  }
-
-  if (cfg.dryRun) {
-    console.log(`[finalize] --dry-run: would finalize(${batchEnd}) with ${ethers.formatEther(totalEth)} ETH`);
-    return;
-  }
-
-  let attempt = 0;
-  let backoff = cfg.initialBackoffMs;
-  while (attempt < cfg.maxRetries) {
+/**
+ * Try to atomically acquire a per-contract lock. Returns true on success,
+ * false if another instance already holds the lock. Stale lock files older
+ * than STALE_LOCK_MS are considered orphaned and reclaimed.
+ */
+async function acquireLock(lockPath: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let handle: fs.FileHandle | undefined;
     try {
-      const tx = await queue.finalize(batchEnd, {value: totalEth});
-      console.log(`[finalize] tx submitted: ${tx.hash}`);
-      const rcpt = await tx.wait();
-      console.log(`[finalize] confirmed in block ${rcpt?.blockNumber}`);
-      return;
+      handle = await fs.open(lockPath, "wx");
+      await handle.writeFile(`pid=${process.pid}\nstarted=${new Date().toISOString()}\n`);
+      return true;
     } catch (err) {
-      attempt += 1;
-      console.error(`[finalize] attempt ${attempt} failed:`, (err as Error).message);
-      if (attempt >= cfg.maxRetries) throw err;
-      await sleep(backoff);
-      backoff *= 2;
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST") throw err;
+      // Lock exists — check if it is stale.
+      try {
+        const stat = await fs.stat(lockPath);
+        const ageMs = Date.now() - stat.mtimeMs;
+        if (ageMs > STALE_LOCK_MS) {
+          console.warn(`[finalize] reclaiming stale lock at ${lockPath} (age=${Math.round(ageMs / 1000)}s)`);
+          await fs.unlink(lockPath).catch(() => {});
+          continue; // retry the open
+        }
+      } catch {
+        // stat failed — the holder may have just released. Retry once.
+        continue;
+      }
+      return false;
+    } finally {
+      if (handle) await handle.close().catch(() => {});
     }
+  }
+  return false;
+}
+
+async function releaseLock(lockPath: string): Promise<void> {
+  await fs.unlink(lockPath).catch(() => {});
+}
+
+async function finalizeOnce(cfg: Config) {
+  const lockPath = lockPathFor(cfg.queueAddress);
+  const acquired = await acquireLock(lockPath);
+  if (!acquired) {
+    console.log("[finalize] Another instance is running, skipping");
+    return;
+  }
+
+  try {
+    const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
+    const wallet = new ethers.Wallet(cfg.privateKey, provider);
+    const queue = new ethers.Contract(cfg.queueAddress, QUEUE_ABI, wallet);
+
+    const lastFinalized: bigint = await queue.lastFinalizedRequestId();
+    const next: bigint = await queue.nextRequestId();
+
+    const fromId = lastFinalized + 1n;
+    const lastId = next - 1n;
+    if (lastId < fromId) {
+      console.log(`[finalize] queue empty (next=${next}, lastFinalized=${lastFinalized})`);
+      return;
+    }
+
+    const pending = lastId - fromId + 1n;
+    if (pending < BigInt(cfg.minBatchSize)) {
+      console.log(`[finalize] only ${pending} pending (< MIN_BATCH_SIZE=${cfg.minBatchSize}); skipping`);
+      return;
+    }
+
+    const batchEnd = fromId + BigInt(Math.min(cfg.maxBatchSize, Number(pending))) - 1n;
+    console.log(`[finalize] finalizing requests [${fromId}, ${batchEnd}]`);
+
+    let totalEth = 0n;
+    let batchCount = 0n;
+    for (let id = fromId; id <= batchEnd; id += 1n) {
+      const req = await queue.getRequest(id);
+      if (req.finalized) {
+        console.warn(`[finalize] request ${id} already finalized; skipping`);
+        continue;
+      }
+      totalEth += req.ethAmount;
+      batchCount += 1n;
+    }
+    console.log(`[finalize] total ETH required: ${ethers.formatEther(totalEth)}`);
+
+    const balance: bigint = await provider.getBalance(wallet.address);
+    if (balance < totalEth) {
+      throw new Error(
+        `[finalize] guardian balance ${ethers.formatEther(balance)} ETH < required ${ethers.formatEther(totalEth)} ETH`
+      );
+    }
+
+    // Compute explicit gas limit: base overhead + per-request cost. Use the
+    // count of un-finalized requests actually contributing to the call.
+    const requestsForGas = batchCount > 0n ? batchCount : 1n;
+    const gasLimit = GAS_FINALIZE_BASE + GAS_FINALIZE_PER_REQUEST * requestsForGas;
+
+    if (cfg.dryRun) {
+      console.log(
+        `[finalize] --dry-run: would finalize(${batchEnd}) with ${ethers.formatEther(totalEth)} ETH (gasLimit=${gasLimit})`
+      );
+      return;
+    }
+
+    let attempt = 0;
+    let backoff = cfg.initialBackoffMs;
+    while (attempt < cfg.maxRetries) {
+      try {
+        const tx = await queue.finalize(batchEnd, {value: totalEth, gasLimit});
+        console.log(`[finalize] tx submitted: ${tx.hash} (gasLimit=${gasLimit})`);
+        const rcpt = await tx.wait();
+        console.log(`[finalize] confirmed in block ${rcpt?.blockNumber}`);
+        return;
+      } catch (err) {
+        attempt += 1;
+        console.error(`[finalize] attempt ${attempt} failed:`, (err as Error).message);
+        if (attempt >= cfg.maxRetries) throw err;
+        await sleep(backoff);
+        backoff *= 2;
+      }
+    }
+  } finally {
+    await releaseLock(lockPath);
   }
 }
 

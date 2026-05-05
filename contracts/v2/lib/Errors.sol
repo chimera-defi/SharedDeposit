@@ -13,4 +13,5 @@ library Errors {
     error InsufficientBalance();
     error TooEarly();
     error FailedCall();
+    error StaleOracle();
 }
