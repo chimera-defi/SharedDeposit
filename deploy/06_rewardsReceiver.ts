@@ -14,6 +14,7 @@ import {
   WithdrawalQueue,
   WithdrawalQueue__factory,
 } from "../types";
+import {resolveGovernanceAddress} from "./helpers/governance";
 
 function makeWithdrawalCred(params: any) {
   // see https://github.com/ethereum/consensus-specs/pull/2149/files & https://github.com/stakewise/contracts/blob/0e51a35e58676491060df84d665e7ebb0e735d17/test/pool/depositDataMerkleRoot.js#L140
@@ -27,7 +28,9 @@ function makeWithdrawalCred(params: any) {
 }
 
 const func: DeployFunction = async hre => {
-  const {deploy, connect} = await Ship.init(hre);
+  const ship = await Ship.init(hre);
+  const {deploy, connect, accounts} = ship;
+  const governance = await resolveGovernanceAddress(hre, ship);
 
   const sgEth = (await connect(SgETH__factory)) as SgETH;
   const wsgEth = (await connect(WSGETH__factory)) as WSGETH;
@@ -36,11 +39,28 @@ const func: DeployFunction = async hre => {
   const withdrawalQueue = (await connect(WithdrawalQueue__factory)) as WithdrawalQueue;
 
   await deploy(RewardsReceiver__factory, {
-    args: [withdrawalQueue.target, [sgEth.target, wsgEth.target, paymentSplitter.target, minter.target]],
+    args: [withdrawalQueue.target, [sgEth.target, wsgEth.target, paymentSplitter.target, minter.target], governance],
   });
 
-  let rr = (await connect(RewardsReceiver__factory)) as RewardsReceiver;
-  await minter.setWithdrawalCredential(makeWithdrawalCred(rr.target));
+  const rr = (await connect(RewardsReceiver__factory)) as RewardsReceiver;
+  const creds = makeWithdrawalCred(rr.target);
+  const norRole = await minter.NOR();
+
+  if (await minter.hasRole(norRole, accounts.deployer.address)) {
+    const tx = await minter.setWithdrawalCredential(creds);
+    await tx.wait();
+    return;
+  }
+
+  if (hre.network.tags.hardhat && (await minter.hasRole(norRole, accounts.multiSig.address))) {
+    const tx = await minter.connect(accounts.multiSig).setWithdrawalCredential(creds);
+    await tx.wait();
+    return;
+  }
+
+  console.warn(
+    `[manual-action-required] setWithdrawalCredential(${creds}) on minter ${minter.target} using a signer with NOR role ${norRole}`,
+  );
 };
 
 export default func;

@@ -14,6 +14,8 @@ import {YieldDirectorBase} from "../lib/YieldDirectorBase.sol";
 /// @title RewardsReceiver - Rewards receiver contract for ETH2 CL + RL rewards
 /// @author @ChimeraDefi - admin@sharedstake.org - chimera_defi@protonmail.com
 contract RewardsReceiver is Ownable, YieldDirectorBase {
+    error ZeroAddress();
+
     enum State {
         Deposits,
         Withdrawals
@@ -23,8 +25,14 @@ contract RewardsReceiver is Ownable, YieldDirectorBase {
 
     constructor(
         address _withdrawalAddr,
-        address[] memory yieldDirectorAddresses
+        address[] memory yieldDirectorAddresses,
+        address initialOwner
     ) payable Ownable() YieldDirectorBase(yieldDirectorAddresses) {
+        if (_withdrawalAddr == address(0) || initialOwner == address(0)) {
+            revert ZeroAddress();
+        }
+
+        _transferOwnership(initialOwner);
         WITHDRAWALS = payable(_withdrawalAddr);
         state = State.Deposits;
     }

@@ -2,12 +2,14 @@
 pragma solidity 0.8.20;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {StakingCore} from "./StakingCore.sol";
+import {IReportable} from "./interfaces/IReportable.sol";
 import {Errors} from "../lib/Errors.sol";
 
 /// @title OracleAdapter - beacon chain report ingestion with sanity gates
 /// @notice Accepts signed reports from authorized submitters and forwards valid
-///         ones to StakingCore.reportBeacon.
+///         ones to a target implementing IReportable. The target can be either
+///         the legacy `StakingCore` or a `ValidatorModule` behind StakingRouter
+///         — both expose `reportBeacon(uint256,uint256)` with identical semantics.
 ///
 /// Safety rules enforced before forwarding:
 ///   1. Staleness   — report must arrive within `maxStalenessSeconds` of now.
@@ -22,7 +24,7 @@ contract OracleAdapter is AccessControl {
     bytes32 public constant SUBMITTER = keccak256("SUBMITTER");
 
     // ── Config ────────────────────────────────────────────────────────────────
-    StakingCore public immutable STAKING_CORE;
+    IReportable public immutable REPORT_TARGET;
 
     uint256 public maxStalenessSeconds = 6 hours;
     uint256 public maxDriftBps = 1000;  // 10% per-validator balance change cap
@@ -50,9 +52,9 @@ contract OracleAdapter is AccessControl {
     error BalanceDriftTooHigh(uint256 actual, uint256 max);
     error SlashTooLarge(uint256 actual, uint256 max);
 
-    constructor(address stakingCore, address gov) {
-        if (stakingCore == address(0) || gov == address(0)) revert Errors.ZeroAddress();
-        STAKING_CORE = StakingCore(payable(stakingCore));
+    constructor(address reportTarget, address gov) {
+        if (reportTarget == address(0) || gov == address(0)) revert Errors.ZeroAddress();
+        REPORT_TARGET = IReportable(reportTarget);
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
         _grantRole(GOV, gov);
     }
@@ -97,7 +99,7 @@ contract OracleAdapter is AccessControl {
         lastBeaconValidators = beaconValidators;
         lastReportTime = block.timestamp;
 
-        STAKING_CORE.reportBeacon(beaconValidators, beaconBalance);
+        REPORT_TARGET.reportBeacon(beaconValidators, beaconBalance);
 
         emit ReportSubmitted(msg.sender, beaconValidators, beaconBalance, reportTimestamp);
     }

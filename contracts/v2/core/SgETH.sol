@@ -28,6 +28,10 @@ contract SgETH is ERC20MintableBurnableByMinter {
 
     // Transfer ownership of who can add/rm minters
     function transferOwnership(address newOwner) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (newOwner == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+
         grantRole(DEFAULT_ADMIN_ROLE, newOwner);
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender); // permission gaurded via revert if called lacks role
     }

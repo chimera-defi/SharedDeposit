@@ -11,14 +11,18 @@ import {
   FeeCalc,
   FeeCalc__factory,
 } from "../types";
-import {ZeroAddress} from "ethers";
+import {ZeroHash} from "ethers";
+import {resolveGovernanceAddress, resolveNodeOperatorAddress} from "./helpers/governance";
 
 const func: DeployFunction = async hre => {
-  const {deploy, connect, accounts} = await Ship.init(hre);
+  const ship = await Ship.init(hre);
+  const {deploy, connect, accounts} = ship;
 
   const sgEth = (await connect(SgETH__factory)) as SgETH;
   const wsgEth = (await connect(WSGETH__factory)) as WSGETH;
   const feeCalc = (await connect(FeeCalc__factory)) as FeeCalc;
+  const governance = await resolveGovernanceAddress(hre, ship);
+  const nodeOperator = resolveNodeOperatorAddress(governance);
 
   let chainId = await hre.getChainId();
 
@@ -33,8 +37,6 @@ const func: DeployFunction = async hre => {
   const numValidators = 1000;
   const adminFee = 0;
 
-  const multiSig = hre.network.tags.hardhat ? accounts.multiSig.address : accounts.deployer.address;
-
   // const FeeCalc = await ethers.getContractFactory("FeeCalc");
   // const feeCalc = await FeeCalc.deploy(parseEther("0"), parseEther("0"));
   // await feeCalc.deployed();
@@ -44,8 +46,9 @@ const func: DeployFunction = async hre => {
     feeCalc.target, // fee splitter
     sgEth.target, // sgETH address
     wsgEth.target, // wsgETH address
-    multiSig, // government address
+    governance, // government address
     depositContractAddr, // deposit contract address - can't find deposit contract - using dummy address
+    nodeOperator, // optional node operator address
   ];
 
   const minter = await deploy(SharedDepositMinterV2__factory, {
@@ -56,6 +59,13 @@ const func: DeployFunction = async hre => {
     const tx = await sgEth.addMinter(minter.address);
     console.log("Adding minter role at", tx.hash);
     await tx.wait();
+
+    const deployerIsAdmin = await sgEth.hasRole(ZeroHash, accounts.deployer.address);
+    if (deployerIsAdmin && governance.toLowerCase() !== accounts.deployer.address.toLowerCase()) {
+      const ownTx = await sgEth.transferOwnership(governance);
+      console.log("Transferring sgETH admin role at", ownTx.hash);
+      await ownTx.wait();
+    }
   }
 };
 

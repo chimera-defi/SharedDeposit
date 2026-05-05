@@ -35,7 +35,7 @@ import {ETH2DepositWithdrawalCredentials} from "../lib/ETH2DepositWithdrawalCred
 /// @author ChimeraDefi - chimera_defi@protonmail.com | sharedstake.org
 /// @notice Mints LSD tokens for ETH deposited to the contract. Handles the depositing of ETH to the ETH2 deposit contract and validator creation
 /// @dev Deployment params:
-/// - addresses : [feeCalc, sgeth, wsgeth, gov]
+/// - addresses : [feeCalc, sgeth, wsgeth, gov, depositContract, optionalNodeOperator]
 contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2DepositWithdrawalCredentials {
     /* ========== STATE VARIABLES ========== */
     uint256 public adminFee;
@@ -69,12 +69,31 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
     //errors
     error AmountTooHigh();
     error NoValidators();
+    error InvalidAddressConfig();
+    error ZeroAddress();
+
+    function _depositContractFromConfig(address[] memory addresses) private pure returns (address) {
+        if (addresses.length < 5) {
+            revert InvalidAddressConfig();
+        }
+        return addresses[4];
+    }
 
     constructor(
         uint256 _numValidators,
         uint256 _adminFee,
         address[] memory addresses
-    ) AccessControl() Pausable() ReentrancyGuard() ETH2DepositWithdrawalCredentials(addresses[4]) {
+    ) AccessControl() Pausable() ReentrancyGuard() ETH2DepositWithdrawalCredentials(_depositContractFromConfig(addresses)) {
+        if (addresses.length < 5) {
+            revert InvalidAddressConfig();
+        }
+        if (addresses[1] == address(0) || addresses[2] == address(0) || addresses[3] == address(0)) {
+            revert ZeroAddress();
+        }
+
+        address governance = addresses[3];
+        address nodeOperator = addresses.length > 5 && addresses[5] != address(0) ? addresses[5] : governance;
+
         _feeCalc = IFeeCalc(addresses[0]);
         _SGETH = IERC20MintableBurnable(addresses[1]);
         _WSGETH = IERC4626(addresses[2]);
@@ -89,8 +108,8 @@ contract SharedDepositMinterV2 is AccessControl, Pausable, ReentrancyGuard, ETH2
 
         costPerValidator = (32 * 1e18) + adminFee;
 
-        _grantRole(NOR, msg.sender);
-        _grantRole(GOV, addresses[3]); // deployer will need it to set withdrawal creds. since the non-custodial withdrawal path depends on the minter.
+        _grantRole(NOR, nodeOperator);
+        _grantRole(GOV, governance);
     }
 
     /*//////////////////////////////////////////////////////////////

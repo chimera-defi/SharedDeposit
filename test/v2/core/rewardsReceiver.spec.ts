@@ -67,7 +67,7 @@ describe("RewardsReceiver", () => {
       to: rewardsReceiver.target,
       value: parseEther("1"),
     });
-    await rewardsReceiver.flipState();
+    await rewardsReceiver.connect(multiSig).flipState();
 
     prevBalance = await deployer.provider.getBalance(rewardsReceiver.target);
     await rewardsReceiver.work();
@@ -79,7 +79,7 @@ describe("RewardsReceiver", () => {
     await expect(rewardsReceiver.connect(alice).flipState()).to.be.revertedWith("Ownable: caller is not the owner");
 
     expect(await rewardsReceiver.state()).to.eq(0);
-    await rewardsReceiver.flipState();
+    await rewardsReceiver.connect(multiSig).flipState();
     expect(await rewardsReceiver.state()).to.eq(1);
   });
 });

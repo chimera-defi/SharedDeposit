@@ -66,7 +66,11 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
     event Redeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
     event CancelRedeem(address indexed requester, address indexed receiver, uint256 shares, uint256 assets);
 
-    constructor(address _minter, address _wsgEth, uint256 _epochLength) FIFOQueue(_epochLength) {
+    constructor(address _minter, address _wsgEth, uint256 _epochLength, address _governance) FIFOQueue(_epochLength) {
+        if (_minter == address(0) || _wsgEth == address(0) || _governance == address(0)) {
+            revert Errors.ZeroAddress();
+        }
+
         MINTER = _minter;
         WSGETH = _wsgEth;
 
@@ -74,7 +78,7 @@ contract WithdrawalQueue is AccessControl, ReentrancyGuard, GranularPause, FIFOQ
 
         IERC20(WSGETH).approve(_minter, maxUint256);
 
-        _grantRole(GOV, msg.sender);
+        _grantRole(GOV, _governance);
     }
 
     /// @notice Requests a redemption of vault assets.

@@ -190,7 +190,7 @@ describe("SharedDepositMinterV2", () => {
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${NOR_ROLE}`,
       );
 
-      await minter.setWithdrawalCredential("0x");
+      await minter.connect(multiSig).setWithdrawalCredential("0x");
     });
 
     it("slash", async () => {

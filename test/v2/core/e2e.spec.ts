@@ -46,26 +46,26 @@ describe("e2e test", () => {
       `AccessControl: account ${alice.address.toLowerCase()} is missing role ${MINTER_ROLE}`,
     );
     // add minter
-    await expect(sgEth.connect(deployer).addMinter(deployer.address))
+    await expect(sgEth.connect(multiSig).addMinter(deployer.address))
       .to.be.emit(sgEth, "RoleGranted")
-      .withArgs(MINTER_ROLE, deployer.address, deployer.address);
+      .withArgs(MINTER_ROLE, deployer.address, multiSig.address);
     // minter can mint
     await expect(sgEth.connect(deployer).mint(deployer.address, parseEther("1")))
       .to.be.emit(sgEth, "Transfer")
       .withArgs(ZeroAddress, deployer.address, parseEther("1"));
 
-    await sgEth.removeMinter(deployer.address);
+    await sgEth.connect(multiSig).removeMinter(deployer.address);
     // add secondary owner
     // revoke deployer admin rights
-    await expect(sgEth.transferOwnership(multiSig.address))
+    await expect(sgEth.connect(multiSig).transferOwnership(alice.address))
       .to.be.emit(sgEth, "RoleGranted")
-      .withArgs(ZeroHash, multiSig.address, deployer.address)
+      .withArgs(ZeroHash, alice.address, multiSig.address)
       .and.to.be.emit(sgEth, "RoleRevoked")
-      .withArgs(ZeroHash, deployer.address, deployer.address);
+      .withArgs(ZeroHash, multiSig.address, multiSig.address);
 
     // check auth invariants are preserved. i.e ex owner and outsiders cannot interact with the contract
-    await expect(sgEth.connect(deployer).transferOwnership(alice.address)).to.be.revertedWith(
-      `AccessControl: account ${deployer.address.toLowerCase()} is missing role ${ZeroHash}`,
+    await expect(sgEth.connect(multiSig).transferOwnership(deployer.address)).to.be.revertedWith(
+      `AccessControl: account ${multiSig.address.toLowerCase()} is missing role ${ZeroHash}`,
     );
   });
 });

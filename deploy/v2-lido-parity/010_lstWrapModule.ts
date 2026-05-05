@@ -1,0 +1,82 @@
+import {DeployFunction} from "hardhat-deploy/types";
+import Ship from "../../utils/ship";
+import {
+  LSTWrapModule__factory,
+  LidoPriceOracle__factory,
+  StakingRouter__factory,
+} from "../../types";
+import {parseEther} from "ethers";
+
+/**
+ * Deploys an LSTWrapModule for stETH and registers it with the StakingRouter.
+ *
+ * Cross-LST mints share the same StToken pool, so we cap LST exposure at
+ * 1000 ETH (conservative MVP). Governance can lift the cap via setMintCap once
+ * peg-stability monitoring is in place.
+ *
+ * stETH addresses by network:
+ *   - mainnet  → 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84
+ *   - holesky  → 0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034 (Lido Holesky stETH)
+ *   - others   → required as STETH_ADDRESS env var (or skip).
+ */
+const LST_WRAP_STETH = "LST_WRAP_STETH";
+
+function stethAddressFor(networkName: string): string | undefined {
+  switch (networkName) {
+    case "mainnet":
+      return "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+    case "holesky":
+      return "0x3F1c547b21f65e10480dE3ad8E19fAAC46C95034";
+    default:
+      return process.env.STETH_ADDRESS;
+  }
+}
+
+const func: DeployFunction = async hre => {
+  const {deploy, connect, accounts, address} = await Ship.init(hre);
+
+  const routerAddress = await address(StakingRouter__factory);
+  if (!routerAddress) throw new Error("StakingRouter not deployed");
+
+  const stethAddress = stethAddressFor(hre.network.name);
+  if (!stethAddress) {
+    console.log(`  Skipping LSTWrapModule on network=${hre.network.name} (no stETH address configured)`);
+    return;
+  }
+
+  const gov = accounts.multiSig.address;
+  const moduleId = hre.ethers.keccak256(hre.ethers.toUtf8Bytes(LST_WRAP_STETH));
+
+  // Deploy the LST module pointing at the on-chain stETH token.
+  const {contract: lstMod} = await deploy(LSTWrapModule__factory, {
+    from: accounts.deployer,
+    args: [routerAddress, moduleId, stethAddress, gov],
+    log: true,
+  });
+
+  // Deploy the price oracle that round-trips through the canonical stETH contract.
+  const {contract: priceOracle} = await deploy(LidoPriceOracle__factory, {
+    from: accounts.deployer,
+    args: [stethAddress],
+    log: true,
+  });
+
+  // Wire price oracle on the module.
+  console.log("  Setting price oracle on LSTWrapModule...");
+  await lstMod.connect(accounts.multiSig).setPriceOracle(priceOracle.target as string);
+
+  // Register with the router. Conservative initial cap.
+  const router = await connect(StakingRouter__factory);
+  const existing = await router.modules(moduleId);
+  if (existing.addr === "0x0000000000000000000000000000000000000000") {
+    const cap = parseEther("1000");
+    console.log(`  Registering LSTWrapModule with router (cap=${cap} wei)...`);
+    await router
+      .connect(accounts.multiSig)
+      .registerModule(moduleId, lstMod.target as string, cap);
+  }
+};
+
+export default func;
+func.tags = ["lido-parity", "lst-wrap"];
+func.dependencies = ["staking-router"];

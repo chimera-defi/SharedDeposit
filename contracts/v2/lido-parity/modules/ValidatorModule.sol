@@ -1,0 +1,186 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.20;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IStakingRouter} from "../interfaces/IStakingRouter.sol";
+import {IStakingModule} from "../interfaces/IStakingModule.sol";
+import {IDepositContract} from "../interfaces/IDepositContract.sol";
+import {GranularPause} from "../../lib/GranularPause.sol";
+import {Errors} from "../../lib/Errors.sol";
+
+/// @title ValidatorModule - solo-validator staking module behind StakingRouter
+/// @notice Refactor of `StakingCore`. The Router is now the sole MINTER on StToken,
+///         so this module never touches share supply directly. Instead it:
+///           1. Buffers ETH on `receiveDeposit()` (router-only entry).
+///           2. Pushes 32-ETH chunks to the canonical beacon-chain deposit contract.
+///           3. Forwards oracle-validated beacon balance reports to the Router so the
+///              Router can rebase StToken.
+///
+/// Roles:
+///   GOV          — config
+///   ORACLE       — submit beacon balance reports (typically `OracleAdapter`)
+///   GUARDIAN     — emergency pause
+///   NODE_OPERATOR— call `depositToBeaconChain` with a validator's deposit data
+contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStakingModule {
+    // ── Roles ─────────────────────────────────────────────────────────────────
+    bytes32 public constant GOV = keccak256("GOV");
+    bytes32 public constant ORACLE = keccak256("ORACLE");
+    bytes32 public constant GUARDIAN = keccak256("GUARDIAN");
+    bytes32 public constant NODE_OPERATOR = keccak256("NODE_OPERATOR");
+
+    // ── Pause IDs ─────────────────────────────────────────────────────────────
+    /// @notice Blocks `receiveDeposit`, `reportBeacon`, and `depositToBeaconChain`.
+    uint16 public constant PAUSE_RECEIVE = 0;
+
+    // ── Constants ─────────────────────────────────────────────────────────────
+    /// @notice Default mainnet beacon-chain deposit contract address. Used when
+    ///         the constructor receives `address(0)` for `beaconDepositContract`.
+    address public constant DEFAULT_BEACON_DEPOSIT_CONTRACT = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
+    uint256 public constant DEPOSIT_AMOUNT = 32 ether;
+
+    // ── Immutables ────────────────────────────────────────────────────────────
+    IStakingRouter public immutable ROUTER;
+    bytes32 public immutable MODULE_ID;
+    /// @notice Configurable beacon-chain deposit contract. Defaults to the mainnet
+    ///         address when constructor arg is `address(0)`. Holesky/Hoodi and
+    ///         hardhat tests pass alternative addresses.
+    address public immutable BEACON_DEPOSIT_CONTRACT;
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    uint256 internal _bufferedEther;     // ETH held here, pending validator assignment
+    uint256 internal _beaconBalance;     // last reported sum of validator balances
+    uint256 internal _beaconValidators;  // last reported validator count
+
+    // ── Events ────────────────────────────────────────────────────────────────
+    event DepositReceived(uint256 amount, uint256 newBufferedEther);
+    event BeaconReported(uint256 beaconValidators, uint256 beaconBalance);
+    event BeaconChainDeposit(bytes pubkey, uint256 amount, uint256 newBufferedEther);
+
+    // ── Errors ────────────────────────────────────────────────────────────────
+    error NotRouter(address caller);
+    error InsufficientBuffer(uint256 available, uint256 required);
+    error BeaconBalanceSanityFailed(uint256 reported, uint256 expected);
+
+    constructor(address router, bytes32 moduleId, address gov, address beaconDepositContract) {
+        if (router == address(0) || gov == address(0)) revert Errors.ZeroAddress();
+        if (moduleId == bytes32(0)) revert Errors.InvalidAmount();
+        ROUTER = IStakingRouter(router);
+        MODULE_ID = moduleId;
+        BEACON_DEPOSIT_CONTRACT = beaconDepositContract == address(0)
+            ? DEFAULT_BEACON_DEPOSIT_CONTRACT
+            : beaconDepositContract;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, gov);
+        _grantRole(GOV, gov);
+        _grantRole(GUARDIAN, gov);
+    }
+
+    // ── Module hooks (router-only) ───────────────────────────────────────────
+
+    modifier onlyRouter() {
+        if (msg.sender != address(ROUTER)) revert NotRouter(msg.sender);
+        _;
+    }
+
+    /// @inheritdoc IStakingModule
+    function receiveDeposit() external payable virtual override onlyRouter whenNotPaused(PAUSE_RECEIVE) {
+        _bufferedEther += msg.value;
+        emit DepositReceived(msg.value, _bufferedEther);
+    }
+
+    /// @inheritdoc IStakingModule
+    function totalEth() external view virtual override returns (uint256) {
+        return _bufferedEther + _beaconBalance;
+    }
+
+    /// @inheritdoc IStakingModule
+    function moduleType() external pure virtual override returns (bytes32) {
+        return keccak256("SOLO_VALIDATOR");
+    }
+
+    // ── Oracle reporting ─────────────────────────────────────────────────────
+
+    /// @notice ORACLE forwards a (already sanity-checked at adapter) report. We add
+    ///         a defensive cap here too in case the adapter is misconfigured.
+    function reportBeacon(uint256 newBeaconValidators, uint256 newBeaconBalance)
+        external
+        onlyRole(ORACLE)
+        whenNotPaused(PAUSE_RECEIVE)
+    {
+        if (_beaconValidators > 0) {
+            uint256 maxPlausible = _beaconValidators * 32 ether * 2;
+            if (newBeaconBalance > maxPlausible) {
+                revert BeaconBalanceSanityFailed(newBeaconBalance, maxPlausible);
+            }
+        }
+
+        _beaconValidators = newBeaconValidators;
+        _beaconBalance = newBeaconBalance;
+
+        ROUTER.reportModuleBeaconBalance(MODULE_ID, newBeaconBalance);
+        emit BeaconReported(newBeaconValidators, newBeaconBalance);
+    }
+
+    // ── Beacon-chain deposit (NODE_OPERATOR) ─────────────────────────────────
+
+    /// @notice Push exactly 32 ETH from the buffer into the canonical beacon deposit
+    ///         contract using the supplied validator credentials. Notifies the Router
+    ///         so its `moduleBeaconBalance` baseline tracks the principal.
+    function depositToBeaconChain(
+        bytes calldata pubkey,
+        bytes calldata withdrawal_credentials,
+        bytes calldata signature,
+        bytes32 deposit_data_root
+    ) external onlyRole(NODE_OPERATOR) nonReentrant whenNotPaused(PAUSE_RECEIVE) {
+        if (_bufferedEther < DEPOSIT_AMOUNT) {
+            revert InsufficientBuffer(_bufferedEther, DEPOSIT_AMOUNT);
+        }
+        _bufferedEther -= DEPOSIT_AMOUNT;
+
+        IDepositContract(BEACON_DEPOSIT_CONTRACT).deposit{value: DEPOSIT_AMOUNT}(
+            pubkey,
+            withdrawal_credentials,
+            signature,
+            deposit_data_root
+        );
+
+        // Bump the router's baseline so subsequent oracle reports treat 32 ETH as
+        // already "in the beacon" (no double-count vs. existing totalPooledEther).
+        ROUTER.notifyBeaconDeposit(MODULE_ID, DEPOSIT_AMOUNT);
+
+        emit BeaconChainDeposit(pubkey, DEPOSIT_AMOUNT, _bufferedEther);
+    }
+
+    // ── Pause ────────────────────────────────────────────────────────────────
+
+    function pause(uint16 fnId) external onlyRole(GUARDIAN) {
+        _pause(fnId);
+    }
+
+    function unpause(uint16 fnId) external onlyRole(GOV) {
+        _unpause(fnId);
+    }
+
+    // ── Views ────────────────────────────────────────────────────────────────
+
+    function bufferedEther() external view returns (uint256) {
+        return _bufferedEther;
+    }
+
+    function beaconBalance() external view returns (uint256) {
+        return _beaconBalance;
+    }
+
+    function beaconValidators() external view returns (uint256) {
+        return _beaconValidators;
+    }
+
+    /// @dev Direct ETH transfers buffer in place. They do NOT mint shares — those
+    ///      can only be minted via the Router's `submit*` path. The funds remain
+    ///      stuck unless GOV recovers them through a future migration.
+    receive() external payable virtual {
+        _bufferedEther += msg.value;
+        emit DepositReceived(msg.value, _bufferedEther);
+    }
+}

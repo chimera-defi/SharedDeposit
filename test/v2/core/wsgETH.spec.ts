@@ -168,7 +168,7 @@ describe("WsgETH.sol", () => {
       wsgEth.target,
       paymentSplitter.target,
       minter.target,
-    ]);
+    ], multiSig.address);
     await rewardsReceiver.waitForDeployment();
 
     await sgEth.addMinter(minter.target);

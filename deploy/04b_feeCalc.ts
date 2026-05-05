@@ -1,15 +1,18 @@
 import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../utils/ship";
 import {FeeCalc__factory} from "../types";
+import {resolveGovernanceAddress} from "./helpers/governance";
 
 /**
  *
  * This only needs to be deployed on testnets like sepolia which do not have a deposit contract.
  */
 const func: DeployFunction = async hre => {
-  const {deploy} = await Ship.init(hre);
+  const ship = await Ship.init(hre);
+  const {deploy} = ship;
+  const governance = await resolveGovernanceAddress(hre, ship);
 
-  const fc = await deploy(FeeCalc__factory, {
+  await deploy(FeeCalc__factory, {
     args: [
       {
         adminFee: 0,
@@ -18,6 +21,7 @@ const func: DeployFunction = async hre => {
         chargeOnDeposit: true,
         chargeOnExit: false,
       },
+      governance,
     ],
   });
 };

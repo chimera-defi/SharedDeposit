@@ -276,7 +276,7 @@ describe("WithdrawalQueue", () => {
     await advanceTimeAndBlock(1);
 
     // Empty minter for test.
-    await sgEth.connect(deployer).addMinter(alice.address);
+    await sgEth.connect(multiSig).addMinter(alice.address);
     await sgEth.connect(alice).mint(alice.address, parseEther("100"));
     // Boost minter shares for accounting
     let cvs = await minter.curValidatorShares();
@@ -307,7 +307,7 @@ describe("WithdrawalQueue", () => {
     await advanceTimeAndBlock(1);
 
     // Empty minter for test.
-    await sgEth.connect(deployer).addMinter(alice.address);
+    await sgEth.connect(multiSig).addMinter(alice.address);
     await sgEth.connect(alice).mint(alice.address, parseEther("100"));
     // Boost minter shares for accounting
     let cvs = await minter.curValidatorShares();
