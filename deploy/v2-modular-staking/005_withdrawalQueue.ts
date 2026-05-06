@@ -28,5 +28,5 @@ const func: DeployFunction = async hre => {
 };
 
 export default func;
-func.tags = ["lido-parity", "withdrawalQueue"];
+func.tags = ["modular-staking", "withdrawalQueue"];
 func.dependencies = ["stToken"];

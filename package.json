@@ -16,6 +16,7 @@
     "dotenv": "^16.3.1",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
+    "fast-check": "^4.7.0",
     "hardhat": "^2.19.1",
     "hardhat-abi-exporter": "^2.10.1",
     "hardhat-contract-sizer": "^2.10.0",

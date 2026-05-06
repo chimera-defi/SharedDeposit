@@ -78,5 +78,5 @@ const func: DeployFunction = async hre => {
 };
 
 export default func;
-func.tags = ["lido-parity", "lst-wrap"];
+func.tags = ["modular-staking", "lst-wrap"];
 func.dependencies = ["staking-router"];

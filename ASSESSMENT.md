@@ -1,7 +1,7 @@
 # SharedStake V2 Lido-Parity / Modular Phase — Comprehensive Assessment
 
 **Date:** 2026-05-06
-**Scope:** `contracts/v2/lido-parity/`, `contracts/v2/modular/`, deploy scripts, tests, keepers, runbooks
+**Scope:** `contracts/v2/modular-staking/`, `contracts/v2/modular/`, deploy scripts, tests, keepers, runbooks
 
 ---
 
@@ -47,7 +47,7 @@
 ### 🔴 Critical Gaps
 
 #### 3.1 DVTModule is a Skeleton
-**File:** `contracts/v2/lido-parity/modules/DVTModule.sol`
+**File:** `contracts/v2/modular-staking/modules/DVTModule.sol`
 - Only overrides `moduleType()` to return `keccak256("DVT_VALIDATOR")`.
 - No cluster coordinator hooks, no threshold-signature pre-flight, no operator whitelist.
 - **No deploy script** for DVTModule.
@@ -55,12 +55,12 @@
 - **Verdict:** Not production-ready for DVT. Needs Phase 2 work.
 
 #### 3.2 No Deploy Script for DVTModule
-The deploy pipeline (`deploy/v2-lido-parity/`) has scripts for StToken, WstToken, FeeController, StakingCore, WithdrawalQueue, OracleAdapter, StakingRouter, ValidatorModule, LSTWrapModule — but **no DVTModule deploy script**.
+The deploy pipeline (`deploy/v2-modular-staking/`) has scripts for StToken, WstToken, FeeController, StakingCore, WithdrawalQueue, OracleAdapter, StakingRouter, ValidatorModule, LSTWrapModule — but **no DVTModule deploy script**.
 
 #### 3.3 Missing Tests
 - **LidoPriceOracle** — no dedicated test file.
 - **DVTModule** — no test file.
-- These are the only two contracts in `v2/lido-parity/` without coverage.
+- These are the only two contracts in `v2/modular-staking/` without coverage.
 
 #### 3.4 OracleAdapter lacks Quorum (Documented Phase 2 Gap)
 `OracleAdapter.sol` is single-submitter. `QuorumOracleAdapter.sol` exists but there is **no deploy script that wires QuorumOracleAdapter** as the active oracle path. The default deploy (006) uses single-submitter OracleAdapter.
@@ -89,17 +89,17 @@ The contracts have `GranularPause` and `emergencyPauseAll()` but there is **no d
 ### 🟢 Low / Documentation Gaps
 
 #### 3.10 README Outdated
-Root `README.md` talks about "V2 core" but doesn't mention the lido-parity / modular phase at all. The V3 wishlist section is from 2023 and doesn't reflect the current modular architecture.
+Root `README.md` talks about "V2 core" but doesn't mention the modular-staking / modular phase at all. The V3 wishlist section is from 2023 and doesn't reflect the current modular architecture.
 
 #### 3.11 `contracts/v2/core/README.md` Only Covers Old Core
-Doesn't mention the lido-parity contracts, StakingRouter, or modular design.
+Doesn't mention the modular-staking contracts, StakingRouter, or modular design.
 
-#### 3.12 v2/core Contracts Not Integrated with v2/lido-parity
+#### 3.12 v2/core Contracts Not Integrated with v2/modular-staking
 There are two separate contract worlds:
 - `v2/core/` — old sgETH, SharedDepositMinterV2, WSGEth, RewardsReceiver, WithdrawalQueue
-- `v2/lido-parity/` — new StToken, StakingCore, StakingRouter, etc.
+- `v2/modular-staking/` — new StToken, StakingCore, StakingRouter, etc.
 
-These are **not connected**. The lido-parity contracts use `StToken` (not `sgETH`). The old core uses `sgETH`. This appears to be an intentional migration path, but it needs explicit documentation: "v2/core is production mainnet, v2/lido-parity is the next phase under test."
+These are **not connected**. The modular-staking contracts use `StToken` (not `sgETH`). The old core uses `sgETH`. This appears to be an intentional migration path, but it needs explicit documentation: "v2/core is production mainnet, v2/modular-staking is the next phase under test."
 
 ---
 
@@ -244,7 +244,7 @@ oracleAdapter.setMaxSlashBps(250); // 2.5%
 2. **Write deploy script for DVTModule** — even if minimal, it should exist for completeness.
 3. **Add test for LidoPriceOracle** — currently untested.
 4. **Add test for DVTModule** — even a minimal inheritance test.
-5. **Update README.md** — add section documenting the lido-parity/modular phase and the two-world architecture.
+5. **Update README.md** — add section documenting the modular-staking/modular phase and the two-world architecture.
 
 ### Short-Term (Next 2 Weeks)
 6. **Create `011_dvtModule.ts` deploy script**.
@@ -257,19 +257,19 @@ oracleAdapter.setMaxSlashBps(250); // 2.5%
 11. **Build DVTModule Phase 2 features** (cluster coordinator hooks).
 12. **Multi-validator deposit sweep** in keeper.
 13. **Keeper monitoring/alerting integration**.
-14. **Migrate old v2/core users** to lido-parity tokens (Rollover-style bridge).
+14. **Migrate old v2/core users** to modular-staking tokens (Rollover-style bridge).
 
 ---
 
 ## 8. Files Modified Today
 
 ```
-contracts/v2/lido-parity/StakingCore.sol       (confirmed pure dilution)
-contracts/v2/lido-parity/StakingRouter.sol     (removed pool inflation)
-test/v2/lido-parity/e2e.spec.ts                (expectation 10.55 → 10.5)
-test/v2/lido-parity/stakingCore.spec.ts        (expectation 10.55 → 10.5)
-test/v2/lido-parity/stakingRouter.spec.ts      (expectation 32.55 → 32.5)
-test/v2/lido-parity/e2e-router.spec.ts         (expectation gt 32.5 → equal 32.5)
+contracts/v2/modular-staking/StakingCore.sol       (confirmed pure dilution)
+contracts/v2/modular-staking/StakingRouter.sol     (removed pool inflation)
+test/v2/modular-staking/e2e.spec.ts                (expectation 10.55 → 10.5)
+test/v2/modular-staking/stakingCore.spec.ts        (expectation 10.55 → 10.5)
+test/v2/modular-staking/stakingRouter.spec.ts      (expectation 32.55 → 32.5)
+test/v2/modular-staking/e2e-router.spec.ts         (expectation gt 32.5 → equal 32.5)
 ```
 
-**All 256 tests passing. No compilation errors. No warnings in lido-parity contracts.**
+**All 256 tests passing. No compilation errors. No warnings in modular-staking contracts.**

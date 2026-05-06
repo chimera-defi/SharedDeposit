@@ -6,7 +6,7 @@ import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 const SOLO = ethers.keccak256(ethers.toUtf8Bytes("ROLE_SWEEP_SOLO"));
 const POLICY_ID = ethers.keccak256(ethers.toUtf8Bytes("ROLE_SWEEP_POLICY"));
 
-describe("lido-parity role/access sweep", () => {
+describe("modular-staking role/access sweep", () => {
   let deployer: SignerWithAddress;
   let gov: SignerWithAddress;
   let guardian: SignerWithAddress;

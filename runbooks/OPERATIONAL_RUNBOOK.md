@@ -1,7 +1,7 @@
 # SharedStake V2 (Lido-Parity) Operational Runbook
 
 **Scope:** Emergency response and routine operational procedures for the
-lido-parity contract suite (`StToken`, `StakingCore`, `WithdrawalQueueV2`,
+modular-staking contract suite (`StToken`, `StakingCore`, `WithdrawalQueueV2`,
 `OracleAdapter` / `QuorumOracleAdapter`, `StakingRouter`, `ValidatorModule`,
 `LSTWrapModule`, `FeeController`).
 
@@ -16,7 +16,7 @@ lido-parity contract suite (`StToken`, `StakingCore`, `WithdrawalQueueV2`,
 | `NODE_OPERATOR` / NOR | Register validators, register/exit on `ValidatorModule`  | NOR multisig |
 | `MINTER`              | Mint/burn `StToken` shares                               | `StakingCore`, `WithdrawalQueueV2` |
 
-> Code references: `contracts/v2/lido-parity/*.sol`. Pull the live address
+> Code references: `contracts/v2/modular-staking/*.sol`. Pull the live address
 > set from `deployments/<network>/manifest.json` before running any
 > command below.
 

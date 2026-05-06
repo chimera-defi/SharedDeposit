@@ -1,7 +1,7 @@
 /**
  * Standalone unit tests for LSTWrapModule.
  *
- * Deploys the full lido-parity stack from scratch (StToken + StakingRouter +
+ * Deploys the full modular-staking stack from scratch (StToken + StakingRouter +
  * LSTWrapModule + MockERC20 + MockLSTPriceOracle) so the tests are independent
  * of the validator-module fixtures used in `stakingRouter.spec.ts`.
  *

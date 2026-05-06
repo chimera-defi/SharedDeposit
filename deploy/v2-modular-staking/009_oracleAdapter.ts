@@ -51,5 +51,5 @@ const func: DeployFunction = async hre => {
 };
 
 export default func;
-func.tags = ["lido-parity", "oracle-validator"];
+func.tags = ["modular-staking", "oracle-validator"];
 func.dependencies = ["validator-module"];

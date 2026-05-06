@@ -38,5 +38,5 @@ const func: DeployFunction = async hre => {
 };
 
 export default func;
-func.tags = ["lido-parity", "oracleAdapter"];
+func.tags = ["modular-staking", "oracleAdapter"];
 func.dependencies = ["stakingCore"];

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import {ILSTPriceOracle} from "../lido-parity/interfaces/ILSTPriceOracle.sol";
+import {ILSTPriceOracle} from "../modular-staking/interfaces/ILSTPriceOracle.sol";
 
 /// @title MockLSTPriceOracle
 /// @notice Test-only oracle that lets a test set the ETH-per-LST exchange rate.
