@@ -202,8 +202,8 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
 
-        // Pool grows by the fee amount to back the newly issued shares.
-        ST_TOKEN.setTotalPooledEther(newTotalPooled + totalFee);
+        // Keep pool accounting strictly tied to real backing (buffer + beacon).
+        // Fee recipients are paid via share dilution from existing rewards.
 
         (, , address treasury, address operator) = feeController.getFeeConfig();
 

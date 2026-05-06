@@ -132,9 +132,10 @@ describe("StakingRouter E2E (Lido-parity, modular)", () => {
       now,
     );
 
-    // Pool grew from 32 → 32.5 + fee shares minted at post-rebase rate.
+    // Pool stays at 32.5 ETH because fees are captured via share dilution,
+    // not by increasing totalPooledEther beyond actual ETH backing.
     const pool = await stToken.totalPooledEther();
-    expect(pool).to.be.gt(parseEther("32.5"));
+    expect(pool).to.equal(parseEther("32.5"));
   });
 
   // ── Step 4: Alice's balance rebased upward ─────────────────────────────────

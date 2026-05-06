@@ -97,9 +97,10 @@ describe("Lido-parity E2E", () => {
 
     // Pool = 10.5 ETH before fees (10 ETH principal + 0.5 ETH rewards).
     // Rewards = 0.5 ETH; 10% fee = 0.05 ETH in shares to treasury+operator.
-    // Post-fee pool = 10.5 + 0.05 = 10.55 ETH.
+    // Pool stays at 10.5 ETH because fees are captured via share dilution,
+    // not by increasing totalPooledEther beyond actual ETH backing.
     const pool = await stToken.totalPooledEther();
-    expect(pool).to.equal(parseEther("10.55"));
+    expect(pool).to.equal(parseEther("10.5"));
   });
 
   // ── Step 3: Alice's balance rebased ────────────────────────────────────────

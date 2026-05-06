@@ -367,14 +367,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
         uint256 totalFee = treasuryAmount + operatorAmount;
         uint256 newTotalShares = ST_TOKEN.getTotalShares();
-        uint256 totalPooledAfterFees = newTotalPooled + totalFee;
+
+        // Keep pool accounting strictly tied to real backing (buffer + beacon).
+        // Fee recipients are paid via share dilution from existing rewards.
 
         // Mint fee shares at post-rebase rate so recipients capture exactly their cut.
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
-
-        // Pool grows by the fee amount to back the newly issued shares.
-        ST_TOKEN.setTotalPooledEther(totalPooledAfterFees);
 
         (, , address treasury, address operator) = feeController.getFeeConfig();
 
@@ -390,7 +389,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         routing.operatorShares = operatorShares;
         routing.totalFeeAmount = totalFee;
         routing.totalPooledBeforeFees = newTotalPooled;
-        routing.totalPooledAfterFees = totalPooledAfterFees;
+        routing.totalPooledAfterFees = newTotalPooled; // pool stays at real backing
         _emitFeeRoutingTelemetry(moduleId, routing);
     }
 

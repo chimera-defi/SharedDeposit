@@ -192,9 +192,10 @@ describe("StakingCore", () => {
       await stakingCore.connect(oracle).reportBeacon(1, parseEther("10.5"));
       const postTotalPooled = await stToken.totalPooledEther();
       // Rewards = 0.5 ETH, fee = 10% = 0.05 ETH minted to treasury/operator.
-      // Pool after fee mint = 10.5 + 0.05 = 10.55.
+      // Pool stays at 10.5 because fees are captured via share dilution,
+      // not by increasing totalPooledEther beyond actual ETH backing.
       expect(preTotalPooled).to.equal(parseEther("10"));
-      expect(postTotalPooled).to.equal(parseEther("10.55"));
+      expect(postTotalPooled).to.equal(parseEther("10.5"));
     });
 
     it("fee shares are minted on positive rewards", async () => {

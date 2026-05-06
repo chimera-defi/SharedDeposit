@@ -549,7 +549,7 @@ describe("StakingRouter", () => {
       expect(feeTelemetry!.args.operatorAmount).to.equal(parseEther("0.025"));
       expect(feeTelemetry!.args.totalFeeAmount).to.equal(parseEther("0.05"));
       expect(feeTelemetry!.args.totalPooledBeforeFees).to.equal(parseEther("32.5"));
-      expect(feeTelemetry!.args.totalPooledAfterFees).to.equal(parseEther("32.55"));
+      expect(feeTelemetry!.args.totalPooledAfterFees).to.equal(parseEther("32.5")); // pool stays at real backing
       expect(feeTelemetry!.args.treasuryShares).to.be.gt(0n);
       expect(feeTelemetry!.args.operatorShares).to.be.gt(0n);
 
