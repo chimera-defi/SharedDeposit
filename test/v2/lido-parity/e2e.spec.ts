@@ -82,7 +82,12 @@ describe("Lido-parity E2E", () => {
   // ── Step 2: Oracle reports beacon rewards ───────────────────────────────────
 
   it("Step 2: Oracle reports 10.5 ETH beacon balance (0.5 ETH reward)", async () => {
-    const now = Math.floor(Date.now() / 1000);
+    // Use chain time so this test remains stable even if prior suites advanced EVM time.
+    const blk = await ethers.provider.getBlock("latest");
+    const now = blk!.timestamp;
+
+    // Seed baseline: move principal accounting from buffered -> beacon side.
+    await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
 
     await oracleAdapter.connect(oracleSigner).submitReport(
       1,                 // 1 validator
@@ -90,20 +95,20 @@ describe("Lido-parity E2E", () => {
       now,               // fresh timestamp
     );
 
-    // Pool = 10 ETH buffered + 10.5 ETH beacon = 20.5 ETH before fees.
+    // Pool = 10.5 ETH before fees (10 ETH principal + 0.5 ETH rewards).
     // Rewards = 0.5 ETH; 10% fee = 0.05 ETH in shares to treasury+operator.
-    // Post-fee pool = 20.5 + 0.05 = 20.55 ETH.
+    // Post-fee pool = 10.5 + 0.05 = 10.55 ETH.
     const pool = await stToken.totalPooledEther();
-    expect(pool).to.be.gte(parseEther("20.5"));
+    expect(pool).to.equal(parseEther("10.55"));
   });
 
   // ── Step 3: Alice's balance rebased ────────────────────────────────────────
 
   it("Step 3: Alice's stETH balance increased (rebase)", async () => {
-    // Alice holds 10e18 shares. Pool grew from 10 to ~20.55 ETH, but total shares also grew.
+    // Alice holds 10e18 shares. Pool grew from 10 to ~10.55 ETH, but total shares also grew.
     // New shares minted to treasury/operator; Alice's share fraction diluted slightly by fees.
     const aliceBalance = await stToken.balanceOf(alice.address);
-    // Alice should have more than 10 ETH but the fee dilution is ~0.05/20.55 ≈ 0.24%.
+    // Alice should have more than 10 ETH but the fee dilution is ~0.05/10.55 ≈ 0.47%.
     expect(aliceBalance).to.be.gt(parseEther("10"));
   });
 
@@ -213,7 +218,8 @@ describe("Lido-parity E2E", () => {
   });
 
   it("Final: oracle staleness guard rejects old reports", async () => {
-    const staleTimestamp = Math.floor(Date.now() / 1000) - 7 * 3600; // 7 hours ago
+    const blk = await ethers.provider.getBlock("latest");
+    const staleTimestamp = BigInt(blk!.timestamp) - BigInt(7 * 3600); // 7 hours ago
     await expect(
       oracleAdapter.connect(oracleSigner).submitReport(1, parseEther("10"), staleTimestamp)
     ).to.be.revertedWithCustomError(oracleAdapter, "StaleReport");

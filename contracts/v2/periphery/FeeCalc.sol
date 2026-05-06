@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 contract FeeCalc is Ownable2Step {
+    error ZeroAddress();
+
     struct Settings {
         uint256 adminFee;
         uint256 exitFee;
@@ -16,7 +18,13 @@ contract FeeCalc is Ownable2Step {
     uint256 public costPerValidator;
 
     uint256 private immutable BIPS = 10000;
-    constructor(Settings memory _settings) Ownable2Step() {
+    constructor(Settings memory _settings, address initialOwner) Ownable2Step() {
+        if (initialOwner == address(0)) {
+            revert ZeroAddress();
+        }
+
+        _transferOwnership(initialOwner);
+
         // admin fee in bips (10000 = 100%)
         adminFee = _settings.adminFee;
         config = _settings;

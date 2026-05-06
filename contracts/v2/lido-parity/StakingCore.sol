@@ -18,7 +18,7 @@ import {Errors} from "../lib/Errors.sol";
 ///   GOV          — governance (timelock/multisig): set fee controller, add/remove roles, unpause
 ///   ORACLE       — trusted report submitter (OracleAdapter contract)
 ///   GUARDIAN     — emergency pause (can act fast, no timelock needed)
-///   NODE_OPERATOR— future: push ETH to validators (gated separately)
+///   NODE_OPERATOR— moves buffered ETH into beacon baseline via notifyBeaconDeposit
 contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
     using ShareMath for *;
 
@@ -43,13 +43,33 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
 
     // ── Events ────────────────────────────────────────────────────────────────
     event Submitted(address indexed sender, uint256 ethAmount, address referral, uint256 sharesAmount);
+    event SubmittedWithAttribution(
+        address indexed sender,
+        address indexed referral,
+        bytes32 indexed sourceId,
+        uint256 ethAmount,
+        uint256 sharesAmount
+    );
     event BeaconReported(uint256 beaconValidators, uint256 beaconBalance, uint256 totalPooledEther);
     event FeeSharesMinted(address indexed treasury, uint256 treasuryShares, address indexed operator, uint256 operatorShares);
+    event FeeRoutingTelemetry(
+        uint256 rewardsAmount,
+        uint256 totalFeeAmount,
+        address indexed treasury,
+        uint256 treasuryAmount,
+        uint256 treasuryShares,
+        address indexed operator,
+        uint256 operatorAmount,
+        uint256 operatorShares
+    );
     event FeeControllerSet(address indexed feeController);
     event BufferedEtherUpdated(uint256 bufferedEther);
+    event BeaconDepositNotified(uint256 amount, uint256 bufferedEther, uint256 beaconBalance);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error BeaconBalanceSanityFailed(uint256 reported, uint256 expected);
+    error BeaconBaselineNotInitialized(uint256 reportedBalance);
+    error BeaconDepositExceedsBuffered(uint256 amount, uint256 bufferedEther);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -57,6 +77,7 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
         _grantRole(GOV, gov);
         _grantRole(GUARDIAN, gov);
+        _grantRole(NODE_OPERATOR, gov);
     }
 
     // ── Deposit ───────────────────────────────────────────────────────────────
@@ -75,8 +96,25 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         sharesAmount = _submit(msg.sender, msg.value, referral);
     }
 
+    /// @notice Deposit ETH and receive stToken shares with source attribution metadata.
+    /// @param referral Optional referral address for front-end attribution.
+    /// @param sourceId Optional source identifier for indexer and analytics attribution.
+    /// @return sharesAmount Shares minted to msg.sender.
+    function submitWithAttribution(address referral, bytes32 sourceId)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        sharesAmount = _submit(msg.sender, msg.value, referral);
+        emit SubmittedWithAttribution(msg.sender, referral, sourceId, msg.value, sharesAmount);
+    }
+
     /// @notice Fallback: plain ETH transfer treated as a deposit with no referral.
-    receive() external payable {
+    receive() external payable nonReentrant whenNotPaused(PAUSE_SUBMIT) {
+        if (msg.value == 0) revert Errors.InvalidAmount();
         _submit(msg.sender, msg.value, address(0));
     }
 
@@ -106,11 +144,17 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         onlyRole(ORACLE)
     {
         // Sanity: beacon balance cannot be more than 2× the maximum honest value.
-        if (_beaconValidators > 0) {
-            uint256 maxPlausible = _beaconValidators * 32 ether * 2;
+        if (newBeaconValidators > 0) {
+            uint256 maxPlausible = newBeaconValidators * 32 ether * 2;
             if (newBeaconBalance > maxPlausible) {
                 revert BeaconBalanceSanityFailed(newBeaconBalance, maxPlausible);
             }
+        }
+
+        // Prevent principal from being counted as rewards on the first positive
+        // report. NODE_OPERATOR must move buffered ETH into beacon baseline first.
+        if (_beaconBalance == 0 && newBeaconBalance > 0) {
+            revert BeaconBaselineNotInitialized(newBeaconBalance);
         }
 
         uint256 preTotalPooled = ST_TOKEN.totalPooledEther();
@@ -128,6 +172,22 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         }
 
         emit BeaconReported(newBeaconValidators, newBeaconBalance, postTotalPooled);
+    }
+
+    /// @notice Moves ETH accounting from buffered to beacon-side baseline.
+    /// @dev Called by NODE_OPERATOR when validator deposits are broadcast.
+    ///      Keeps total pooled ETH unchanged while initializing or growing the
+    ///      beacon baseline used by oracle delta reports.
+    function notifyBeaconDeposit(uint256 amount) external onlyRole(NODE_OPERATOR) {
+        if (amount == 0) revert Errors.InvalidAmount();
+        uint256 buffered = _bufferedEther;
+        if (amount > buffered) revert BeaconDepositExceedsBuffered(amount, buffered);
+
+        _bufferedEther = buffered - amount;
+        _beaconBalance += amount;
+
+        emit BeaconDepositNotified(amount, _bufferedEther, _beaconBalance);
+        emit BufferedEtherUpdated(_bufferedEther);
     }
 
     function _distributeFees(uint256 rewards, uint256 newTotalPooled) internal {
@@ -151,6 +211,16 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);
 
         emit FeeSharesMinted(treasury, treasuryShares, operator, operatorShares);
+        emit FeeRoutingTelemetry(
+            rewards,
+            totalFee,
+            treasury,
+            treasuryAmount,
+            treasuryShares,
+            operator,
+            operatorAmount,
+            operatorShares
+        );
     }
 
     // ── Admin ─────────────────────────────────────────────────────────────────

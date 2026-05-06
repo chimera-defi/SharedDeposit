@@ -36,6 +36,10 @@ const VALIDATOR_MODULE_ABI = [
   "function depositToBeaconChain(bytes pubkey, bytes withdrawal_credentials, bytes signature, bytes32 deposit_data_root)",
 ];
 
+// Explicit gas limit for the beacon-chain deposit. This call always processes
+// a single validator in this script, so a flat budget is sufficient.
+const GAS_BEACON_DEPOSIT = 300_000n;
+
 interface Config {
   rpcUrl: string;
   moduleAddress: string;
@@ -118,8 +122,14 @@ async function sweepOnce(cfg: Config) {
   let backoff = cfg.initialBackoffMs;
   while (attempt < cfg.maxRetries) {
     try {
-      const tx = await module.depositToBeaconChain(cfg.pubkey, cfg.creds, cfg.signature, cfg.depositDataRoot);
-      console.log(`[sweep] tx submitted: ${tx.hash}`);
+      const tx = await module.depositToBeaconChain(
+        cfg.pubkey,
+        cfg.creds,
+        cfg.signature,
+        cfg.depositDataRoot,
+        {gasLimit: GAS_BEACON_DEPOSIT}
+      );
+      console.log(`[sweep] tx submitted: ${tx.hash} (gasLimit=${GAS_BEACON_DEPOSIT})`);
       const rcpt = await tx.wait();
       console.log(`[sweep] confirmed in block ${rcpt?.blockNumber} (gas=${rcpt?.gasUsed?.toString()})`);
       return;

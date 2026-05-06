@@ -5,7 +5,6 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {StToken} from "./StToken.sol";
-import {ShareMath} from "./ShareMath.sol";
 import {Errors} from "../lib/Errors.sol";
 
 /// @title WithdrawalQueueV2 - Lido-parity withdrawal queue
@@ -25,13 +24,20 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
 
     // ── Roles ─────────────────────────────────────────────────────────────────
     bytes32 public constant GOV = keccak256("GOV");
+    bytes32 public constant ORACLE = keccak256("ORACLE");
     bytes32 public constant GUARDIAN = keccak256("GUARDIAN");
 
     // ── Types ─────────────────────────────────────────────────────────────────
+    enum WithdrawalMode {
+        TURBO,
+        BUNKER
+    }
+
     struct WithdrawalRequest {
         address owner;
         uint256 stShares;          // shares burned at request time
         uint256 ethAmount;         // ETH owed — set during finalize
+        uint256 requestedAt;       // request creation timestamp
         bool finalized;
         bool claimed;
     }
@@ -47,6 +53,14 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
     // ETH locked for finalized-but-unclaimed requests.
     uint256 public lockedEther;
 
+    // Queue finalization mode is oracle-controlled.
+    WithdrawalMode public withdrawalMode;
+    uint256 public lastOracleReportTimestamp;
+
+    // Bunker mode finalize guardrails.
+    uint256 public bunkerMaxRequestsPerFinalize = 16;
+    uint256 public bunkerMinRequestAge = 1 days;
+
     // ── Limits ────────────────────────────────────────────────────────────────
     uint256 public constant MIN_WITHDRAWAL = 0.01 ether;
     uint256 public constant MAX_WITHDRAWAL = 1000 ether;
@@ -61,6 +75,8 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
     event BatchFinalized(uint256 indexed fromRequestId, uint256 indexed toRequestId, uint256 ethProvided);
     event WithdrawalClaimed(address indexed owner, address indexed recipient, uint256 indexed requestId, uint256 ethAmount);
     event WithdrawalCancelled(address indexed owner, uint256 indexed requestId, uint256 stShares);
+    event WithdrawalModeUpdated(WithdrawalMode mode, uint256 reportTimestamp);
+    event BunkerParamsUpdated(uint256 bunkerMaxRequestsPerFinalize, uint256 bunkerMinRequestAge);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error RequestNotFinalized(uint256 requestId);
@@ -69,12 +85,17 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
     error AmountOutOfBounds(uint256 amount);
     error InsufficientFinalizeEth(uint256 required, uint256 provided);
     error InvalidRequestRange(uint256 from, uint256 to);
+    error BunkerBatchTooLarge(uint256 requested, uint256 maxAllowed);
+    error RequestTooYoung(uint256 requestId, uint256 requestTimestamp, uint256 minFinalizableTimestamp);
+    error InvalidBunkerParam();
+    error InvalidReportTimestamp(uint256 reportTimestamp, uint256 currentTimestamp);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
         ST_TOKEN = StToken(stToken);
         _grantRole(DEFAULT_ADMIN_ROLE, gov);
         _grantRole(GOV, gov);
+        _grantRole(ORACLE, gov);
         _grantRole(GUARDIAN, gov);
     }
 
@@ -123,6 +144,7 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
             owner: owner,
             stShares: shares,
             ethAmount: ethValue,  // locked at request-time exchange rate
+            requestedAt: block.timestamp,
             finalized: false,
             claimed: false
         });
@@ -146,10 +168,21 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
         if (lastRequestId < fromId || lastRequestId >= nextRequestId) {
             revert InvalidRequestRange(fromId, lastRequestId);
         }
+        uint256 requestsCount = lastRequestId - fromId + 1;
+        bool bunkerModeActive = withdrawalMode == WithdrawalMode.BUNKER;
+        if (bunkerModeActive && requestsCount > bunkerMaxRequestsPerFinalize) {
+            revert BunkerBatchTooLarge(requestsCount, bunkerMaxRequestsPerFinalize);
+        }
 
         uint256 totalEthRequired;
         for (uint256 id = fromId; id <= lastRequestId; ++id) {
             WithdrawalRequest storage req = requests[id];
+            if (bunkerModeActive) {
+                uint256 minFinalizableTimestamp = req.requestedAt + bunkerMinRequestAge;
+                if (lastOracleReportTimestamp < minFinalizableTimestamp) {
+                    revert RequestTooYoung(id, req.requestedAt, minFinalizableTimestamp);
+                }
+            }
             req.finalized = true;
             totalEthRequired += req.ethAmount; // ethAmount locked at request time
         }
@@ -167,6 +200,36 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
         }
 
         emit BatchFinalized(fromId, lastRequestId, totalEthRequired);
+    }
+
+    // ── Oracle mode update ────────────────────────────────────────────────────
+
+    /// @notice Update queue mode from oracle report context.
+    /// @param isBunkerMode Whether bunker mode should be active.
+    /// @param reportTimestamp Oracle report timestamp used for age-based finalization checks.
+    function updateModeFromOracle(bool isBunkerMode, uint256 reportTimestamp)
+        external
+        onlyRole(ORACLE)
+    {
+        if (reportTimestamp > block.timestamp) {
+            revert InvalidReportTimestamp(reportTimestamp, block.timestamp);
+        }
+        withdrawalMode = isBunkerMode ? WithdrawalMode.BUNKER : WithdrawalMode.TURBO;
+        lastOracleReportTimestamp = reportTimestamp;
+        emit WithdrawalModeUpdated(withdrawalMode, reportTimestamp);
+    }
+
+    // ── Gov setters ───────────────────────────────────────────────────────────
+
+    function setBunkerMaxRequestsPerFinalize(uint256 maxRequests) external onlyRole(GOV) {
+        if (maxRequests == 0) revert InvalidBunkerParam();
+        bunkerMaxRequestsPerFinalize = maxRequests;
+        emit BunkerParamsUpdated(bunkerMaxRequestsPerFinalize, bunkerMinRequestAge);
+    }
+
+    function setBunkerMinRequestAge(uint256 minAge) external onlyRole(GOV) {
+        bunkerMinRequestAge = minAge;
+        emit BunkerParamsUpdated(bunkerMaxRequestsPerFinalize, bunkerMinRequestAge);
     }
 
     // ── Claim ─────────────────────────────────────────────────────────────────

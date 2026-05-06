@@ -8,6 +8,7 @@ import {FeeController} from "./FeeController.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IStakingModule} from "./interfaces/IStakingModule.sol";
 import {IStakingRouter} from "./interfaces/IStakingRouter.sol";
+import {IInstitutionalPolicyRegistry} from "./interfaces/IInstitutionalPolicyRegistry.sol";
 import {GranularPause} from "../lib/GranularPause.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -34,6 +35,27 @@ import {Errors} from "../lib/Errors.sol";
 contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakingRouter {
     using ShareMath for *;
 
+    struct FeeRoutingData {
+        uint256 rewards;
+        uint256 treasuryAmount;
+        uint256 operatorAmount;
+        uint256 treasuryShares;
+        uint256 operatorShares;
+        uint256 totalFeeAmount;
+        uint256 totalPooledBeforeFees;
+        uint256 totalPooledAfterFees;
+    }
+
+    struct InflowLimitConfig {
+        uint256 windowSeconds;
+        uint256 maxInflowEthPerWindow;
+    }
+
+    struct InflowWindowState {
+        uint256 windowStart;
+        uint256 inflowEth;
+    }
+
     // ── Roles ─────────────────────────────────────────────────────────────────
     bytes32 public constant GOV = keccak256("GOV");
     bytes32 public constant GUARDIAN = keccak256("GUARDIAN");
@@ -53,8 +75,20 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     /// @notice Last reported beacon balance per module — used for delta-only oracle reports.
     mapping(bytes32 => uint256) public moduleBeaconBalance;
 
+    /// @notice Optional per-module limiter config. Disabled if either field is zero.
+    mapping(bytes32 => InflowLimitConfig) public moduleInflowLimitConfig;
+
+    /// @notice Current inflow window state per module.
+    mapping(bytes32 => InflowWindowState) public moduleInflowWindowState;
+
     /// @notice The module that `submit()` (no moduleId) routes to.
     bytes32 public defaultModuleId;
+
+    /// @notice Optional registry for institutional policy checks. Zero address disables checks.
+    IInstitutionalPolicyRegistry public policyRegistry;
+
+    /// @notice Optional per-module policy id. Zero value disables policy checks for that module.
+    mapping(bytes32 => bytes32) public modulePolicyId;
 
     /// @notice Sanity bound (basis points) on per-report beacon balance gains.
     ///         A module reporting `newBeaconBalance > prior * (1 + maxDeltaBps/10000)`
@@ -71,6 +105,14 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         uint256 sharesAmount,
         address referral
     );
+    event DepositAttributed(
+        bytes32 indexed moduleId,
+        address indexed user,
+        bytes32 indexed sourceId,
+        uint256 ethAmount,
+        uint256 sharesAmount,
+        address referral
+    );
     event ModuleRegistered(bytes32 indexed moduleId, address indexed addr, bytes32 moduleType, uint256 mintCapEth);
     event ModuleMintCapSet(bytes32 indexed moduleId, uint256 mintCapEth);
     event ModulePausedSet(bytes32 indexed moduleId, bool paused);
@@ -79,10 +121,24 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     event BeaconDepositNotified(bytes32 indexed moduleId, uint256 amount);
     event FeeControllerSet(address indexed feeController);
     event FeeSharesMinted(address indexed treasury, uint256 treasuryShares, address indexed operator, uint256 operatorShares);
+    event FeeRoutingTelemetry(
+        bytes32 indexed moduleId,
+        uint256 rewards,
+        uint256 treasuryAmount,
+        uint256 operatorAmount,
+        uint256 treasuryShares,
+        uint256 operatorShares,
+        uint256 totalFeeAmount,
+        uint256 totalPooledBeforeFees,
+        uint256 totalPooledAfterFees
+    );
     event LSTWrapped(bytes32 indexed moduleId, address indexed recipient, uint256 ethEquiv, uint256 sharesAmount);
     event LSTUnwrapped(bytes32 indexed moduleId, address indexed account, uint256 stTokenAmount, uint256 ethValue);
     event MaxDeltaBpsSet(uint256 newValue);
     event PoolInsolvent(bytes32 indexed moduleId, uint256 loss, uint256 pooledAtTime);
+    event ModuleInflowLimitSet(bytes32 indexed moduleId, uint256 windowSeconds, uint256 maxInflowEthPerWindow);
+    event PolicyRegistrySet(address indexed registry);
+    event ModulePolicySet(bytes32 indexed moduleId, bytes32 indexed policyId);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error ModuleNotRegistered(bytes32 moduleId);
@@ -93,6 +149,9 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     error NotModule(bytes32 moduleId, address caller);
     error DefaultModuleNotSet();
     error BeaconReportSanityFailed(bytes32 moduleId, uint256 gainBps, uint256 maxDeltaBps);
+    error BeaconBaselineNotInitialized(bytes32 moduleId, uint256 reportedBalance);
+    error InflowLimitExceeded(bytes32 moduleId, uint256 attemptedWindowInflow, uint256 maxInflowEthPerWindow);
+    error PolicyDenied(bytes32 moduleId, bytes32 policyId, address account);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -129,9 +188,34 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         sharesAmount = _deposit(moduleId, msg.sender, msg.value, referral);
     }
 
+    /// @notice Deposit ETH and include source attribution metadata for indexers.
+    function submitWithSource(address referral, bytes32 sourceId)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
+        sharesAmount = _depositWithAttribution(defaultModuleId, msg.sender, msg.value, referral, sourceId);
+    }
+
+    /// @notice Deposit ETH into a specific module and include source attribution metadata for indexers.
+    function submitToModuleWithSource(bytes32 moduleId, address referral, bytes32 sourceId)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        sharesAmount = _depositWithAttribution(moduleId, msg.sender, msg.value, referral, sourceId);
+    }
+
     /// @dev Plain ETH transfer: route to default module (no referral).
-    receive() external payable {
-        if (msg.value == 0) return;
+    receive() external payable nonReentrant whenNotPaused(PAUSE_SUBMIT) {
+        if (msg.value == 0) revert Errors.InvalidAmount();
         if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
         _deposit(defaultModuleId, msg.sender, msg.value, address(0));
     }
@@ -142,16 +226,33 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         internal
         returns (uint256 sharesAmount)
     {
+        sharesAmount = _deposit(moduleId, user, amount, referral, false, bytes32(0));
+    }
+
+    function _depositWithAttribution(bytes32 moduleId, address user, uint256 amount, address referral, bytes32 sourceId)
+        internal
+        returns (uint256 sharesAmount)
+    {
+        sharesAmount = _deposit(moduleId, user, amount, referral, true, sourceId);
+    }
+
+    function _deposit(bytes32 moduleId, address user, uint256 amount, address referral, bool emitAttribution, bytes32 sourceId)
+        internal
+        returns (uint256 sharesAmount)
+    {
         ModuleInfo storage m = _modules[moduleId];
         if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
         if (!m.active) revert ModuleInactive(moduleId);
         if (m.paused) revert ModulePaused(moduleId);
+        _enforcePolicy(moduleId, user);
 
         // Mint cap: 0 == unlimited; otherwise post-deposit total must not exceed cap.
         if (m.mintCapEth != 0) {
             uint256 newTotal = IStakingModule(m.addr).totalEth() + amount;
             if (newTotal > m.mintCapEth) revert MintCapExceeded(moduleId, newTotal, m.mintCapEth);
         }
+
+        _consumeInflow(moduleId, amount);
 
         // Compute shares BEFORE updating pool — pre-deposit exchange rate (no inflation).
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
@@ -168,6 +269,9 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         ST_TOKEN.mintShares(user, sharesAmount);
 
         emit Deposited(moduleId, user, amount, sharesAmount, referral);
+        if (emitAttribution) {
+            emit DepositAttributed(moduleId, user, sourceId, amount, sharesAmount, referral);
+        }
     }
 
     // ── Module-callback path: beacon-balance reports ─────────────────────────
@@ -178,43 +282,10 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         override
         nonReentrant
     {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
-        if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
-
+        _requireModuleCaller(moduleId);
         uint256 prior = moduleBeaconBalance[moduleId];
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
-        int256 delta;
-
-        if (newBeaconBalance >= prior) {
-            uint256 gain = newBeaconBalance - prior;
-            delta = int256(gain);
-            if (gain > 0) {
-                // Sanity bound: cap gain relative to prior. Skipped when prior == 0
-                // (first report after ETH first lands on the beacon).
-                if (prior != 0) {
-                    uint256 gainBps = (gain * 10000) / prior;
-                    if (gainBps > maxDeltaBps) {
-                        revert BeaconReportSanityFailed(moduleId, gainBps, maxDeltaBps);
-                    }
-                }
-                uint256 postPool = currentPooled + gain;
-                ST_TOKEN.setTotalPooledEther(postPool);
-                if (address(feeController) != address(0)) {
-                    _distributeFees(gain, postPool);
-                }
-            }
-        } else {
-            uint256 loss = prior - newBeaconBalance;
-            delta = -int256(loss);
-            // Explicit branch on insolvency so we leave a trace before clamping to 0.
-            if (currentPooled <= loss) {
-                emit PoolInsolvent(moduleId, loss, currentPooled);
-                ST_TOKEN.setTotalPooledEther(0);
-            } else {
-                ST_TOKEN.setTotalPooledEther(currentPooled - loss);
-            }
-        }
+        int256 delta = _applyBeaconDelta(moduleId, prior, newBeaconBalance, currentPooled);
 
         moduleBeaconBalance[moduleId] = newBeaconBalance;
         emit ModuleBeaconReported(moduleId, newBeaconBalance, delta);
@@ -222,10 +293,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
     /// @inheritdoc IStakingRouter
     function notifyBeaconDeposit(bytes32 moduleId, uint256 amount) external override nonReentrant {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
-        if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
-
+        _requireModuleCaller(moduleId);
         moduleBeaconBalance[moduleId] += amount;
         emit BeaconDepositNotified(moduleId, amount);
     }
@@ -237,13 +305,12 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         nonReentrant
         whenNotPaused(PAUSE_SUBMIT)
     {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
-        if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
+        ModuleInfo storage m = _requireModuleCaller(moduleId);
         if (!m.active) revert ModuleInactive(moduleId);
         if (m.paused) revert ModulePaused(moduleId);
         if (recipient == address(0)) revert Errors.ZeroAddress();
         if (ethEquiv == 0) revert Errors.InvalidAmount();
+        _enforcePolicy(moduleId, recipient);
 
         if (m.mintCapEth != 0) {
             // For LST modules, totalEth() already reflects the new balance because the
@@ -251,6 +318,8 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
             uint256 newTotal = IStakingModule(m.addr).totalEth();
             if (newTotal > m.mintCapEth) revert MintCapExceeded(moduleId, newTotal, m.mintCapEth);
         }
+
+        _consumeInflow(moduleId, ethEquiv);
 
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
         uint256 currentShares = ST_TOKEN.getTotalShares();
@@ -269,9 +338,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         nonReentrant
         returns (uint256 ethValue)
     {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
-        if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
+        _requireModuleCaller(moduleId);
         if (caller == address(0)) revert Errors.ZeroAddress();
         if (stTokenAmount == 0) revert Errors.InvalidAmount();
 
@@ -294,19 +361,20 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
     // ── Fee distribution (mirrors StakingCore behaviour for parity) ──────────
 
-    function _distributeFees(uint256 rewards, uint256 newTotalPooled) internal {
+    function _distributeFees(bytes32 moduleId, uint256 rewards, uint256 newTotalPooled) internal {
         (uint256 treasuryAmount, uint256 operatorAmount) = feeController.computeFees(rewards);
         if (treasuryAmount == 0 && operatorAmount == 0) return;
 
         uint256 totalFee = treasuryAmount + operatorAmount;
         uint256 newTotalShares = ST_TOKEN.getTotalShares();
+        uint256 totalPooledAfterFees = newTotalPooled + totalFee;
 
         // Mint fee shares at post-rebase rate so recipients capture exactly their cut.
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
 
         // Pool grows by the fee amount to back the newly issued shares.
-        ST_TOKEN.setTotalPooledEther(newTotalPooled + totalFee);
+        ST_TOKEN.setTotalPooledEther(totalPooledAfterFees);
 
         (, , address treasury, address operator) = feeController.getFeeConfig();
 
@@ -314,6 +382,109 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);
 
         emit FeeSharesMinted(treasury, treasuryShares, operator, operatorShares);
+        FeeRoutingData memory routing;
+        routing.rewards = rewards;
+        routing.treasuryAmount = treasuryAmount;
+        routing.operatorAmount = operatorAmount;
+        routing.treasuryShares = treasuryShares;
+        routing.operatorShares = operatorShares;
+        routing.totalFeeAmount = totalFee;
+        routing.totalPooledBeforeFees = newTotalPooled;
+        routing.totalPooledAfterFees = totalPooledAfterFees;
+        _emitFeeRoutingTelemetry(moduleId, routing);
+    }
+
+    function _emitFeeRoutingTelemetry(bytes32 moduleId, FeeRoutingData memory routing) internal {
+        emit FeeRoutingTelemetry(
+            moduleId,
+            routing.rewards,
+            routing.treasuryAmount,
+            routing.operatorAmount,
+            routing.treasuryShares,
+            routing.operatorShares,
+            routing.totalFeeAmount,
+            routing.totalPooledBeforeFees,
+            routing.totalPooledAfterFees
+        );
+    }
+
+    function _consumeInflow(bytes32 moduleId, uint256 amount) internal {
+        InflowLimitConfig storage cfg = moduleInflowLimitConfig[moduleId];
+        if (cfg.windowSeconds == 0 || cfg.maxInflowEthPerWindow == 0) {
+            return;
+        }
+
+        InflowWindowState storage windowState = moduleInflowWindowState[moduleId];
+        if (windowState.windowStart == 0 || block.timestamp - windowState.windowStart >= cfg.windowSeconds) {
+            windowState.windowStart = block.timestamp;
+            windowState.inflowEth = 0;
+        }
+
+        uint256 newInflow = windowState.inflowEth + amount;
+        if (newInflow > cfg.maxInflowEthPerWindow) {
+            revert InflowLimitExceeded(moduleId, newInflow, cfg.maxInflowEthPerWindow);
+        }
+
+        windowState.inflowEth = newInflow;
+    }
+
+    function _requireModuleCaller(bytes32 moduleId) internal view returns (ModuleInfo storage m) {
+        m = _modules[moduleId];
+        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
+    }
+
+    function _applyBeaconDelta(bytes32 moduleId, uint256 prior, uint256 newBeaconBalance, uint256 currentPooled)
+        internal
+        returns (int256 delta)
+    {
+        if (newBeaconBalance >= prior) {
+            uint256 gain = newBeaconBalance - prior;
+            if (gain == 0) return 0;
+
+            _enforceBeaconGainSanity(moduleId, prior, gain, newBeaconBalance);
+            uint256 postPool = currentPooled + gain;
+            ST_TOKEN.setTotalPooledEther(postPool);
+            if (address(feeController) != address(0)) {
+                _distributeFees(moduleId, gain, postPool);
+            }
+            return int256(gain);
+        }
+
+        uint256 loss = prior - newBeaconBalance;
+        // Explicit branch on insolvency so we leave a trace before clamping to 0.
+        if (currentPooled <= loss) {
+            emit PoolInsolvent(moduleId, loss, currentPooled);
+            ST_TOKEN.setTotalPooledEther(0);
+        } else {
+            ST_TOKEN.setTotalPooledEther(currentPooled - loss);
+        }
+        return -int256(loss);
+    }
+
+    function _enforceBeaconGainSanity(bytes32 moduleId, uint256 prior, uint256 gain, uint256 newBeaconBalance)
+        internal
+        view
+    {
+        // Require module baseline initialization via notifyBeaconDeposit before
+        // any positive report to prevent counting principal as rewards.
+        if (prior == 0) revert BeaconBaselineNotInitialized(moduleId, newBeaconBalance);
+
+        uint256 gainBps = (gain * 10000) / prior;
+        if (gainBps > maxDeltaBps) {
+            revert BeaconReportSanityFailed(moduleId, gainBps, maxDeltaBps);
+        }
+    }
+
+    function _enforcePolicy(bytes32 moduleId, address account) internal view {
+        IInstitutionalPolicyRegistry registry = policyRegistry;
+        bytes32 policyId = modulePolicyId[moduleId];
+        if (address(registry) == address(0) || policyId == bytes32(0)) {
+            return;
+        }
+        if (!registry.isAllowed(policyId, account)) {
+            revert PolicyDenied(moduleId, policyId, account);
+        }
     }
 
     // ── GOV: module registry ──────────────────────────────────────────────────
@@ -342,6 +513,37 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
         m.mintCapEth = mintCapEth;
         emit ModuleMintCapSet(moduleId, mintCapEth);
+    }
+
+    /// @notice Configure optional per-module inflow limiter.
+    /// @dev Disabled whenever `windowSeconds == 0` or `maxInflowEthPerWindow == 0`.
+    function setModuleInflowLimit(bytes32 moduleId, uint256 windowSeconds, uint256 maxInflowEthPerWindow)
+        external
+        onlyRole(GOV)
+    {
+        ModuleInfo storage m = _modules[moduleId];
+        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+
+        moduleInflowLimitConfig[moduleId] = InflowLimitConfig({
+            windowSeconds: windowSeconds,
+            maxInflowEthPerWindow: maxInflowEthPerWindow
+        });
+        delete moduleInflowWindowState[moduleId];
+        emit ModuleInflowLimitSet(moduleId, windowSeconds, maxInflowEthPerWindow);
+    }
+
+    /// @notice Set or clear institutional policy registry. Zero address disables policy checks.
+    function setPolicyRegistry(address registry) external onlyRole(GOV) {
+        policyRegistry = IInstitutionalPolicyRegistry(registry);
+        emit PolicyRegistrySet(registry);
+    }
+
+    /// @notice Assign policy id for a module. Set to zero bytes32 to disable module-level policy checks.
+    function setModulePolicy(bytes32 moduleId, bytes32 policyId) external onlyRole(GOV) {
+        ModuleInfo storage m = _modules[moduleId];
+        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        modulePolicyId[moduleId] = policyId;
+        emit ModulePolicySet(moduleId, policyId);
     }
 
     function setDefaultModule(bytes32 moduleId) external onlyRole(GOV) {

@@ -16,6 +16,9 @@ import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
 const SOLO = ethers.keccak256(ethers.toUtf8Bytes("SOLO_MOD_1"));
 const SECONDARY = ethers.keccak256(ethers.toUtf8Bytes("SOLO_MOD_2"));
+const POLICY = ethers.keccak256(ethers.toUtf8Bytes("INSTITUTIONAL_POLICY_A"));
+const SOURCE_A = ethers.keccak256(ethers.toUtf8Bytes("SOURCE_ATTR_A"));
+const SOURCE_B = ethers.keccak256(ethers.toUtf8Bytes("SOURCE_ATTR_B"));
 
 describe("StakingRouter", () => {
   let deployer: SignerWithAddress,
@@ -130,9 +133,45 @@ describe("StakingRouter", () => {
         .withArgs(SOLO, alice.address, amount, amount, bob.address); // 1:1 bootstrap
     });
 
+    it("submitWithSource emits attribution telemetry and mints shares on default module", async () => {
+      const amount = parseEther("2");
+      await expect(router.connect(alice).submitWithSource(bob.address, SOURCE_A, {value: amount}))
+        .to.emit(router, "DepositAttributed")
+        .withArgs(SOLO, alice.address, SOURCE_A, amount, amount, bob.address);
+
+      expect(await stToken.sharesOf(alice.address)).to.equal(amount);
+      expect(await stToken.totalPooledEther()).to.equal(amount);
+      expect(await mod1.bufferedEther()).to.equal(amount);
+    });
+
+    it("legacy submit path is unchanged and does not emit attribution telemetry", async () => {
+      const amount = parseEther("1");
+      const tx = await router.connect(alice).submit(ZeroAddress, {value: amount});
+      const receipt = await tx.wait();
+
+      const attributionLogs = receipt!.logs.filter((log: any) => {
+        try {
+          return router.interface.parseLog(log)?.name === "DepositAttributed";
+        } catch {
+          return false;
+        }
+      });
+
+      expect(attributionLogs.length).to.equal(0);
+      expect(await stToken.sharesOf(alice.address)).to.equal(amount);
+      expect(await stToken.totalPooledEther()).to.equal(amount);
+      expect(await mod1.bufferedEther()).to.equal(amount);
+    });
+
     it("reverts when msg.value == 0", async () => {
       await expect(
         router.connect(alice).submit(ZeroAddress, {value: 0})
+      ).to.be.reverted;
+    });
+
+    it("plain ETH transfer reverts when msg.value == 0", async () => {
+      await expect(
+        alice.sendTransaction({to: router.target, value: 0})
       ).to.be.reverted;
     });
 
@@ -157,6 +196,17 @@ describe("StakingRouter", () => {
       await router.connect(alice).submitToModule(SECONDARY, ZeroAddress, {value: parseEther("3")});
       expect(await mod2.bufferedEther()).to.equal(parseEther("3"));
       expect(await mod1.bufferedEther()).to.equal(0n);
+    });
+
+    it("submitToModuleWithSource emits attribution telemetry and routes to chosen module", async () => {
+      const amount = parseEther("3");
+      await expect(router.connect(alice).submitToModuleWithSource(SECONDARY, bob.address, SOURCE_B, {value: amount}))
+        .to.emit(router, "DepositAttributed")
+        .withArgs(SECONDARY, alice.address, SOURCE_B, amount, amount, bob.address);
+
+      expect(await mod2.bufferedEther()).to.equal(amount);
+      expect(await mod1.bufferedEther()).to.equal(0n);
+      expect(await stToken.sharesOf(alice.address)).to.equal(amount);
     });
 
     it("reverts on unregistered module id", async () => {
@@ -196,6 +246,199 @@ describe("StakingRouter", () => {
     });
   });
 
+  // ── Per-module inflow limiter ─────────────────────────────────────────────
+
+  describe("Per-module inflow limiter", () => {
+    it("blocks excess inflow in the same window (ETH submit path)", async () => {
+      await router.connect(gov).setModuleInflowLimit(SOLO, 3600, parseEther("5"));
+
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("4")});
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("2")})
+      )
+        .to.be.revertedWithCustomError(router, "InflowLimitExceeded")
+        .withArgs(SOLO, parseEther("6"), parseEther("5"));
+    });
+
+    it("resets limiter after the window elapses", async () => {
+      await router.connect(gov).setModuleInflowLimit(SOLO, 60, parseEther("5"));
+
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("4")});
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("2")})
+      ).to.be.revertedWithCustomError(router, "InflowLimitExceeded");
+
+      await ethers.provider.send("evm_increaseTime", [61]);
+      await ethers.provider.send("evm_mine", []);
+
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("2")})
+      ).to.not.be.reverted;
+      expect(await mod1.bufferedEther()).to.equal(parseEther("6"));
+    });
+
+    it("inflow limiter also applies to submitWithSource path", async () => {
+      await router.connect(gov).setModuleInflowLimit(SOLO, 3600, parseEther("5"));
+
+      await router.connect(alice).submitWithSource(ZeroAddress, SOURCE_A, {value: parseEther("4")});
+      await expect(
+        router.connect(alice).submitWithSource(ZeroAddress, SOURCE_A, {value: parseEther("2")})
+      )
+        .to.be.revertedWithCustomError(router, "InflowLimitExceeded")
+        .withArgs(SOLO, parseEther("6"), parseEther("5"));
+    });
+
+    it("disabled config (zeroed) allows flows", async () => {
+      await router.connect(gov).setModuleInflowLimit(SOLO, 3600, parseEther("1"));
+      await router.connect(gov).setModuleInflowLimit(SOLO, 0, 0);
+
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("3")})
+      ).to.not.be.reverted;
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("3")})
+      ).to.not.be.reverted;
+    });
+
+    it("setModuleInflowLimit is GOV-only", async () => {
+      await expect(
+        router.connect(alice).setModuleInflowLimit(SOLO, 3600, parseEther("1"))
+      ).to.be.reverted;
+    });
+  });
+
+  // ── Institutional policy gating ───────────────────────────────────────────
+
+  describe("Institutional policy gating", () => {
+    async function deployPolicyRegistry() {
+      const InstitutionalPolicyRegistry = await ethers.getContractFactory("InstitutionalPolicyRegistry");
+      return InstitutionalPolicyRegistry.deploy(gov.address);
+    }
+
+    async function deployPolicyLstModule(moduleId: string) {
+      const MockERC20 = await ethers.getContractFactory("MockERC20");
+      const lstToken = await MockERC20.deploy("Mock LST", "mLST");
+
+      const MockLSTPriceOracle = await ethers.getContractFactory("MockLSTPriceOracle");
+      const oracleContract = await MockLSTPriceOracle.deploy(parseEther("1"));
+
+      const LSTWrapModule = await ethers.getContractFactory("LSTWrapModule");
+      const lstModule = await LSTWrapModule.deploy(
+        router.target,
+        moduleId,
+        lstToken.target,
+        gov.address,
+      );
+
+      await router.connect(gov).registerModule(moduleId, lstModule.target, parseEther("10"));
+      await lstModule.connect(gov).setPriceOracle(oracleContract.target);
+      await lstToken.mint(alice.address, parseEther("10"));
+      await lstToken.connect(alice).approve(lstModule.target, parseEther("10"));
+
+      return {lstModule};
+    }
+
+    it("policy disabled keeps behavior unchanged", async () => {
+      const registry = await deployPolicyRegistry();
+      await registry.connect(gov).createPolicy(POLICY, 1, gov.address); // AllowlistOnly
+
+      await router.connect(gov).setModulePolicy(SOLO, POLICY);
+      // Registry unset => checks disabled even with policy id configured.
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.not.be.reverted;
+
+      await router.connect(gov).setPolicyRegistry(registry.target);
+      await router.connect(gov).setModulePolicy(SOLO, ethers.ZeroHash);
+      // Module policy unset => checks disabled even with registry configured.
+      await expect(
+        router.connect(bob).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.not.be.reverted;
+    });
+
+    it("allowlist mode denies non-allowlisted and allows allowlisted", async () => {
+      const registry = await deployPolicyRegistry();
+      await registry.connect(gov).createPolicy(POLICY, 1, gov.address); // AllowlistOnly
+      await router.connect(gov).setPolicyRegistry(registry.target);
+      await router.connect(gov).setModulePolicy(SOLO, POLICY);
+
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
+      )
+        .to.be.revertedWithCustomError(router, "PolicyDenied")
+        .withArgs(SOLO, POLICY, alice.address);
+
+      await registry.connect(gov).setAllowlisted(POLICY, alice.address, true);
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.not.be.reverted;
+
+      // Wrap path should enforce policy on recipient too.
+      const LST_POLICY_MOD = ethers.keccak256(ethers.toUtf8Bytes("LST_POLICY_MOD_A"));
+      const {lstModule} = await deployPolicyLstModule(LST_POLICY_MOD);
+      await router.connect(gov).setModulePolicy(LST_POLICY_MOD, POLICY);
+
+      await registry.connect(gov).setAllowlisted(POLICY, alice.address, false);
+      await expect(
+        lstModule.connect(alice).wrapLST(parseEther("1"), alice.address)
+      )
+        .to.be.revertedWithCustomError(router, "PolicyDenied")
+        .withArgs(LST_POLICY_MOD, POLICY, alice.address);
+
+      await registry.connect(gov).setAllowlisted(POLICY, alice.address, true);
+      await expect(
+        lstModule.connect(alice).wrapLST(parseEther("1"), alice.address)
+      ).to.not.be.reverted;
+    });
+
+    it("policy enforcement applies to submitWithSource path", async () => {
+      const registry = await deployPolicyRegistry();
+      await registry.connect(gov).createPolicy(POLICY, 1, gov.address); // AllowlistOnly
+      await router.connect(gov).setPolicyRegistry(registry.target);
+      await router.connect(gov).setModulePolicy(SOLO, POLICY);
+
+      await expect(
+        router.connect(alice).submitWithSource(ZeroAddress, SOURCE_A, {value: parseEther("1")})
+      )
+        .to.be.revertedWithCustomError(router, "PolicyDenied")
+        .withArgs(SOLO, POLICY, alice.address);
+
+      await registry.connect(gov).setAllowlisted(POLICY, alice.address, true);
+      await expect(
+        router.connect(alice).submitWithSource(ZeroAddress, SOURCE_A, {value: parseEther("1")})
+      ).to.not.be.reverted;
+    });
+
+    it("blocklist mode denies blocked user", async () => {
+      const registry = await deployPolicyRegistry();
+      await registry.connect(gov).createPolicy(POLICY, 2, gov.address); // BlocklistOnly
+      await router.connect(gov).setPolicyRegistry(registry.target);
+      await router.connect(gov).setModulePolicy(SOLO, POLICY);
+
+      await registry.connect(gov).setBlocklisted(POLICY, alice.address, true);
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
+      )
+        .to.be.revertedWithCustomError(router, "PolicyDenied")
+        .withArgs(SOLO, POLICY, alice.address);
+
+      await expect(
+        router.connect(bob).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.not.be.reverted;
+    });
+
+    it("setting policy registry and module policy is GOV-only", async () => {
+      const registry = await deployPolicyRegistry();
+      await expect(
+        router.connect(alice).setPolicyRegistry(registry.target)
+      ).to.be.reverted;
+
+      await expect(
+        router.connect(alice).setModulePolicy(SOLO, POLICY)
+      ).to.be.reverted;
+    });
+  });
+
   // ── Pause ──────────────────────────────────────────────────────────────────
 
   describe("Pause", () => {
@@ -203,6 +446,13 @@ describe("StakingRouter", () => {
       await router.connect(guardian).pause(0); // PAUSE_SUBMIT = 0
       await expect(
         router.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.be.reverted;
+    });
+
+    it("paused submit also blocks plain ETH transfers", async () => {
+      await router.connect(guardian).pause(0);
+      await expect(
+        alice.sendTransaction({to: router.target, value: parseEther("1")})
       ).to.be.reverted;
     });
 
@@ -259,19 +509,56 @@ describe("StakingRouter", () => {
     });
 
     it("positive delta increases totalPooledEther and mints fees with exact 50/50 split", async () => {
-      // Validator module reports +32.5 ETH gain (delta vs. baseline 0).
+      // First move one validator principal (32 ETH) from buffer to beacon.
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
+      // Validator module reports 32.5 ETH on beacon (delta +0.5 ETH reward).
       // FeeController is configured with feeBps=1000 (10%) and treasurySplitBps=5000 (50%).
-      // → totalFee = 3.25 ETH, treasuryAmount = 1.625 ETH, operatorAmount = 1.625 ETH.
+      // → totalFee = 0.05 ETH, treasuryAmount = 0.025 ETH, operatorAmount = 0.025 ETH.
       // Treasury = gov, Operator = deployer.
       const govSharesBefore = await stToken.sharesOf(gov.address);
       const deployerSharesBefore = await stToken.sharesOf(deployer.address);
-      await mod1.connect(oracle).reportBeacon(1, parseEther("32.5"));
+      const tx = await mod1.connect(oracle).reportBeacon(1, parseEther("32.5"));
+      const receipt = await tx.wait();
       const govSharesAfter = await stToken.sharesOf(gov.address);
       const deployerSharesAfter = await stToken.sharesOf(deployer.address);
 
       expect(await stToken.totalPooledEther()).to.be.gt(parseEther("32"));
       expect(govSharesAfter).to.be.gt(govSharesBefore);
       expect(deployerSharesAfter).to.be.gt(deployerSharesBefore);
+
+      const parsedRouterLogs = receipt!.logs
+        .map((log: any) => {
+          try {
+            return router.interface.parseLog(log);
+          } catch {
+            return null;
+          }
+        })
+        .filter((log: any) => log !== null);
+
+      const feeTelemetry = parsedRouterLogs.find((log: any) => log.name === "FeeRoutingTelemetry");
+      expect(feeTelemetry).to.not.equal(undefined);
+      expect(feeTelemetry!.args.moduleId).to.equal(SOLO);
+      expect(feeTelemetry!.args.rewards).to.equal(parseEther("0.5"));
+      expect(feeTelemetry!.args.treasuryAmount).to.equal(parseEther("0.025"));
+      expect(feeTelemetry!.args.operatorAmount).to.equal(parseEther("0.025"));
+      expect(feeTelemetry!.args.totalFeeAmount).to.equal(parseEther("0.05"));
+      expect(feeTelemetry!.args.totalPooledBeforeFees).to.equal(parseEther("32.5"));
+      expect(feeTelemetry!.args.totalPooledAfterFees).to.equal(parseEther("32.55"));
+      expect(feeTelemetry!.args.treasuryShares).to.be.gt(0n);
+      expect(feeTelemetry!.args.operatorShares).to.be.gt(0n);
+
+      const feeSharesMinted = parsedRouterLogs.find((log: any) => log.name === "FeeSharesMinted");
+      expect(feeSharesMinted).to.not.equal(undefined);
+      expect(feeSharesMinted!.args.treasury).to.equal(gov.address);
+      expect(feeSharesMinted!.args.operator).to.equal(deployer.address);
+      expect(feeTelemetry!.args.treasuryShares).to.equal(feeSharesMinted!.args.treasuryShares);
+      expect(feeTelemetry!.args.operatorShares).to.equal(feeSharesMinted!.args.operatorShares);
 
       // Exact-ish: under a 50/50 split, treasury and operator must end up with
       // share counts within 5% of each other. (Discretization aside, both fee
@@ -282,6 +569,12 @@ describe("StakingRouter", () => {
       expect(operatorShares).to.be.gt(0n);
       expect(treasuryShares).to.be.gte((operatorShares * 95n) / 100n);
       expect(treasuryShares).to.be.lte((operatorShares * 105n) / 100n);
+    });
+
+    it("rejects positive reports before beacon baseline is initialized", async () => {
+      await expect(mod1.connect(oracle).reportBeacon(1, parseEther("32")))
+        .to.be.revertedWithCustomError(router, "BeaconBaselineNotInitialized")
+        .withArgs(SOLO, parseEther("32"));
     });
 
     it("double notifyBeaconDeposit inflates baseline only once — second call adds to existing baseline", async () => {
@@ -350,13 +643,12 @@ describe("StakingRouter", () => {
     });
 
     it("notifyBeaconDeposit baseline math: 32 ETH push then 33 ETH report yields +1 ETH delta", async () => {
-      // The router's baseline is 0 initially. We need NODE_OPERATOR to push 32 ETH
-      // to beacon, which would normally call `notifyBeaconDeposit`. Without an
-      // actual mainnet beacon contract, simulate by directly calling notifyBeaconDeposit
-      // from the module (impossible — the module is the only allowed caller).
-      // Instead we rely on the oracle path: report 32 ETH (delta +32), then 33 ETH
-      // (delta +1 gain → fees minted).
-      await mod1.connect(oracle).reportBeacon(1, parseEther("32"));
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
       const govSharesAfter1 = await stToken.sharesOf(gov.address);
       await mod1.connect(oracle).reportBeacon(1, parseEther("33"));
       const govSharesAfter2 = await stToken.sharesOf(gov.address);
@@ -498,6 +790,17 @@ describe("StakingRouter", () => {
       await expect(
         tightModule.connect(alice).wrapLST(parseEther("1"), alice.address)
       ).to.be.revertedWithCustomError(router, "MintCapExceeded");
+    });
+
+    it("enforces inflow limiter on LST wrap mint path", async () => {
+      await router.connect(gov).setModuleInflowLimit(LST_MOD, 3600, parseEther("1"));
+
+      await lstModule.connect(alice).wrapLST(parseEther("1"), alice.address);
+      await expect(
+        lstModule.connect(alice).wrapLST(parseEther("0.1"), alice.address)
+      )
+        .to.be.revertedWithCustomError(router, "InflowLimitExceeded")
+        .withArgs(LST_MOD, parseEther("1.1"), parseEther("1"));
     });
   });
 });

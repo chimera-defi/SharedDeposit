@@ -39,6 +39,14 @@ export ALCHEMY_GOERLI_KEY='xx'
 // see deploy_minterv2.js or deploy tasks in package.json for hardhat deploy usage
 ```
 
+## V2 deployment security defaults
+
+- For non-`hardhat` deployments you must set `V2_GOVERNANCE_ADDRESS` (or `GOVERNANCE_ADDRESS`).
+- Optional `V2_NODE_OPERATOR_ADDRESS` (or `NODE_OPERATOR_ADDRESS`) sets the `NOR` role on `SharedDepositMinterV2`. If omitted, `NOR` defaults to governance.
+- `WithdrawalQueue.GOV`, `FeeCalc.owner`, and `RewardsReceiver.owner` are now wired to governance at deployment.
+- `sgETH` admin is transferred from deployer to governance during `minter` deployment.
+- The `deploymentSecurity.spec.ts` suite asserts these invariants and should be treated as a release gate.
+
 # Slither
 
 Slither run results and howto:

@@ -9,6 +9,7 @@
 import {ethers, deployments} from "hardhat";
 import {expect} from "chai";
 import {parseEther, ZeroAddress} from "ethers";
+import {anyValue} from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("StakingCore", () => {
@@ -58,6 +59,20 @@ describe("StakingCore", () => {
   // ── Deposits ────────────────────────────────────────────────────────────────
 
   describe("submit()", () => {
+    it("submitWithAttribution mints shares and emits attribution telemetry", async () => {
+      const amount = parseEther("1");
+      const sourceId = ethers.encodeBytes32String("homepage-banner-v2");
+
+      await expect(
+        stakingCore.connect(alice).submitWithAttribution(bob.address, sourceId, {value: amount})
+      )
+        .to.emit(stakingCore, "SubmittedWithAttribution")
+        .withArgs(alice.address, bob.address, sourceId, amount, amount);
+
+      expect(await stToken.sharesOf(alice.address)).to.equal(amount);
+      expect(await stToken.totalPooledEther()).to.equal(amount);
+    });
+
     it("mints 1:1 shares on first deposit (bootstrap)", async () => {
       const depositAmount = parseEther("1");
       await stakingCore.connect(alice).submit(ZeroAddress, {value: depositAmount});
@@ -74,6 +89,19 @@ describe("StakingCore", () => {
       )
         .to.emit(stakingCore, "Submitted")
         .withArgs(alice.address, amount, bob.address, amount); // 1:1 on bootstrap
+    });
+
+    it("submit() remains unchanged and does not emit attribution telemetry", async () => {
+      const amount = parseEther("1");
+      await expect(
+        stakingCore.connect(alice).submit(bob.address, {value: amount})
+      )
+        .to.emit(stakingCore, "Submitted")
+        .withArgs(alice.address, amount, bob.address, amount);
+
+      await expect(
+        stakingCore.connect(alice).submit(bob.address, {value: amount})
+      ).to.not.emit(stakingCore, "SubmittedWithAttribution");
     });
 
     it("subsequent deposits get proportional shares", async () => {
@@ -102,6 +130,12 @@ describe("StakingCore", () => {
         stakingCore.connect(alice).submit(ZeroAddress, {value: 0})
       ).to.be.reverted;
     });
+
+    it("plain ETH transfer reverts when msg.value == 0", async () => {
+      await expect(
+        alice.sendTransaction({to: stakingCore.target, value: 0})
+      ).to.be.reverted;
+    });
   });
 
   // ── Pause ────────────────────────────────────────────────────────────────────
@@ -111,6 +145,13 @@ describe("StakingCore", () => {
       await stakingCore.connect(gov).pause(0); // PAUSE_SUBMIT = 0
       await expect(
         stakingCore.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.be.reverted;
+    });
+
+    it("paused submit also blocks plain ETH transfers", async () => {
+      await stakingCore.connect(gov).pause(0);
+      await expect(
+        alice.sendTransaction({to: stakingCore.target, value: parseEther("1")})
       ).to.be.reverted;
     });
 
@@ -146,19 +187,21 @@ describe("StakingCore", () => {
 
     it("reward rebase: beacon balance increases totalPooledEther", async () => {
       const preTotalPooled = await stToken.totalPooledEther();
-      // Report 10.5 ETH in beacon (0.5 ETH reward on 10 ETH).
+      await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
+      // Report 10.5 ETH in beacon (0.5 ETH reward on 10 ETH principal baseline).
       await stakingCore.connect(oracle).reportBeacon(1, parseEther("10.5"));
       const postTotalPooled = await stToken.totalPooledEther();
-      // Post = bufferedEther (10 ETH) + beaconBalance (10.5 ETH) + feePoolAddition.
       // Rewards = 0.5 ETH, fee = 10% = 0.05 ETH minted to treasury/operator.
-      // Pool after fee mint = 20.5 + 0.05 = 20.55.
-      expect(postTotalPooled).to.be.gt(parseEther("20.5"));
+      // Pool after fee mint = 10.5 + 0.05 = 10.55.
+      expect(preTotalPooled).to.equal(parseEther("10"));
+      expect(postTotalPooled).to.equal(parseEther("10.55"));
     });
 
     it("fee shares are minted on positive rewards", async () => {
       const govSharesBefore = await stToken.sharesOf(gov.address);
       const deployerSharesBefore = await stToken.sharesOf(deployer.address);
 
+      await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
       await stakingCore.connect(oracle).reportBeacon(1, parseEther("10.5"));
 
       const govSharesAfter = await stToken.sharesOf(gov.address);
@@ -169,8 +212,27 @@ describe("StakingCore", () => {
       expect(deployerSharesAfter).to.be.gt(deployerSharesBefore);
     });
 
+    it("emits fee-routing telemetry on positive rewards", async () => {
+      await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
+      await expect(
+        stakingCore.connect(oracle).reportBeacon(1, parseEther("10.5"))
+      )
+        .to.emit(stakingCore, "FeeRoutingTelemetry")
+        .withArgs(
+          parseEther("0.5"),
+          parseEther("0.05"),
+          gov.address,
+          parseEther("0.025"),
+          anyValue,
+          deployer.address,
+          parseEther("0.025"),
+          anyValue,
+        );
+    });
+
     it("slash: beacon balance decrease does not mint fees", async () => {
-      // First report: normal.
+      await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
+      // First report: no rewards.
       await stakingCore.connect(oracle).reportBeacon(1, parseEther("10"));
       const govSharesAfter1st = await stToken.sharesOf(gov.address);
 
@@ -182,12 +244,25 @@ describe("StakingCore", () => {
     });
 
     it("reverts on implausibly large beacon balance", async () => {
+      await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
       // First establish validators.
-      await stakingCore.connect(oracle).reportBeacon(1, parseEther("32"));
+      await stakingCore.connect(oracle).reportBeacon(1, parseEther("10"));
       // Now report 100× the max plausible.
       await expect(
         stakingCore.connect(oracle).reportBeacon(1, parseEther("6500"))
       ).to.be.revertedWithCustomError(stakingCore, "BeaconBalanceSanityFailed");
+    });
+
+    it("reverts when positive report arrives before beacon baseline initialization", async () => {
+      await expect(
+        stakingCore.connect(oracle).reportBeacon(1, parseEther("10.5"))
+      ).to.be.revertedWithCustomError(stakingCore, "BeaconBaselineNotInitialized");
+    });
+
+    it("reverts when baseline notification exceeds buffered ETH", async () => {
+      await expect(
+        stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10.1"))
+      ).to.be.revertedWithCustomError(stakingCore, "BeaconDepositExceedsBuffered");
     });
   });
 

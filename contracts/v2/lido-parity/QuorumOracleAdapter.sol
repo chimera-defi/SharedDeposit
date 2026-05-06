@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity 0.8.20;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {IReportable} from "./interfaces/IReportable.sol";
+import {Errors} from "../lib/Errors.sol";
+
+/// @title QuorumOracleAdapter - threshold-consensus beacon report adapter
+/// @notice Accepts report votes from authorized submitters and forwards the
+///         report to an IReportable target once quorum is reached and sanity
+///         checks pass.
+contract QuorumOracleAdapter is AccessControl {
+    // ── Roles ─────────────────────────────────────────────────────────────────
+    bytes32 public constant GOV = keccak256("GOV");
+    bytes32 public constant SUBMITTER = keccak256("SUBMITTER");
+
+    // ── Config ────────────────────────────────────────────────────────────────
+    IReportable public immutable REPORT_TARGET;
+    uint256 public quorum;
+    uint256 public submitterCount;
+
+    uint256 public maxStalenessSeconds = 6 hours;
+    uint256 public maxDriftBps = 1000; // 10% per-validator balance change cap
+    uint256 public maxSlashBps = 500; // 5% total-balance slash cap per report
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    uint256 public lastReportTime;
+    uint256 public lastBeaconBalance;
+    uint256 public lastBeaconValidators;
+
+    mapping(bytes32 => uint256) public reportVotes;
+    mapping(bytes32 => bool) public reportFinalized;
+    mapping(bytes32 => mapping(address => bool)) public hasVoted;
+
+    // ── Events ────────────────────────────────────────────────────────────────
+    event VoteSubmitted(
+        bytes32 indexed reportHash,
+        address indexed submitter,
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 reportTimestamp,
+        uint256 votes,
+        uint256 quorum
+    );
+    event ReportFinalized(
+        bytes32 indexed reportHash,
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 reportTimestamp,
+        uint256 votes
+    );
+    event SubmitterAdded(address indexed submitter);
+    event SubmitterRemoved(address indexed submitter);
+    event QuorumSet(uint256 quorum);
+    event MaxStalenessSet(uint256 seconds_);
+    event MaxDriftSet(uint256 bps);
+    event MaxSlashSet(uint256 bps);
+
+    // ── Errors ────────────────────────────────────────────────────────────────
+    error InvalidQuorum(uint256 provided, uint256 submitterCount_);
+    error DuplicateVote(bytes32 reportHash, address submitter);
+    error ReportAlreadyFinalized(bytes32 reportHash);
+    error StaleReport(uint256 reportAge, uint256 maxAge);
+    error FutureReportTimestamp(uint256 reportTimestamp, uint256 currentTimestamp);
+    error BalanceDriftTooHigh(uint256 actual, uint256 max);
+    error SlashTooLarge(uint256 actual, uint256 max);
+
+    constructor(address reportTarget, address gov, uint256 initialQuorum) {
+        if (reportTarget == address(0) || gov == address(0)) revert Errors.ZeroAddress();
+        if (initialQuorum == 0) revert InvalidQuorum(initialQuorum, 0);
+
+        REPORT_TARGET = IReportable(reportTarget);
+        quorum = initialQuorum;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, gov);
+        _grantRole(GOV, gov);
+    }
+
+    // ── Report voting / finalization ─────────────────────────────────────────
+
+    /// @notice Submit a vote for a report payload.
+    /// @dev A payload is uniquely identified by (beaconValidators, beaconBalance, reportTimestamp).
+    ///      The same submitter cannot vote twice for the same payload.
+    function submitReport(
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 reportTimestamp
+    ) external onlyRole(SUBMITTER) {
+        bytes32 reportHash = keccak256(abi.encode(beaconValidators, beaconBalance, reportTimestamp));
+
+        if (reportFinalized[reportHash]) revert ReportAlreadyFinalized(reportHash);
+        if (hasVoted[reportHash][msg.sender]) revert DuplicateVote(reportHash, msg.sender);
+
+        hasVoted[reportHash][msg.sender] = true;
+        uint256 votes = ++reportVotes[reportHash];
+
+        emit VoteSubmitted(
+            reportHash,
+            msg.sender,
+            beaconValidators,
+            beaconBalance,
+            reportTimestamp,
+            votes,
+            quorum
+        );
+
+        if (votes < quorum) return;
+
+        _enforceSanityChecks(beaconValidators, beaconBalance, reportTimestamp);
+
+        reportFinalized[reportHash] = true;
+        lastBeaconBalance = beaconBalance;
+        lastBeaconValidators = beaconValidators;
+        lastReportTime = block.timestamp;
+
+        REPORT_TARGET.reportBeacon(beaconValidators, beaconBalance);
+
+        emit ReportFinalized(reportHash, beaconValidators, beaconBalance, reportTimestamp, votes);
+    }
+
+    function _enforceSanityChecks(
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 reportTimestamp
+    ) internal view {
+        if (reportTimestamp > block.timestamp) {
+            revert FutureReportTimestamp(reportTimestamp, block.timestamp);
+        }
+
+        uint256 reportAge = block.timestamp - reportTimestamp;
+        if (reportAge > maxStalenessSeconds) {
+            revert StaleReport(reportAge, maxStalenessSeconds);
+        }
+
+        if (lastBeaconValidators > 0 && beaconValidators > 0) {
+            uint256 prevAvg = lastBeaconBalance / lastBeaconValidators;
+            uint256 newAvg = beaconBalance / beaconValidators;
+
+            if (prevAvg > 0 && newAvg > prevAvg) {
+                uint256 gainBps = ((newAvg - prevAvg) * 10000) / prevAvg;
+                if (gainBps > maxDriftBps) revert BalanceDriftTooHigh(gainBps, maxDriftBps);
+            }
+        }
+
+        if (lastBeaconBalance > 0 && beaconBalance < lastBeaconBalance) {
+            uint256 lossBps = ((lastBeaconBalance - beaconBalance) * 10000) / lastBeaconBalance;
+            if (lossBps > maxSlashBps) revert SlashTooLarge(lossBps, maxSlashBps);
+        }
+    }
+
+    // ── Config (GOV only) ─────────────────────────────────────────────────────
+
+    function setQuorum(uint256 newQuorum) external onlyRole(GOV) {
+        if (newQuorum == 0 || newQuorum > submitterCount) {
+            revert InvalidQuorum(newQuorum, submitterCount);
+        }
+        quorum = newQuorum;
+        emit QuorumSet(newQuorum);
+    }
+
+    function setMaxStaleness(uint256 seconds_) external onlyRole(GOV) {
+        maxStalenessSeconds = seconds_;
+        emit MaxStalenessSet(seconds_);
+    }
+
+    function setMaxDriftBps(uint256 bps) external onlyRole(GOV) {
+        maxDriftBps = bps;
+        emit MaxDriftSet(bps);
+    }
+
+    function setMaxSlashBps(uint256 bps) external onlyRole(GOV) {
+        maxSlashBps = bps;
+        emit MaxSlashSet(bps);
+    }
+
+    function addSubmitter(address submitter) external onlyRole(GOV) {
+        if (submitter == address(0)) revert Errors.ZeroAddress();
+        if (!hasRole(SUBMITTER, submitter)) {
+            grantRole(SUBMITTER, submitter);
+            submitterCount += 1;
+            emit SubmitterAdded(submitter);
+        }
+    }
+
+    function removeSubmitter(address submitter) external onlyRole(GOV) {
+        if (!hasRole(SUBMITTER, submitter)) return;
+
+        uint256 newCount = submitterCount - 1;
+        if (quorum > newCount) revert InvalidQuorum(quorum, newCount);
+
+        revokeRole(SUBMITTER, submitter);
+        submitterCount = newCount;
+        emit SubmitterRemoved(submitter);
+    }
+}

@@ -17,16 +17,16 @@ import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 describe("WithdrawalQueueV2", () => {
   let deployer: SignerWithAddress,
     gov: SignerWithAddress,
+    oracle: SignerWithAddress,
     alice: SignerWithAddress,
     bob: SignerWithAddress;
 
   let stToken: any, stakingCore: any, queue: any;
 
   const ORACLE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ORACLE"));
-  const GUARDIAN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("GUARDIAN"));
 
   async function deployFresh() {
-    [deployer, gov, alice, bob] = await ethers.getSigners();
+    [deployer, gov, oracle, alice, bob] = await ethers.getSigners();
 
     const StToken = await ethers.getContractFactory("StToken");
     stToken = await StToken.deploy();
@@ -37,6 +37,7 @@ describe("WithdrawalQueueV2", () => {
 
     const WithdrawalQueueV2 = await ethers.getContractFactory("WithdrawalQueueV2");
     queue = await WithdrawalQueueV2.deploy(stToken.target, gov.address);
+    await queue.connect(gov).grantRole(ORACLE_ROLE, oracle.address);
     // Grant queue MINTER so it can burn shares on requestWithdrawals.
     await stToken.addMinter(queue.target);
 
@@ -59,7 +60,7 @@ describe("WithdrawalQueueV2", () => {
       const sharesBefore = await stToken.sharesOf(alice.address);
 
       const tx = await queue.connect(alice).requestWithdrawals([parseEther("1")], alice.address);
-      const receipt = await tx.wait();
+      await tx.wait();
 
       const sharesAfter = await stToken.sharesOf(alice.address);
       expect(sharesAfter).to.be.lt(sharesBefore);
@@ -140,7 +141,6 @@ describe("WithdrawalQueueV2", () => {
     });
 
     it("returns excess ETH to caller", async () => {
-      const excessEth = parseEther("1");
       const govBefore = await ethers.provider.getBalance(gov.address);
 
       const tx = await queue.connect(gov).finalize(1, {value: parseEther("2")});
@@ -158,6 +158,79 @@ describe("WithdrawalQueueV2", () => {
       await expect(
         queue.connect(gov).finalize(5, {value: parseEther("5")})
       ).to.be.revertedWithCustomError(queue, "InvalidRequestRange");
+    });
+  });
+
+  // ── Phase-2 mode controls ────────────────────────────────────────────────────
+
+  describe("phase-2 bunker/turbo controls", () => {
+    it("only ORACLE can update bunker mode and report timestamp", async () => {
+      const ts = (await ethers.provider.getBlock("latest"))!.timestamp;
+
+      await expect(
+        queue.connect(alice).updateModeFromOracle(true, ts)
+      ).to.be.reverted;
+
+      await queue.connect(oracle).updateModeFromOracle(true, ts);
+      expect(await queue.withdrawalMode()).to.equal(1n); // BUNKER
+      expect(await queue.lastOracleReportTimestamp()).to.equal(BigInt(ts));
+    });
+
+    it("applies bunker finalize constraints (batch-size + minimum age)", async () => {
+      await queue.connect(alice).requestWithdrawals(
+        [parseEther("1"), parseEther("1"), parseEther("1")],
+        alice.address
+      );
+      await queue.connect(gov).setBunkerMaxRequestsPerFinalize(2);
+      await queue.connect(gov).setBunkerMinRequestAge(24 * 60 * 60);
+
+      const ts = (await ethers.provider.getBlock("latest"))!.timestamp;
+      await queue.connect(oracle).updateModeFromOracle(true, ts);
+
+      await expect(
+        queue.connect(gov).finalize(3, {value: parseEther("3")})
+      ).to.be.revertedWithCustomError(queue, "BunkerBatchTooLarge");
+
+      await expect(
+        queue.connect(gov).finalize(2, {value: parseEther("2")})
+      ).to.be.revertedWithCustomError(queue, "RequestTooYoung");
+
+      await ethers.provider.send("evm_increaseTime", [24 * 60 * 60 + 1]);
+      await ethers.provider.send("evm_mine", []);
+      const ts2 = (await ethers.provider.getBlock("latest"))!.timestamp;
+      await queue.connect(oracle).updateModeFromOracle(true, ts2);
+
+      await expect(
+        queue.connect(gov).finalize(2, {value: parseEther("2")})
+      ).to.emit(queue, "BatchFinalized");
+    });
+
+    it("keeps turbo mode finalize behavior unaffected", async () => {
+      await queue.connect(alice).requestWithdrawals([parseEther("1"), parseEther("1")], alice.address);
+      await queue.connect(gov).setBunkerMaxRequestsPerFinalize(1);
+      await queue.connect(gov).setBunkerMinRequestAge(30 * 24 * 60 * 60);
+
+      const ts = (await ethers.provider.getBlock("latest"))!.timestamp;
+      await queue.connect(oracle).updateModeFromOracle(false, ts); // TURBO
+
+      await expect(
+        queue.connect(gov).finalize(2, {value: parseEther("2")})
+      ).to.emit(queue, "BatchFinalized");
+    });
+
+    it("keeps claims available for already finalized requests in bunker mode", async () => {
+      await queue.connect(alice).requestWithdrawals([parseEther("1")], alice.address);
+      await queue.connect(gov).finalize(1, {value: parseEther("1")});
+
+      await queue.connect(gov).setBunkerMaxRequestsPerFinalize(1);
+      await queue.connect(gov).setBunkerMinRequestAge(365 * 24 * 60 * 60);
+      const ts = (await ethers.provider.getBlock("latest"))!.timestamp;
+      await queue.connect(oracle).updateModeFromOracle(true, ts);
+
+      const before = await ethers.provider.getBalance(alice.address);
+      await queue.connect(alice).claimWithdrawal(1, alice.address);
+      const after = await ethers.provider.getBalance(alice.address);
+      expect(after).to.be.gt(before);
     });
   });
 
