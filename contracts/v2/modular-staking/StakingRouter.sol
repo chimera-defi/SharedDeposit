@@ -97,6 +97,12 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     ///         Skipped on first report (prior == 0) when ETH first lands on the beacon.
     uint256 public maxDeltaBps = 1000;
 
+    /// @notice Global circuit breaker on total pooled ETH. Default 0 = unlimited.
+    ///         When set to a non-zero value, any deposit or wrap that would push
+    ///         totalPooledEther beyond this cap reverts. GOV can raise the cap
+    ///         gradually as the protocol scales.
+    uint256 public maxTotalPooledEther;
+
     // ── Events ────────────────────────────────────────────────────────────────
     event Deposited(
         bytes32 indexed moduleId,
@@ -135,6 +141,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     event LSTWrapped(bytes32 indexed moduleId, address indexed recipient, uint256 ethEquiv, uint256 sharesAmount);
     event LSTUnwrapped(bytes32 indexed moduleId, address indexed account, uint256 stTokenAmount, uint256 ethValue);
     event MaxDeltaBpsSet(uint256 newValue);
+    event MaxTotalPooledEtherSet(uint256 newValue);
     event PoolInsolvent(bytes32 indexed moduleId, uint256 loss, uint256 pooledAtTime);
     event ModuleInflowLimitSet(bytes32 indexed moduleId, uint256 windowSeconds, uint256 maxInflowEthPerWindow);
     event PolicyRegistrySet(address indexed registry);
@@ -149,6 +156,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     error NotModule(bytes32 moduleId, address caller);
     error DefaultModuleNotSet();
     error BeaconReportSanityFailed(bytes32 moduleId, uint256 gainBps, uint256 maxDeltaBps);
+    error MaxTotalPooledExceeded(uint256 attempted, uint256 cap);
     error BeaconBaselineNotInitialized(bytes32 moduleId, uint256 reportedBalance);
     error InflowLimitExceeded(bytes32 moduleId, uint256 attemptedWindowInflow, uint256 maxInflowEthPerWindow);
     error PolicyDenied(bytes32 moduleId, bytes32 policyId, address account);
@@ -265,7 +273,12 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         IStakingModule(m.addr).receiveDeposit{value: amount}();
 
         // Increase totalPooledEther by deposit amount (the ETH is in the module).
-        ST_TOKEN.setTotalPooledEther(currentPooled + amount);
+        uint256 postDepositPooled = currentPooled + amount;
+        uint256 globalCap = maxTotalPooledEther;
+        if (globalCap != 0 && postDepositPooled > globalCap) {
+            revert MaxTotalPooledExceeded(postDepositPooled, globalCap);
+        }
+        ST_TOKEN.setTotalPooledEther(postDepositPooled);
         ST_TOKEN.mintShares(user, sharesAmount);
 
         emit Deposited(moduleId, user, amount, sharesAmount, referral);
@@ -285,9 +298,9 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         _requireModuleCaller(moduleId);
         uint256 prior = moduleBeaconBalance[moduleId];
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
+        moduleBeaconBalance[moduleId] = newBeaconBalance;
         int256 delta = _applyBeaconDelta(moduleId, prior, newBeaconBalance, currentPooled);
 
-        moduleBeaconBalance[moduleId] = newBeaconBalance;
         emit ModuleBeaconReported(moduleId, newBeaconBalance, delta);
     }
 
@@ -325,7 +338,12 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         uint256 currentShares = ST_TOKEN.getTotalShares();
         uint256 shares = ShareMath.getSharesByPooledEth(ethEquiv, currentShares, currentPooled);
 
-        ST_TOKEN.setTotalPooledEther(currentPooled + ethEquiv);
+        uint256 postWrapPooled = currentPooled + ethEquiv;
+        uint256 globalCapWrap = maxTotalPooledEther;
+        if (globalCapWrap != 0 && postWrapPooled > globalCapWrap) {
+            revert MaxTotalPooledExceeded(postWrapPooled, globalCapWrap);
+        }
+        ST_TOKEN.setTotalPooledEther(postWrapPooled);
         ST_TOKEN.mintShares(recipient, shares);
 
         emit LSTWrapped(moduleId, recipient, ethEquiv, shares);
@@ -375,13 +393,22 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
 
-        (, , address treasury, address operator) = feeController.getFeeConfig();
+        (address treasury, address operator) = feeController.getRecipients();
 
         if (treasuryShares > 0) ST_TOKEN.mintShares(treasury, treasuryShares);
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);
 
         emit FeeSharesMinted(treasury, treasuryShares, operator, operatorShares);
-        FeeRoutingData memory routing;
+        FeeRoutingData memory routing = FeeRoutingData({
+            rewards: 0,
+            treasuryAmount: 0,
+            operatorAmount: 0,
+            treasuryShares: 0,
+            operatorShares: 0,
+            totalFeeAmount: 0,
+            totalPooledBeforeFees: 0,
+            totalPooledAfterFees: 0
+        });
         routing.rewards = rewards;
         routing.treasuryAmount = treasuryAmount;
         routing.operatorAmount = operatorAmount;
@@ -578,6 +605,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (bps > 10000) revert Errors.InvalidAmount();
         maxDeltaBps = bps;
         emit MaxDeltaBpsSet(bps);
+    }
+
+    /// @notice Set a global cap on totalPooledEther. 0 = unlimited.
+    /// @param cap New maximum total pooled ETH in wei.
+    function setMaxTotalPooledEther(uint256 cap) external onlyRole(GOV) {
+        maxTotalPooledEther = cap;
+        emit MaxTotalPooledEtherSet(cap);
     }
 
     // ── GUARDIAN: pause hub ──────────────────────────────────────────────────

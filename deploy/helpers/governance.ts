@@ -1,5 +1,6 @@
 import {isAddress, ZeroAddress} from "ethers";
 import {HardhatRuntimeEnvironment} from "hardhat/types";
+import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../../utils/ship";
 
 const GOVERNANCE_ENV_KEYS = ["V2_GOVERNANCE_ADDRESS", "GOVERNANCE_ADDRESS"];
@@ -23,8 +24,8 @@ const assertAddress = (label: string, value: string): string => {
 };
 
 export const resolveGovernanceAddress = async (hre: HardhatRuntimeEnvironment, ship: Ship): Promise<string> => {
-  if (hre.network.tags.hardhat) {
-    return ship.accounts.multiSig.address;
+  if (hre.network.tags.hardhat || hre.network.name === "localhost") {
+    return (ship.accounts.multiSig ?? ship.accounts.deployer).address;
   }
 
   const configured = readEnv(GOVERNANCE_ENV_KEYS);
@@ -45,3 +46,8 @@ export const resolveNodeOperatorAddress = (governance: string): string => {
 
   return assertAddress("Node operator address", configured);
 };
+
+// hardhat-deploy recursively loads files under `deploy/`; keep this helper non-executable.
+const noop: DeployFunction = async () => {};
+noop.skip = async () => true;
+export default noop;

@@ -82,6 +82,11 @@ contract FeeController is AccessControl {
         return (feeBps, treasurySplitBps, treasury, operator);
     }
 
+    /// @notice Convenience getter for fee recipients only.
+    function getRecipients() external view returns (address _treasury, address _operator) {
+        return (treasury, operator);
+    }
+
     /// @notice Emit distribution event (called by StakingCore after it mints the shares).
     function recordDistribution(uint256 treasuryAmount, uint256 operatorAmount) external onlyRole(GOV) {
         emit FeesDistributed(treasury, treasuryAmount, operator, operatorAmount);

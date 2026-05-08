@@ -8,7 +8,8 @@ const func: DeployFunction = async hre => {
   const stTokenAddress = await address(StToken__factory);
   if (!stTokenAddress) throw new Error("StToken not deployed");
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
 
   const {contract: stakingCore} = await deploy(StakingCore__factory, {
     from: accounts.deployer,
@@ -31,9 +32,8 @@ const func: DeployFunction = async hre => {
   if (feeControllerAddress) {
     console.log("  Setting FeeController on StakingCore...");
     const ORACLE = await stakingCore.ORACLE();
-    // Grant GOV role to multiSig so it can call setFeeController.
-    // setFeeController requires GOV role; GOV was granted to multiSig in constructor.
-    await stakingCore.connect(accounts.multiSig).setFeeController(feeControllerAddress);
+    // setFeeController requires GOV role; constructor grants GOV to `gov`.
+    await stakingCore.connect(govSigner).setFeeController(feeControllerAddress);
   }
 };
 

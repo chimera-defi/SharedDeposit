@@ -1,7 +1,7 @@
 /**
- * Pre-mainnet mandatory scenario tests for the Lido-parity stack.
+ * Pre-mainnet mandatory scenario tests for the SharedStake V2 modular stack.
  *
- * Source-of-truth invariants (from contracts-v1-invariants.md / LIDO_PARITY_ARCHITECTURE.md):
+ * Source-of-truth invariants (from contracts-v1-invariants.md / MODULAR_STAKING_ARCHITECTURE.md):
  *   - totalSupply == totalPooledEther                               (StToken accounting identity)
  *   - No user can claim more ETH than their request locked          (no over-claim)
  *   - Share price is monotonically non-decreasing unless slash      (rewards rebase up; slash rebases down)
@@ -53,7 +53,7 @@ function pickEth(rand: () => number, minEth: string, maxEth: string): bigint {
   return min + (span * bucket) / (buckets - 1n);
 }
 
-describe("Lido-parity Mandatory Scenario Tests", () => {
+describe("SharedStake V2 Mandatory Scenario Tests", () => {
   let deployer: SignerWithAddress,
     gov: SignerWithAddress,
     oracle: SignerWithAddress,

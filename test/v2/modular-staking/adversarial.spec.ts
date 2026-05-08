@@ -1,5 +1,5 @@
 /**
- * Adversarial / negative-path test suite for the Lido-parity stack.
+ * Adversarial / negative-path test suite for the SharedStake V2 modular stack.
  *
  * Coverage:
  *   1. Reentrancy on claimWithdrawal
@@ -28,7 +28,7 @@ const GUARDIAN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("GUARDIAN"));
 const NODE_OPERATOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("NODE_OPERATOR"));
 const SUBMITTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("SUBMITTER"));
 
-describe("Lido-parity adversarial", () => {
+describe("SharedStake V2 adversarial", () => {
   let deployer: SignerWithAddress,
     gov: SignerWithAddress,
     alice: SignerWithAddress,

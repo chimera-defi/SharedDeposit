@@ -1,5 +1,5 @@
 /**
- * End-to-end test for the full Lido-parity staking lifecycle:
+ * End-to-end test for the full SharedStake V2 staking lifecycle:
  *
  *   1. Deploy entire system (StToken, WstToken, StakingCore, WithdrawalQueueV2, FeeController, OracleAdapter)
  *   2. Alice deposits 10 ETH → receives stETH shares
@@ -15,7 +15,7 @@ import {expect} from "chai";
 import {parseEther, ZeroAddress} from "ethers";
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
-describe("Lido-parity E2E", () => {
+describe("SharedStake V2 E2E", () => {
   let deployer: SignerWithAddress,
     gov: SignerWithAddress,
     alice: SignerWithAddress,

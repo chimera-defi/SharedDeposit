@@ -7,7 +7,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {StToken} from "./StToken.sol";
 import {Errors} from "../lib/Errors.sol";
 
-/// @title WithdrawalQueueV2 - Lido-parity withdrawal queue
+/// @title WithdrawalQueueV2 - SharedStake V2 withdrawal queue
 /// @notice Three-step lifecycle:
 ///   1. requestWithdrawals  — user burns stToken shares, obtains requestId(s)
 ///   2. finalize            — guardian finalizes a batch, providing ETH at the agreed share rate
@@ -174,7 +174,7 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
             revert BunkerBatchTooLarge(requestsCount, bunkerMaxRequestsPerFinalize);
         }
 
-        uint256 totalEthRequired;
+        uint256 totalEthRequired = 0;
         for (uint256 id = fromId; id <= lastRequestId; ++id) {
             WithdrawalRequest storage req = requests[id];
             if (bunkerModeActive) {
@@ -262,7 +262,7 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
         nonReentrant
     {
         if (recipient == address(0)) revert Errors.ZeroAddress();
-        uint256 totalEth;
+        uint256 totalEth = 0;
         for (uint256 i; i < requestIds.length; ++i) {
             uint256 id = requestIds[i];
             WithdrawalRequest storage req = requests[id];

@@ -1,143 +1,65 @@
-# SharedStake Modular-Staking Phase — Completion Report
+# SharedStake V2 Modular Staking Completion Report (Current State)
 
-**Date:** 2026-05-06
-**Status:** ✅ Complete and validated
+**Date:** 2026-05-08  
+**Status:** In-progress master PR, validation baseline green for modular contracts + fork E2E
 
----
+## Delivered
 
-## Summary of Changes
+1. Canonical naming migration
+   - Product/docs naming aligned to `SharedStake V2 Modular Staking`.
+   - Oracle renamed to `StEthPriceOracle` across contract, test, and deploy surfaces.
 
-### 1. Branding Rename: lido-parity → modular-staking
-**Scope:** Contracts, tests, deploy scripts, UI, docs
+2. Core modular coverage
+   - Full modular staking suite passing (`223 passing`).
+   - Fuzz/invariant suite passing (`19 passing`).
 
-| Old Path | New Path |
-|----------|----------|
-| `contracts/v2/lido-parity/` | `contracts/v2/modular-staking/` |
-| `test/v2/lido-parity/` | `test/v2/modular-staking/` |
-| `deploy/v2-lido-parity/` | `deploy/v2-modular-staking/` |
-| `src/components/LidoParity/` | `src/components/ModularStaking/` |
-| `src/stores/lidoParity.js` | `src/stores/modularStaking.js` |
-| `LidoParityApp.vue` | `ModularStakingApp.vue` |
-| `useLidoParityStore` | `useModularStakingStore` |
+3. Security hardening + triage
+   - Transfer-safety hardening in `WstToken` (`SafeERC20`).
+   - Slither-driven cleanup for medium-noise items (state ordering, tuple/discard, init clarity).
+   - Current modular residuals: 2 medium findings accepted by design:
+     - `divide-before-multiply` (`FeeController`)
+     - `locked-ether` (`StakingCore`)
 
-**Result:** Zero remaining "lido-parity" references in active source code.
+4. Deploy/E2E execution path unblocked
+   - Local governance fallback for modular deploy scripts (`accounts.multiSig ?? accounts.deployer`).
+   - `deploy/helpers/governance.ts` made non-executable for hardhat-deploy recursion.
+   - Address sync pipeline extended to include modular contract keys consumed by `/v2`.
+   - Fork E2E path (`bun run test:e2e:fork`) now runs end-to-end on local Anvil and passes:
+     - `tests/e2e/airdrop.spec.js`
+     - `tests/e2e/stake-approve-flow.spec.js`
+     - `tests/e2e/modular-staking-v2.spec.js`
 
----
+5. Frontend modular flow reliability
+   - `/v2` store now auto-bootstraps provider from `window.ethereum` when wallet provider state is missing.
+   - Numeric form inputs are normalized before `ethers.parseEther(...)`, removing flaky INVALID_ARGUMENT errors during stake/wrap/request flows.
 
-### 2. Fee Model Reconciliation
-**Problem:** `StakingCore` used pure share dilution (pool stays at real ETH backing), but `StakingRouter` inflated `totalPooledEther` by fee amount.
+6. Hardening gate suites explicitly validated
+   - Role/access sweep (`roleAccess.spec.ts`)
+   - Oracle behavior (`stEthPriceOracle.spec.ts`, `quorumOracleAdapter.spec.ts`, `quorumOracleOperational.spec.ts`)
+   - Queue stress (`withdrawalQueueV2.spec.ts`, `scenarioTests.spec.ts`)
+   - Combined result: `61 passing`
 
-**Fix:** Removed pool inflation in `StakingRouter._distributeFees`. Both paths now use pure share dilution:
-- Fees captured by minting shares to treasury/operator
-- Pool stays at actual buffered + beacon ETH
-- Updated 4 test files to match invariant
+## Validation Evidence
 
----
+```bash
+cd SharedDeposit
+npm run compile
+npx hardhat test $(ls test/v2/modular-staking/*.spec.ts)
+npx hardhat test test/v2/modular-staking/fuzz.spec.ts
 
-### 3. Missing Tests Added
+cd ..
+bun run test:e2e:fork
+```
 
-| Test File | Coverage |
-|-----------|----------|
-| `test/v2/modular-staking/lidoPriceOracle.spec.ts` | Deployment, getEthValue, getLstValue, round-trip, lastUpdated, zero-address revert |
-| `test/v2/modular-staking/dvtModule.spec.ts` | moduleType=DVT_VALIDATOR, inheritance from ValidatorModule, pause, router integration |
-| `test/v2/modular-staking/fuzz.spec.ts` | 19 edge-case / invariant tests for ShareMath, FeeController, StakingCore, WithdrawalQueueV2 |
+Observed:
+- compile: pass
+- modular tests: 223 passing
+- fuzz tests: 19 passing
+- fork e2e: 3 passed
 
-**Total test count:** 288 passing (was 256)
+## Remaining for Final Master-PR Closure
 
----
-
-### 4. Security Review
-
-**Tool:** Slither + manual review
-**Scope:** All `v2/modular-staking/` contracts
-**Result:**
-- 0 Critical issues
-- 0 High severity issues
-- 0 Medium severity issues
-- 8 Low/Info findings — all reviewed:
-  - Reentrancy warnings: false positives (trusted internal contracts + `nonReentrant` guards)
-  - WstToken transfer return values: ignored because ST_TOKEN is own contract (always true)
-  - FeeController division ordering: standard fee math, sub-wei precision loss acceptable
-  - Local variable initialization: Solidity auto-initializes to 0
-  - Naming shadow: `paused` return parameter in `StakingRouter.modules`
-
-**Document:** `SharedDeposit/SECURITY_REVIEW.md`
-
----
-
-### 5. Defunct Code Deleted
-
-| Deleted File | Reason |
-|-------------|--------|
-| `contracts/drafts/Controller.sol` | 0 references, old draft |
-| `contracts/drafts/sharedDepositEth2Upgradeable.sol` | 0 references, old draft |
-| `contracts/drafts/sharedDepositUpgradeable.2.0.0.sol` | 0 references, old draft |
-| `contracts/drafts/SharedDepositV2Upgradeable.sol` | 0 references, old draft |
-| `contracts/v1/GoerliETHRecov.sol` | Goerli dead, 0 active refs |
-| `scripts/v2/goerli_eth_recov.js` | Goerli-specific, obsolete |
-
----
-
-### 6. UI Validation
-
-| Check | Result |
-|-------|--------|
-| Type-check | ✅ Pass |
-| Build | ✅ Pass |
-| Pre-commit hook (lint + type-check + build) | ✅ Pass |
-| No orphaned references | ✅ Verified |
-
----
-
-### 7. Known Gaps (Documented, Not Blockers)
-
-| Gap | Priority | Status |
-|-----|----------|--------|
-| DVTModule is a skeleton (extends ValidatorModule, no cluster logic) | Medium | Documented in ASSESSMENT.md |
-| No deploy script for DVTModule | Medium | Ready to add when cluster logic built |
-| QuorumOracleAdapter exists but default deploy uses single-submitter | Medium | Manual switch for mainnet |
-| No dedicated e2e test for modular-staking UI flow | Low | Old v2/core e2e still works |
-| InstitutionalPolicyRegistry not auto-wired | Low | Optional feature |
-
----
-
-### 8. Rollout Plan (From ASSESSMENT.md)
-
-**Phase 0 (Testnet):**
-- All 288 tests passing
-- Use QuorumOracleAdapter with ≥3 submitters
-
-**Phase 1 (Soft Launch Mainnet):**
-- ValidatorModule mintCap = 320 ETH (10 validators)
-- LSTWrapModule mintCap = 100 ETH
-- maxDeltaBps = 500 (5%)
-- maxSlashBps = 250 (2.5%)
-- Bunker mode default
-
-**Phase 2 (Scale):**
-- Raise caps gradually: 960 → 3200 → unlimited
-- Relax maxDeltaBps to 1000 (10%)
-- Add DVTModule with dedicated cap
-
-**Phase 3 (Decentralize):**
-- Transfer GOV to community multisig
-- Enable turbo mode default
-
----
-
-### 9. Commits
-
-**SharedDeposit:**
-- `e239a55` fix(lido-parity): reconcile fee model
-- `273405c` refactor(modular-staking): complete rename, tests, security, cleanup
-
-**UI:**
-- `518eedb` refactor(ui): rename LidoParity → ModularStaking
-
----
-
-**Next recommended steps:**
-1. Update README.md to document the modular-staking phase
-2. Add `011_dvtModule.ts` deploy script (minimal, ready for Phase 2)
-3. Wire QuorumOracleAdapter as default oracle path for mainnet
-4. Add keeper monitoring/alerting integration
+1. Wallet-extension strict E2E (`test:e2e:wallet:strict`) once required env is provided.
+2. Optional dependency vulnerability remediation (UI/contract package audits) in dedicated follow-up PR(s) if we keep master PR scope focused on modular staking parity.
+   - Root UI audit snapshot: 36 vulnerabilities (14 high, 21 moderate, 1 low).
+   - `SharedDeposit` audit snapshot: 9 vulnerabilities (3 critical, 2 high, 3 moderate, 1 low).

@@ -13,7 +13,8 @@ const func: DeployFunction = async hre => {
   const stTokenAddress = await address(StToken__factory);
   if (!stTokenAddress) throw new Error("StToken not deployed");
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
 
   const {contract: router} = await deploy(StakingRouter__factory, {
     from: accounts.deployer,
@@ -35,7 +36,7 @@ const func: DeployFunction = async hre => {
   const feeControllerAddress = await address(FeeController__factory);
   if (feeControllerAddress) {
     console.log("  Setting FeeController on StakingRouter...");
-    await router.connect(accounts.multiSig).setFeeController(feeControllerAddress);
+    await router.connect(govSigner).setFeeController(feeControllerAddress);
   }
 };
 

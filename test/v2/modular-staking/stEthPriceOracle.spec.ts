@@ -3,32 +3,32 @@ import {expect} from "chai";
 import {parseEther, ZeroAddress} from "ethers";
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
-describe("LidoPriceOracle", () => {
+describe("StEthPriceOracle", () => {
   let deployer: SignerWithAddress, gov: SignerWithAddress, alice: SignerWithAddress;
-  let oracle: any, mockLido: any;
+  let oracle: any, mockStEth: any;
 
   async function deployFresh() {
     [deployer, gov, alice] = await ethers.getSigners();
 
-    // Deploy a minimal mock that mimics ILidoStETH (identity mapping)
-    const MockLidoStETH = await ethers.getContractFactory("MockILidoStETH");
-    mockLido = await MockLidoStETH.deploy();
+    // Deploy a minimal mock that mimics IStEth (identity mapping)
+    const MockIStEth = await ethers.getContractFactory("MockIStEth");
+    mockStEth = await MockIStEth.deploy();
 
-    const LidoPriceOracle = await ethers.getContractFactory("LidoPriceOracle");
-    oracle = await LidoPriceOracle.deploy(mockLido.target);
+    const StEthPriceOracle = await ethers.getContractFactory("StEthPriceOracle");
+    oracle = await StEthPriceOracle.deploy(mockStEth.target);
   }
 
   beforeEach(async () => {
     await deployFresh();
   });
 
-  it("deployment stores lido address", async () => {
-    expect(await oracle.LIDO()).to.equal(mockLido.target);
+  it("deployment stores stETH address", async () => {
+    expect(await oracle.ST_ETH()).to.equal(mockStEth.target);
   });
 
   it("reverts on zero address constructor", async () => {
-    const LidoPriceOracle = await ethers.getContractFactory("LidoPriceOracle");
-    await expect(LidoPriceOracle.deploy(ZeroAddress)).to.be.reverted;
+    const StEthPriceOracle = await ethers.getContractFactory("StEthPriceOracle");
+    await expect(StEthPriceOracle.deploy(ZeroAddress)).to.be.reverted;
   });
 
   it("getEthValue returns ETH value for LST amount", async () => {

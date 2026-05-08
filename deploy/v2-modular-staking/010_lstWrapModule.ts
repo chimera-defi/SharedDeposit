@@ -2,7 +2,7 @@ import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../../utils/ship";
 import {
   LSTWrapModule__factory,
-  LidoPriceOracle__factory,
+  StEthPriceOracle__factory,
   StakingRouter__factory,
 } from "../../types";
 import {parseEther} from "ethers";
@@ -44,7 +44,8 @@ const func: DeployFunction = async hre => {
     return;
   }
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
   const moduleId = hre.ethers.keccak256(hre.ethers.toUtf8Bytes(LST_WRAP_STETH));
 
   // Deploy the LST module pointing at the on-chain stETH token.
@@ -55,7 +56,7 @@ const func: DeployFunction = async hre => {
   });
 
   // Deploy the price oracle that round-trips through the canonical stETH contract.
-  const {contract: priceOracle} = await deploy(LidoPriceOracle__factory, {
+  const {contract: priceOracle} = await deploy(StEthPriceOracle__factory, {
     from: accounts.deployer,
     args: [stethAddress],
     log: true,
@@ -63,7 +64,7 @@ const func: DeployFunction = async hre => {
 
   // Wire price oracle on the module.
   console.log("  Setting price oracle on LSTWrapModule...");
-  await lstMod.connect(accounts.multiSig).setPriceOracle(priceOracle.target as string);
+  await lstMod.connect(govSigner).setPriceOracle(priceOracle.target as string);
 
   // Register with the router. Conservative initial cap.
   const router = await connect(StakingRouter__factory);
@@ -71,9 +72,7 @@ const func: DeployFunction = async hre => {
   if (existing.addr === "0x0000000000000000000000000000000000000000") {
     const cap = parseEther("1000");
     console.log(`  Registering LSTWrapModule with router (cap=${cap} wei)...`);
-    await router
-      .connect(accounts.multiSig)
-      .registerModule(moduleId, lstMod.target as string, cap);
+    await router.connect(govSigner).registerModule(moduleId, lstMod.target as string, cap);
   }
 };
 

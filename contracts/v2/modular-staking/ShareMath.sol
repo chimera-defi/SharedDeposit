@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.20;
 
-/// @title ShareMath - precision share accounting for the Lido-parity staking core
+/// @title ShareMath - precision share accounting for the SharedStake V2 staking core
 /// @notice All arithmetic uses 256-bit integers; Solidity 0.8 reverts on overflow.
 ///         Rounding policy: share minting rounds DOWN (protects pool);
 ///         pooled-ETH-by-shares rounds DOWN (protects pool on redemption).

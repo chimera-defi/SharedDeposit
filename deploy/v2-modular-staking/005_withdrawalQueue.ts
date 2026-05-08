@@ -8,7 +8,8 @@ const func: DeployFunction = async hre => {
   const stTokenAddress = await address(StToken__factory);
   if (!stTokenAddress) throw new Error("StToken not deployed");
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
 
   const {contract: queue} = await deploy(WithdrawalQueueV2__factory, {
     from: accounts.deployer,

@@ -22,7 +22,8 @@ const func: DeployFunction = async hre => {
   const validatorModuleAddress = await address(ValidatorModule__factory);
   if (!validatorModuleAddress) throw new Error("ValidatorModule not deployed");
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
 
   const {contract: adapter} = await deploy(OracleAdapter__factory, {
     from: accounts.deployer,
@@ -37,7 +38,7 @@ const func: DeployFunction = async hre => {
   const hasRole = await validatorModule.hasRole(ORACLE, adapter.target);
   if (!hasRole) {
     console.log("  Granting ORACLE role to OracleAdapter on ValidatorModule...");
-    await validatorModule.connect(accounts.multiSig).grantRole(ORACLE, adapter.target as string);
+    await validatorModule.connect(govSigner).grantRole(ORACLE, adapter.target as string);
   }
 
   // On non-mainnet networks, add deployer as SUBMITTER for testnet convenience.
@@ -45,7 +46,7 @@ const func: DeployFunction = async hre => {
     const SUBMITTER = await adapter.SUBMITTER();
     if (!(await adapter.hasRole(SUBMITTER, accounts.deployer.address))) {
       console.log("  Adding deployer as SUBMITTER (testnet convenience)...");
-      await adapter.connect(accounts.multiSig).addSubmitter(accounts.deployer.address);
+      await adapter.connect(govSigner).addSubmitter(accounts.deployer.address);
     }
   }
 };

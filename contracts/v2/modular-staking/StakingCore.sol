@@ -9,7 +9,7 @@ import {ShareMath} from "./ShareMath.sol";
 import {GranularPause} from "../lib/GranularPause.sol";
 import {Errors} from "../lib/Errors.sol";
 
-/// @title StakingCore - Lido-parity ETH staking vault
+/// @title StakingCore - SharedStake V2 ETH staking vault
 /// @notice Entry point for ETH deposits. Issues stToken shares to depositors.
 ///         Oracle (ORACLE role) reports beacon chain balance changes, triggering reward rebases.
 ///         Fee shares are minted to protocol recipients on each reward report.
@@ -205,7 +205,7 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         // Keep pool accounting strictly tied to real backing (buffer + beacon).
         // Fee recipients are paid via share dilution from existing rewards.
 
-        (, , address treasury, address operator) = feeController.getFeeConfig();
+        (address treasury, address operator) = feeController.getRecipients();
 
         if (treasuryShares > 0) ST_TOKEN.mintShares(treasury, treasuryShares);
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);

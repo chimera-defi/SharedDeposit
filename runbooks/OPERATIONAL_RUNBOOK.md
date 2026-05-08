@@ -1,4 +1,4 @@
-# SharedStake V2 (Lido-Parity) Operational Runbook
+# SharedStake V2 Modular Staking Operational Runbook
 
 **Scope:** Emergency response and routine operational procedures for the
 modular-staking contract suite (`StToken`, `StakingCore`, `WithdrawalQueueV2`,
@@ -129,7 +129,7 @@ Verify success: `lastFinalizedRequestId` advances to `$LAST_ID` and the
 
 ## 5. Governance Key Rotation
 
-Lido-parity contracts use OpenZeppelin `AccessControl` (no built-in 2-step
+SharedStake V2 modular staking contracts use OpenZeppelin `AccessControl` (no built-in 2-step
 admin rotation). To rotate `DEFAULT_ADMIN_ROLE` (and `GOV`/`GUARDIAN`)
 without losing control, follow this 2-step pattern manually on **every**
 contract in the deployment:

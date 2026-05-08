@@ -8,7 +8,8 @@ const func: DeployFunction = async hre => {
   const stakingCoreAddress = await address(StakingCore__factory);
   if (!stakingCoreAddress) throw new Error("StakingCore not deployed");
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
 
   const {contract: oracle} = await deploy(OracleAdapter__factory, {
     from: accounts.deployer,
@@ -23,7 +24,7 @@ const func: DeployFunction = async hre => {
   const hasRole = await stakingCore.hasRole(ORACLE, oracle.target);
   if (!hasRole) {
     console.log("  Granting ORACLE role to OracleAdapter...");
-    await stakingCore.connect(accounts.multiSig).grantRole(ORACLE, oracle.target as string);
+    await stakingCore.connect(govSigner).grantRole(ORACLE, oracle.target as string);
   }
 
   // Add deployer as initial oracle submitter for testnet convenience.
@@ -32,7 +33,7 @@ const func: DeployFunction = async hre => {
     const submitterHasRole = await oracle.hasRole(SUBMITTER, accounts.deployer.address);
     if (!submitterHasRole) {
       console.log("  Adding deployer as SUBMITTER on OracleAdapter...");
-      await oracle.connect(accounts.multiSig).addSubmitter(accounts.deployer.address);
+      await oracle.connect(govSigner).addSubmitter(accounts.deployer.address);
     }
   }
 };

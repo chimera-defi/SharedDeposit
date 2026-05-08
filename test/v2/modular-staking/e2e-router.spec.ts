@@ -27,7 +27,7 @@ const SOLO = ethers.keccak256(ethers.toUtf8Bytes("E2E_ROUTER_SOLO"));
 const ORACLE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ORACLE"));
 const NODE_OPERATOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("NODE_OPERATOR"));
 
-describe("StakingRouter E2E (Lido-parity, modular)", () => {
+describe("StakingRouter E2E (SharedStake V2 modular)", () => {
   let deployer: SignerWithAddress,
     gov: SignerWithAddress,
     alice: SignerWithAddress,

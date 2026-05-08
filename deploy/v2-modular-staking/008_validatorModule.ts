@@ -38,7 +38,8 @@ const func: DeployFunction = async hre => {
   const routerAddress = await address(StakingRouter__factory);
   if (!routerAddress) throw new Error("StakingRouter not deployed");
 
-  const gov = accounts.multiSig.address;
+  const govSigner = accounts.multiSig ?? accounts.deployer;
+  const gov = govSigner.address;
   const beaconDeposit = beaconDepositAddressFor(networkName);
 
   // Use a deterministic moduleId derived from a human-readable label so off-chain
@@ -57,9 +58,9 @@ const func: DeployFunction = async hre => {
   const existing = await router.modules(moduleId);
   if (existing.addr === "0x0000000000000000000000000000000000000000") {
     console.log(`  Registering ValidatorModule (${moduleId}) with router...`);
-    await router.connect(accounts.multiSig).registerModule(moduleId, validatorModule.target as string, 0);
+    await router.connect(govSigner).registerModule(moduleId, validatorModule.target as string, 0);
     console.log("  Setting as default module...");
-    await router.connect(accounts.multiSig).setDefaultModule(moduleId);
+    await router.connect(govSigner).setDefaultModule(moduleId);
   }
 
   // Grant ORACLE role to gov as a placeholder. The OracleAdapter deployment
@@ -67,7 +68,7 @@ const func: DeployFunction = async hre => {
   const ORACLE = await validatorModule.ORACLE();
   if (!(await validatorModule.hasRole(ORACLE, gov))) {
     console.log("  Granting ORACLE role to gov (placeholder)...");
-    await validatorModule.connect(accounts.multiSig).grantRole(ORACLE, gov);
+    await validatorModule.connect(govSigner).grantRole(ORACLE, gov);
   }
 };
 

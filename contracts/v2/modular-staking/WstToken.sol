@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 import {ERC20, ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {StToken} from "./StToken.sol";
 import {Errors} from "../lib/Errors.sol";
@@ -16,6 +17,8 @@ import {Errors} from "../lib/Errors.sol";
 ///         Wrap:   stToken → wstToken (user deposits stTokens, receives wstTokens = shares)
 ///         Unwrap: wstToken → stToken (user burns wstTokens, receives rebased stTokens)
 contract WstToken is ERC20Permit, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     StToken public immutable ST_TOKEN;
 
     event Wrap(address indexed account, uint256 stTokenAmount, uint256 wstTokenAmount);
@@ -42,7 +45,7 @@ contract WstToken is ERC20Permit, ReentrancyGuard {
         if (wstAmount == 0) revert Errors.InvalidAmount();
 
         // Pull stTokens into this contract (they rebase in place over time).
-        IERC20(address(ST_TOKEN)).transferFrom(msg.sender, address(this), stAmount);
+        IERC20(address(ST_TOKEN)).safeTransferFrom(msg.sender, address(this), stAmount);
 
         // Mint wstToken 1:1 with shares deposited.
         _mint(msg.sender, wstAmount);
@@ -60,7 +63,7 @@ contract WstToken is ERC20Permit, ReentrancyGuard {
         stAmount = getStTokenByWstToken(wstAmount);
 
         _burn(msg.sender, wstAmount);
-        IERC20(address(ST_TOKEN)).transfer(msg.sender, stAmount);
+        IERC20(address(ST_TOKEN)).safeTransfer(msg.sender, stAmount);
         emit Unwrap(msg.sender, wstAmount, stAmount);
     }
 
