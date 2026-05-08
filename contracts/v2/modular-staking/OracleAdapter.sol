@@ -51,6 +51,7 @@ contract OracleAdapter is AccessControl {
     error StaleReport(uint256 reportAge, uint256 maxAge);
     error BalanceDriftTooHigh(uint256 actual, uint256 max);
     error SlashTooLarge(uint256 actual, uint256 max);
+    error FutureReportTimestamp(uint256 reportTimestamp, uint256 currentTimestamp);
 
     constructor(address reportTarget, address gov) {
         if (reportTarget == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -71,6 +72,11 @@ contract OracleAdapter is AccessControl {
         uint256 beaconBalance,
         uint256 reportTimestamp
     ) external onlyRole(SUBMITTER) {
+        // Reject reports from the future.
+        if (reportTimestamp > block.timestamp) {
+            revert FutureReportTimestamp(reportTimestamp, block.timestamp);
+        }
+
         // 1. Staleness check.
         uint256 reportAge = block.timestamp > reportTimestamp ? block.timestamp - reportTimestamp : 0;
         if (reportAge > maxStalenessSeconds) {

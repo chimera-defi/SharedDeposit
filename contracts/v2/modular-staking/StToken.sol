@@ -4,7 +4,6 @@ pragma solidity 0.8.20;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -158,6 +157,10 @@ contract StToken is AccessControl {
 
     function transferAdmin(address newAdmin) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newAdmin == address(0)) revert Errors.ZeroAddress();
+        // Clean up MINTER role from old admin before transferring DEFAULT_ADMIN_ROLE
+        if (hasRole(MINTER, msg.sender)) {
+            renounceRole(MINTER, msg.sender);
+        }
         grantRole(DEFAULT_ADMIN_ROLE, newAdmin);
         renounceRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }

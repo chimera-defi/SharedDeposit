@@ -86,9 +86,4 @@ contract FeeController is AccessControl {
     function getRecipients() external view returns (address _treasury, address _operator) {
         return (treasury, operator);
     }
-
-    /// @notice Emit distribution event (called by StakingCore after it mints the shares).
-    function recordDistribution(uint256 treasuryAmount, uint256 operatorAmount) external onlyRole(GOV) {
-        emit FeesDistributed(treasury, treasuryAmount, operator, operatorAmount);
-    }
 }
