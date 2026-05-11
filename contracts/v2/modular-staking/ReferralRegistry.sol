@@ -83,10 +83,12 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
     error FeeTooHigh();
     error NoReferees();
 
-    constructor(address _gov) {
+    constructor(address _gov, address _feeToken) {
         if (_gov == address(0)) revert Errors.ZeroAddress();
+        if (_feeToken == address(0)) revert Errors.ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, _gov);
         _grantRole(GOV, _gov);
+        feeToken = _feeToken;
     }
 
     // ── Core: deposit recording (ROUTER only) ───────────────────────────────
@@ -186,6 +188,12 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
     function recoverToken(address token, address to, uint256 amount) external onlyRole(GOV) {
         if (token == feeToken) revert Errors.InvalidAmount();
         IERC20(token).safeTransfer(to, amount);
+    }
+
+    /// @notice Recover accidentally sent ETH.
+    function recoverEth(address to, uint256 amount) external onlyRole(GOV) {
+        (bool ok, ) = to.call{value: amount}("");
+        require(ok, "ETH transfer failed");
     }
 
     // ── Views ─────────────────────────────────────────────────────────────────

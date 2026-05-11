@@ -24,11 +24,10 @@ describe("Governance + Referral hardening", () => {
       await stToken.addMinter(deployer.address);
 
       const ReferralRegistry = await ethers.getContractFactory("ReferralRegistry");
-      registry = await ReferralRegistry.deploy(gov.address);
+      registry = await ReferralRegistry.deploy(gov.address, stToken.target);
 
       await registry.connect(gov).grantRole(await registry.ROUTER(), router.address);
       await registry.connect(gov).grantRole(await registry.FEE_CTRL(), feeCtl.address);
-      await registry.connect(gov).setFeeToken(stToken.target);
     });
 
     it("records referral deposits and updates per-referrer stats", async () => {
