@@ -502,6 +502,9 @@ describe("StakingRouter", () => {
     beforeEach(async () => {
       // Alice deposits 32 ETH (one validator's worth) so we have a sensible state.
       await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+      // Relax maxDeltaBps for these tests so we can simulate realistic rewards
+      // (1.5%–3%) without hitting the 1% mainnet default.
+      await router.connect(gov).setMaxDeltaBps(1000);
     });
 
     it("only registered module addr can call reportModuleBeaconBalance", async () => {

@@ -94,10 +94,11 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     /// @notice Sanity bound (basis points) on per-report beacon balance gains.
     ///         A module reporting `newBeaconBalance > prior * (1 + maxDeltaBps/10000)`
     ///         reverts. Prevents a compromised/buggy module from inflating
-    ///         `totalPooledEther` and diluting all stakers' shares. Default 1000 = 10%.
-    ///         Skipped on first report (prior == 0) when ETH first lands on the beacon.
-    ///         RECOMMENDATION: Lower to 100 (1%) before mainnet via `setMaxDeltaBps()`.
-    uint256 public maxDeltaBps = 1000;
+    ///         `totalPooledEther` and diluting all stakers' shares.
+    ///         Default 100 = 1% (safe for mainnet). Can be raised temporarily
+    ///         via governance during high-reward periods (e.g. post-Merge).
+    ///         Max absolute ceiling enforced at 1000 (10%) by setter.
+    uint256 public maxDeltaBps = 100;
 
     /// @notice Global circuit breaker on total pooled ETH. Default 0 = unlimited.
     ///         When set to a non-zero value, any deposit or wrap that would push
@@ -618,9 +619,11 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     }
 
     /// @notice Update the per-report sanity bound on beacon-balance gains.
-    /// @param bps New maximum gain in basis points (10000 = 100%). Capped at 10000.
+    /// @param bps New maximum gain in basis points (10000 = 100%).
+    ///         Hard ceiling at 1000 (10%) to prevent runaway inflation.
+    ///         Values above 1000 revert regardless of GOV.
     function setMaxDeltaBps(uint256 bps) external onlyRole(GOV) {
-        if (bps > 10000) revert Errors.InvalidAmount();
+        if (bps > 1000) revert Errors.InvalidAmount();
         maxDeltaBps = bps;
         emit MaxDeltaBpsSet(bps);
     }

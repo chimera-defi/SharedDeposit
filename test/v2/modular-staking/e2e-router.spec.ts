@@ -92,6 +92,9 @@ describe("StakingRouter E2E (SharedStake V2 modular)", () => {
     await validatorModule.connect(gov).grantRole(ORACLE_ROLE, oracleAdapter.target);
     await validatorModule.connect(gov).grantRole(NODE_OPERATOR_ROLE, gov.address);
     await oracleAdapter.connect(gov).addSubmitter(oracleSigner.address);
+
+    // Relax maxDeltaBps for E2E tests so we can simulate realistic rewards.
+    await router.connect(gov).setMaxDeltaBps(1000);
   });
 
   // ── Step 1: Alice deposits ──────────────────────────────────────────────────
