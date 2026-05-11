@@ -90,8 +90,10 @@ describe("SharedStake V2 Mandatory Scenario Tests", () => {
       gov.address,
       treasury.address,
       operator.address,
+      ZeroAddress, // referral registry (unused in this suite)
       1000, // 10% fee
       5000, // 50/50 split treasury/operator
+      5000, // operator split
     );
 
     const StakingCore = await ethers.getContractFactory("StakingCore");
@@ -659,7 +661,7 @@ describe("SharedStake V2 Mandatory Scenario Tests", () => {
       expect(sumBeforeConfigChange).to.be.closeTo(poolBeforeConfigChange, 1000n);
 
       // ── Transition 1: fee 10% -> 5%, split unchanged ──────────────────────
-      await feeController.connect(gov).setFee(500, 5000);
+      await feeController.connect(gov).setFee(500, 5000, 5000);
       // Config change alone does not alter any state in StToken / StakingCore.
       await assertSupplyEqualsPool();
       expect(await stToken.totalPooledEther()).to.equal(poolBeforeConfigChange);
@@ -676,7 +678,7 @@ describe("SharedStake V2 Mandatory Scenario Tests", () => {
       expect(operator2).to.be.gt(operator1);
 
       // ── Transition 2: split 50/50 -> 100/0 (all to treasury) ──────────────
-      await feeController.connect(gov).setFee(500, 10000);
+      await feeController.connect(gov).setFee(500, 10000, 0);
       const poolBeforeT2: bigint = await stToken.totalPooledEther();
       const sumBeforeT2 = await sumAllStEthBalances();
       expect(sumBeforeT2).to.be.closeTo(poolBeforeT2, 1000n);
@@ -690,7 +692,7 @@ describe("SharedStake V2 Mandatory Scenario Tests", () => {
       expect(operator3).to.equal(operator2);
 
       // ── Transition 3: fee -> 0 (no fees minted on next reward) ────────────
-      await feeController.connect(gov).setFee(0, 0);
+      await feeController.connect(gov).setFee(0, 0, 0);
       const treasury4Before = await stToken.sharesOf(treasury.address);
       const operator4Before = await stToken.sharesOf(operator.address);
       const poolBeforeT3: bigint = await stToken.totalPooledEther();
@@ -706,8 +708,8 @@ describe("SharedStake V2 Mandatory Scenario Tests", () => {
 
       // ── Transition 4: change recipients mid-flight ────────────────────────
       // After this, future rewards go to carol/dave instead of treasury/operator.
-      await feeController.connect(gov).setFee(1000, 5000);
-      await feeController.connect(gov).setRecipients(carol.address, dave.address);
+      await feeController.connect(gov).setFee(1000, 5000, 5000);
+      await feeController.connect(gov).setRecipients(carol.address, dave.address, ZeroAddress);
 
       const carolBefore = await stToken.sharesOf(carol.address);
       const daveBefore = await stToken.sharesOf(dave.address);
@@ -736,7 +738,7 @@ describe("SharedStake V2 Mandatory Scenario Tests", () => {
       const aliceBefore = await stToken.balanceOf(alice.address);
 
       await expect(
-        feeController.connect(gov).setFee(2001, 5000),
+        feeController.connect(gov).setFee(2001, 5000, 5000),
       ).to.be.revertedWithCustomError(feeController, "FeeTooHigh");
 
       // No state change.

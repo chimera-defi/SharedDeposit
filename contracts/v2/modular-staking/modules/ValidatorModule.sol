@@ -51,16 +51,19 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     uint256 internal _bufferedEther;     // ETH held here, pending validator assignment
     uint256 internal _beaconBalance;     // last reported sum of validator balances
     uint256 internal _beaconValidators;  // last reported validator count
+    bytes32 public expectedWithdrawalCredentials; // validated withdrawal creds prefix
 
     // ── Events ────────────────────────────────────────────────────────────────
     event DepositReceived(uint256 amount, uint256 newBufferedEther);
     event BeaconReported(uint256 beaconValidators, uint256 beaconBalance);
     event BeaconChainDeposit(bytes pubkey, uint256 amount, uint256 newBufferedEther);
+    event ExpectedWithdrawalCredentialsSet(bytes32 indexed expected);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error NotRouter(address caller);
     error InsufficientBuffer(uint256 available, uint256 required);
     error BeaconBalanceSanityFailed(uint256 reported, uint256 expected);
+    error InvalidWithdrawalCredentials();
 
     constructor(address router, bytes32 moduleId, address gov, address beaconDepositContract) {
         if (router == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -109,7 +112,7 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         whenNotPaused(PAUSE_RECEIVE)
     {
         if (_beaconValidators > 0) {
-            uint256 maxPlausible = _beaconValidators * 32 ether * 2;
+            uint256 maxPlausible = _beaconValidators * 32 ether * 3 / 2;
             if (newBeaconBalance > maxPlausible) {
                 revert BeaconBalanceSanityFailed(newBeaconBalance, maxPlausible);
             }
@@ -136,6 +139,18 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         if (_bufferedEther < DEPOSIT_AMOUNT) {
             revert InsufficientBuffer(_bufferedEther, DEPOSIT_AMOUNT);
         }
+
+        // Validate withdrawal credentials belong to the protocol
+        bytes32 expected = expectedWithdrawalCredentials;
+        if (expected != bytes32(0)) {
+            if (withdrawal_credentials.length != 32) revert InvalidWithdrawalCredentials();
+            bytes32 provided;
+            assembly {
+                provided := calldataload(add(withdrawal_credentials.offset, 0))
+            }
+            if (provided != expected) revert InvalidWithdrawalCredentials();
+        }
+
         _bufferedEther -= DEPOSIT_AMOUNT;
 
         IDepositContract(BEACON_DEPOSIT_CONTRACT).deposit{value: DEPOSIT_AMOUNT}(
@@ -150,6 +165,13 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         ROUTER.notifyBeaconDeposit(MODULE_ID, DEPOSIT_AMOUNT);
 
         emit BeaconChainDeposit(pubkey, DEPOSIT_AMOUNT, _bufferedEther);
+    }
+
+    // ── Admin ────────────────────────────────────────────────────────────────
+
+    function setExpectedWithdrawalCredentials(bytes32 _expected) external onlyRole(GOV) {
+        expectedWithdrawalCredentials = _expected;
+        emit ExpectedWithdrawalCredentialsSet(_expected);
     }
 
     // ── Pause ────────────────────────────────────────────────────────────────

@@ -130,14 +130,13 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
         // Stored so finalization doesn't require a separate rate parameter.
         uint256 ethValue = ST_TOKEN.getPooledEthByShares(shares);
 
-        // Burn shares AND reduce totalPooledEther proportionally.
-        // This keeps the exchange rate constant for remaining holders
-        // (they don't receive a windfall from the withdrawal).
+        // Reduce totalPooledEther BEFORE burning shares to keep exchange rate
+        // consistent throughout the transaction (atomic state update).
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
-        ST_TOKEN.burnShares(msg.sender, shares);
         if (currentPooled >= ethValue) {
             ST_TOKEN.setTotalPooledEther(currentPooled - ethValue);
         }
+        ST_TOKEN.burnShares(msg.sender, shares);
 
         requestId = nextRequestId++;
         requests[requestId] = WithdrawalRequest({

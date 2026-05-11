@@ -49,7 +49,9 @@ describe("StakingRouter", () => {
       gov.address,
       gov.address,        // treasury
       deployer.address,   // operator
+      ZeroAddress,        // referral registry (unused in this suite)
       1000,
+      5000,
       5000,
     );
 

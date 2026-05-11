@@ -9,6 +9,7 @@ import {ShareMath} from "./ShareMath.sol";
 import {IStakingModule} from "./interfaces/IStakingModule.sol";
 import {IStakingRouter} from "./interfaces/IStakingRouter.sol";
 import {IInstitutionalPolicyRegistry} from "./interfaces/IInstitutionalPolicyRegistry.sol";
+import {IReferralRegistry} from "./interfaces/IReferralRegistry.sol";
 import {GranularPause} from "../lib/GranularPause.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -95,6 +96,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     ///         reverts. Prevents a compromised/buggy module from inflating
     ///         `totalPooledEther` and diluting all stakers' shares. Default 1000 = 10%.
     ///         Skipped on first report (prior == 0) when ETH first lands on the beacon.
+    ///         RECOMMENDATION: Lower to 100 (1%) before mainnet via `setMaxDeltaBps()`.
     uint256 public maxDeltaBps = 1000;
 
     /// @notice Global circuit breaker on total pooled ETH. Default 0 = unlimited.
@@ -280,6 +282,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         }
         ST_TOKEN.setTotalPooledEther(postDepositPooled);
         ST_TOKEN.mintShares(user, sharesAmount);
+        _recordReferral(user, referral, amount, sharesAmount);
 
         emit Deposited(moduleId, user, amount, sharesAmount, referral);
         if (emitAttribution) {
@@ -380,10 +383,15 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     // ── Fee distribution (mirrors StakingCore behaviour for parity) ──────────
 
     function _distributeFees(bytes32 moduleId, uint256 rewards, uint256 newTotalPooled) internal {
-        (uint256 treasuryAmount, uint256 operatorAmount) = feeController.computeFees(rewards);
-        if (treasuryAmount == 0 && operatorAmount == 0) return;
+        (, , , address treasury, address operator, address referralRegistry) = feeController.getFeeConfig();
 
-        uint256 totalFee = treasuryAmount + operatorAmount;
+        (uint256 treasuryAmount, uint256 operatorAmount, uint256 referralAmount) = feeController.computeFees(rewards);
+        if (referralRegistry == address(0)) {
+            referralAmount = 0;
+        }
+        if (treasuryAmount == 0 && operatorAmount == 0 && referralAmount == 0) return;
+
+        uint256 totalFee = treasuryAmount + operatorAmount + referralAmount;
         uint256 newTotalShares = ST_TOKEN.getTotalShares();
 
         // Keep pool accounting strictly tied to real backing (buffer + beacon).
@@ -392,11 +400,14 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         // Mint fee shares at post-rebase rate so recipients capture exactly their cut.
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
-
-        (address treasury, address operator) = feeController.getRecipients();
+        uint256 referralShares = ShareMath.getSharesByPooledEth(referralAmount, newTotalShares, newTotalPooled);
 
         if (treasuryShares > 0) ST_TOKEN.mintShares(treasury, treasuryShares);
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);
+        if (referralRegistry != address(0) && referralShares > 0) {
+            ST_TOKEN.mintShares(referralRegistry, referralShares);
+            IReferralRegistry(referralRegistry).depositReferralFeeShares(referralShares);
+        }
 
         emit FeeSharesMinted(treasury, treasuryShares, operator, operatorShares);
         FeeRoutingData memory routing = FeeRoutingData({
@@ -418,6 +429,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         routing.totalPooledBeforeFees = newTotalPooled;
         routing.totalPooledAfterFees = newTotalPooled; // pool stays at real backing
         _emitFeeRoutingTelemetry(moduleId, routing);
+    }
+
+    function _recordReferral(address user, address referral, uint256 amount, uint256 sharesAmount) internal {
+        if (referral == address(0) || address(feeController) == address(0)) return;
+        (, , , , , address referralRegistry) = feeController.getFeeConfig();
+        if (referralRegistry == address(0)) return;
+        IReferralRegistry(referralRegistry).recordDeposit(referral, user, amount, sharesAmount);
     }
 
     function _emitFeeRoutingTelemetry(bytes32 moduleId, FeeRoutingData memory routing) internal {

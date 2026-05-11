@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1405" height="645" viewBox="0 0 562 258" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="ah" viewBox="0 0 8 6" refX="8" refY="3"
+      markerWidth="4" markerHeight="3" orient="auto">
+      <path d="M0.5,0.5 L7,3 L0.5,5.5" fill="none" stroke="#94A3B8"
+        stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>
+    </marker>
+    <filter id="shadow" x="-6%" y="-8%" width="112%" height="128%">
+      <feDropShadow dx="0" dy="0.5" stdDeviation="0.8"
+        flood-color="#000" flood-opacity="0.05"/>
+    </filter>
+  </defs>
+  <rect width="562" height="258" fill="#F8F9FB" rx="3"/>
+  <text x="281" y="11" text-anchor="middle" font-size="6" font-weight="700" fill="#1E293B">SharedStake V2 Architecture</text>
+  <rect x="206" y="16" width="150" height="10" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.4"/>
+  <rect x="211" y="18.5" width="5" height="5" rx="2.5" fill="#fff" stroke="#E2E5EA" stroke-width="0.4"/>
+  <text x="219" y="22.5" font-size="3.5" fill="#1E293B">Actor</text>
+  <rect x="251" y="18.5" width="5" height="5" rx="1.5" fill="#fff" stroke="#E2E5EA" stroke-width="0.4"/>
+  <rect x="252" y="19.5" width="0.8" height="3" rx="0.4" fill="#3B82F6"/>
+  <text x="259" y="22.5" font-size="3.5" fill="#1E293B">Protocol</text>
+  <rect x="299" y="18.5" width="5" height="5" rx="1.5" fill="#fff" stroke="#E2E5EA" stroke-width="0.4"/>
+  <rect x="300" y="19.5" width="0.8" height="3" rx="0.4" fill="#F59E0B"/>
+  <text x="307" y="22.5" font-size="3.5" fill="#1E293B">External</text>
+  <rect x="20.0" y="84.0" width="488.2" height="40.0" rx="5" fill="#EDEEF2"/>
+  <text x="505.2" y="89.0" text-anchor="end" font-size="3.5" fill="#94A3B8" font-weight="500">Core</text>
+  <rect x="20.0" y="146.0" width="488.2" height="40.0" rx="5" fill="#EDEEF2"/>
+  <text x="505.2" y="151.0" text-anchor="end" font-size="3.5" fill="#94A3B8" font-weight="500">Modules</text>
+  <rect x="20.0" y="208.0" width="488.2" height="40.0" rx="5" fill="#EDEEF2"/>
+  <text x="505.2" y="213.0" text-anchor="end" font-size="3.5" fill="#94A3B8" font-weight="500">External</text>
+  <path d="M111.7,46.0 C111.7,70.0 243.1,70.0 243.1,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M111.7,46.0 Q47.8,104.0 96.2,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M96.2,94.0 Q45.8,104.0 80.8,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M111.7,46.0 C111.7,70.0 116.4,70.0 116.4,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M200.5,46.0 C200.5,70.0 243.1,70.0 243.1,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M200.5,46.0 C200.5,70.0 116.4,70.0 116.4,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M298.3,46.0 C298.3,70.0 243.1,70.0 243.1,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M298.3,46.0 Q296.3,104.0 375.2,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M375.2,94.0 Q392.3,104.0 452.2,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M392.5,46.0 C392.5,70.0 422.3,70.0 422.3,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M422.3,94.0 C422.3,125.0 452.2,125.0 452.2,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M490.9,46.0 C490.9,70.0 471.5,70.0 471.5,94.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M471.5,94.0 C471.5,125.0 452.2,125.0 452.2,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M284.3,112.0 C290.9,130.0 299.7,130.0 306.3,114.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M243.1,114.0 C243.1,135.0 452.2,135.0 452.2,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M243.1,114.0 C243.1,135.0 224.2,135.0 224.2,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M243.1,114.0 C243.1,135.0 335.8,135.0 335.8,156.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M452.2,176.0 C452.2,197.0 449.6,197.0 449.6,218.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M224.2,176.0 C224.2,197.0 221.6,197.0 221.6,218.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <path d="M80.8,156.0 C80.8,135.0 343.3,135.0 343.3,114.0" fill="none" stroke="#94A3B8" stroke-width="0.5" marker-end="url(#ah)"/>
+  <g filter="url(#shadow)">
+    <rect x="83.7" y="32.0" width="56.0" height="14" rx="7" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <text x="111.7" y="40.8" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">User</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="161.7" y="32.0" width="77.6" height="14" rx="7" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <text x="200.5" y="40.8" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Governance</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="261.3" y="32.0" width="74.0" height="14" rx="7" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <text x="298.3" y="40.8" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Guardian</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="357.3" y="32.0" width="70.4" height="14" rx="7" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <text x="392.5" y="40.8" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Oracle</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="449.7" y="32.0" width="82.4" height="14" rx="7" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <text x="490.9" y="40.8" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Node Operator</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="201.9" y="94.0" width="82.4" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="204.9" y="97.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="243.1" y="103.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">StakingRouter</text>
+    <text x="243.1" y="108.5" text-anchor="middle" font-size="3.5" fill="#64748B">Front door</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="306.3" y="94.0" width="74.0" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="309.3" y="97.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="343.3" y="103.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">StToken</text>
+    <text x="343.3" y="108.5" text-anchor="middle" font-size="3.5" fill="#64748B">Rebasing shares</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="406.2" y="156.0" width="92.0" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="409.2" y="159.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="452.2" y="165.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">ValidatorModule</text>
+    <text x="452.2" y="170.5" text-anchor="middle" font-size="3.5" fill="#64748B">32 ETH deposits</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="183.0" y="156.0" width="82.4" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="186.0" y="159.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="224.2" y="165.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">LSTWrapModule</text>
+    <text x="224.2" y="170.5" text-anchor="middle" font-size="3.5" fill="#64748B">LST wrapping</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="30.0" y="156.0" width="101.6" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="33.0" y="159.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="80.8" y="165.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">WithdrawalQueueV2</text>
+    <text x="80.8" y="170.5" text-anchor="middle" font-size="3.5" fill="#64748B">Exit queue</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="287.4" y="156.0" width="96.8" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="290.4" y="159.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="335.8" y="165.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">ReferralRegistry</text>
+    <text x="335.8" y="170.5" text-anchor="middle" font-size="3.5" fill="#64748B">Fee sharing</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="57.8" y="94.0" width="117.2" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="60.8" y="97.0" width="1.4" height="14" rx="0.6" fill="#3B82F6"/>
+    <text x="116.4" y="103.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Governance</text>
+    <text x="116.4" y="108.5" text-anchor="middle" font-size="3.5" fill="#64748B">Governor + Timelock + veSGT</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="406.0" y="218.0" width="87.2" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="409.0" y="221.0" width="1.4" height="14" rx="0.6" fill="#F59E0B"/>
+    <text x="449.6" y="227.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Beacon Deposit</text>
+    <text x="449.6" y="232.5" text-anchor="middle" font-size="3.5" fill="#64748B">ETH2 contract</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="182.8" y="218.0" width="77.6" height="20" rx="3" fill="#fff" stroke="#E2E5EA" stroke-width="0.5"/>
+    <rect x="185.8" y="221.0" width="1.4" height="14" rx="0.6" fill="#F59E0B"/>
+    <text x="221.6" y="227.5" text-anchor="middle" font-size="4.8" font-weight="600" fill="#1E293B">Price Oracle</text>
+    <text x="221.6" y="232.5" text-anchor="middle" font-size="3.5" fill="#64748B">LST/ETH rate</text>
+  </g>
+  <rect x="163.4" y="65.0" width="28.0" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="177.4" y="70.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">submit ETH</text>
+  <rect x="25.4" y="115.7" width="47.2" height="6.0" rx="1" fill="#EDEEF2"/>
+  <text x="49.0" y="120.7" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">request withdrawal</text>
+  <rect x="94.1" y="65.0" width="40.0" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="114.1" y="70.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">lock SGT / vote</text>
+  <rect x="201.8" y="65.0" width="40.0" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="221.8" y="70.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">register module</text>
+  <rect x="136.1" y="57.0" width="44.8" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="158.5" y="62.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">propose / execute</text>
+  <rect x="262.7" y="65.0" width="16.0" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="270.7" y="70.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">pause</text>
+  <rect x="406.8" y="118.5" width="16.0" height="6.0" rx="1" fill="#EDEEF2"/>
+  <text x="414.8" y="123.5" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">pause</text>
+  <rect x="427.6" y="118.0" width="35.2" height="6.0" rx="1" fill="#EDEEF2"/>
+  <text x="445.2" y="123.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">report beacon</text>
+  <rect x="443.0" y="128.0" width="37.6" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="461.8" y="133.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">deposit 32 ETH</text>
+  <rect x="280.1" y="129.0" width="30.4" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="295.3" y="134.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">mint shares</text>
+  <rect x="328.8" y="130.0" width="37.6" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="347.6" y="135.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">route deposits</text>
+  <rect x="216.0" y="130.0" width="35.2" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="233.6" y="135.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">wrap / unwrap</text>
+  <rect x="263.4" y="122.0" width="52.0" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="289.4" y="127.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">record / fee deposit</text>
+  <rect x="432.1" y="192.0" width="37.6" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="450.9" y="197.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">deposit 32 ETH</text>
+  <rect x="211.3" y="192.0" width="23.2" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="222.9" y="197.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">get rate</text>
+  <rect x="196.9" y="122.0" width="30.4" height="6.0" rx="1" fill="#F8F9FB"/>
+  <text x="212.1" y="127.0" font-size="4" fill="#1E293B" font-weight="500" text-anchor="middle">burn shares</text>
+</svg>

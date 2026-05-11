@@ -47,8 +47,10 @@ describe("SharedStake V2 E2E", () => {
       gov.address,     // gov
       gov.address,     // treasury
       deployer.address, // operator
+      ZeroAddress,      // referral registry (unused in this suite)
       1000,            // 10% fee
       5000,            // 50/50 split
+      5000,            // operator split
     );
 
     const StakingCore = await ethers.getContractFactory("StakingCore");

@@ -1,0 +1,42 @@
+{
+  "title": "SharedStake V2 Architecture",
+  "nodes": [
+    {"id": "user", "label": "User", "subtitle": "Depositor", "type": "actor", "row": 0},
+    {"id": "gov", "label": "Governance", "subtitle": "Timelock + veSGT", "type": "actor", "row": 0},
+    {"id": "guardian", "label": "Guardian", "subtitle": "Emergency pause", "type": "actor", "row": 0},
+    {"id": "oracle", "label": "Oracle", "subtitle": "Beacon reports", "type": "actor", "row": 0},
+    {"id": "node_op", "label": "Node Operator", "subtitle": "Validator mgmt", "type": "actor", "row": 0},
+    {"id": "router", "label": "StakingRouter", "subtitle": "Front door", "type": "protocol", "row": 1},
+    {"id": "sttoken", "label": "StToken", "subtitle": "Rebasing shares", "type": "protocol", "row": 1},
+    {"id": "validator", "label": "ValidatorModule", "subtitle": "32 ETH deposits", "type": "protocol", "row": 2},
+    {"id": "lst", "label": "LSTWrapModule", "subtitle": "LST wrapping", "type": "protocol", "row": 2},
+    {"id": "queue", "label": "WithdrawalQueueV2", "subtitle": "Exit queue", "type": "protocol", "row": 2},
+    {"id": "referral", "label": "ReferralRegistry", "subtitle": "Fee sharing", "type": "protocol", "row": 2},
+    {"id": "governance", "label": "Governance", "subtitle": "Governor + Timelock + veSGT", "type": "protocol", "row": 1},
+    {"id": "beacon", "label": "Beacon Deposit", "subtitle": "ETH2 contract", "type": "external", "row": 3},
+    {"id": "price", "label": "Price Oracle", "subtitle": "LST/ETH rate", "type": "external", "row": 3}
+  ],
+  "edges": [
+    {"from": "user", "to": "router", "label": "submit ETH"},
+    {"from": "user", "to": "queue", "label": "request withdrawal"},
+    {"from": "user", "to": "governance", "label": "lock SGT / vote"},
+    {"from": "gov", "to": "router", "label": "register module"},
+    {"from": "gov", "to": "governance", "label": "propose / execute"},
+    {"from": "guardian", "to": "router", "label": "pause"},
+    {"from": "guardian", "to": "validator", "label": "pause"},
+    {"from": "oracle", "to": "validator", "label": "report beacon"},
+    {"from": "node_op", "to": "validator", "label": "deposit 32 ETH"},
+    {"from": "router", "to": "sttoken", "label": "mint shares"},
+    {"from": "router", "to": "validator", "label": "route deposits"},
+    {"from": "router", "to": "lst", "label": "wrap / unwrap"},
+    {"from": "router", "to": "referral", "label": "record / fee deposit"},
+    {"from": "validator", "to": "beacon", "label": "deposit 32 ETH"},
+    {"from": "lst", "to": "price", "label": "get rate"},
+    {"from": "queue", "to": "sttoken", "label": "burn shares"}
+  ],
+  "groups": [
+    {"label": "Core", "nodes": ["router", "sttoken"]},
+    {"label": "Modules", "nodes": ["validator", "lst", "queue", "referral"]},
+    {"label": "External", "nodes": ["beacon", "price"]}
+  ]
+}

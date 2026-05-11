@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {StToken} from "./StToken.sol";
 import {FeeController} from "./FeeController.sol";
 import {ShareMath} from "./ShareMath.sol";
+import {IReferralRegistry} from "./interfaces/IReferralRegistry.sol";
 import {GranularPause} from "../lib/GranularPause.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -128,6 +129,7 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         // Pool grows by deposit amount before shares are issued (conservative: no dilution).
         ST_TOKEN.setTotalPooledEther(currentPooled + amount);
         ST_TOKEN.mintShares(sender, sharesAmount);
+        _recordReferral(sender, referral, amount, sharesAmount);
 
         emit Submitted(sender, amount, referral, sharesAmount);
         emit BufferedEtherUpdated(_bufferedEther);
@@ -143,9 +145,9 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         external
         onlyRole(ORACLE)
     {
-        // Sanity: beacon balance cannot be more than 2× the maximum honest value.
+        // Sanity: beacon balance cannot be more than 1.5× the maximum honest value.
         if (newBeaconValidators > 0) {
-            uint256 maxPlausible = newBeaconValidators * 32 ether * 2;
+            uint256 maxPlausible = newBeaconValidators * 32 ether * 3 / 2;
             if (newBeaconBalance > maxPlausible) {
                 revert BeaconBalanceSanityFailed(newBeaconBalance, maxPlausible);
             }
@@ -191,24 +193,32 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
     }
 
     function _distributeFees(uint256 rewards, uint256 newTotalPooled) internal {
-        (uint256 treasuryAmount, uint256 operatorAmount) = feeController.computeFees(rewards);
-        if (treasuryAmount == 0 && operatorAmount == 0) return;
+        (, , , address treasury, address operator, address referralRegistry) = feeController.getFeeConfig();
 
-        uint256 totalFee = treasuryAmount + operatorAmount;
+        (uint256 treasuryAmount, uint256 operatorAmount, uint256 referralAmount) = feeController.computeFees(rewards);
+        if (referralRegistry == address(0)) {
+            referralAmount = 0;
+        }
+        if (treasuryAmount == 0 && operatorAmount == 0 && referralAmount == 0) return;
+
+        uint256 totalFee = treasuryAmount + operatorAmount + referralAmount;
         uint256 newTotalShares = ST_TOKEN.getTotalShares();
 
         // Mint fee shares at the post-rebase exchange rate so fee recipients are
         // compensated exactly for their portion of the rewards.
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
+        uint256 referralShares = ShareMath.getSharesByPooledEth(referralAmount, newTotalShares, newTotalPooled);
 
         // Keep pool accounting strictly tied to real backing (buffer + beacon).
         // Fee recipients are paid via share dilution from existing rewards.
 
-        (address treasury, address operator) = feeController.getRecipients();
-
         if (treasuryShares > 0) ST_TOKEN.mintShares(treasury, treasuryShares);
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);
+        if (referralRegistry != address(0) && referralShares > 0) {
+            ST_TOKEN.mintShares(referralRegistry, referralShares);
+            IReferralRegistry(referralRegistry).depositReferralFeeShares(referralShares);
+        }
 
         emit FeeSharesMinted(treasury, treasuryShares, operator, operatorShares);
         emit FeeRoutingTelemetry(
@@ -221,6 +231,13 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
             operatorAmount,
             operatorShares
         );
+    }
+
+    function _recordReferral(address sender, address referral, uint256 amount, uint256 sharesAmount) internal {
+        if (referral == address(0) || address(feeController) == address(0)) return;
+        (, , , , , address referralRegistry) = feeController.getFeeConfig();
+        if (referralRegistry == address(0)) return;
+        IReferralRegistry(referralRegistry).recordDeposit(referral, sender, amount, sharesAmount);
     }
 
     // ── Admin ─────────────────────────────────────────────────────────────────

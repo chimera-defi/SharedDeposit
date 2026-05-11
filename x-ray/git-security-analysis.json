@@ -1,0 +1,1082 @@
+{
+  "meta": {
+    "repo": "/root/.openclaw/workspace/dev/SharedStake-ui/.worktrees/main/SharedDeposit",
+    "src_dir": "contracts",
+    "generated_at": "2026-05-09T04:36:30.030492+00:00",
+    "git_head": "45b4078",
+    "git_branch": "HEAD",
+    "total_commits": 301,
+    "total_source_files": 95,
+    "analysis_time_ms": 2269
+  },
+  "repo_shape": {
+    "classification": "normal_dev",
+    "total_commits": 301,
+    "source_touching_commits": 127,
+    "bulk_import_sha": null,
+    "date_spread_days": 1824,
+    "first_commit_date": "2021-05-10",
+    "last_commit_date": "2026-05-08",
+    "signals": [
+      "Date spread: 1824 days",
+      "127 commits touch source files out of 301 total"
+    ]
+  },
+  "fix_candidates": [
+    {
+      "sha": "45b4078",
+      "full_sha": "45b4078bee0371b5c43a78220685149c006eed52",
+      "date": "2026-05-08",
+      "author": "Codex GPT-5",
+      "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02",
+      "score": 21,
+      "reasons": [
+        "explicit security language",
+        "loosens access control (+0/-1)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "spans 5 security domains (access_control, fund_flows, oracle_price, signatures, state_machines)",
+        "focused change (3 source files)"
+      ],
+      "source_files_touched": [
+        "contracts/v2/modular-staking/FeeController.sol",
+        "contracts/v2/modular-staking/OracleAdapter.sol",
+        "contracts/v2/modular-staking/StToken.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 16
+    },
+    {
+      "sha": "acc8801",
+      "full_sha": "acc8801d23189c4e1cb651af53de9bfdc658e9a9",
+      "date": "2026-05-06",
+      "author": "Codex GPT-5",
+      "subject": "refactor(modular-staking): complete lido-parity \u2192 modular-staking rename, add tests, security review, cleanup",
+      "score": 19,
+      "reasons": [
+        "explicit security language",
+        "removes runtime guards (+3/-17)",
+        "loosens access control (+8/-28)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "net code removal",
+        "large change (>500 source lines)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "contracts/drafts/Controller.sol",
+        "contracts/drafts/SharedDepositV2Upgradeable.sol",
+        "contracts/drafts/sharedDepositEth2Upgradeable.sol",
+        "contracts/drafts/sharedDepositUpgradeable.2.0.0.sol",
+        "contracts/v1/GoerliETHRecov.sol",
+        "contracts/v2/{lido-parity => modular-staking}/FeeController.sol",
+        "contracts/v2/{lido-parity => modular-staking}/InstitutionalPolicyRegistry.sol",
+        "contracts/v2/{lido-parity => modular-staking}/LidoPriceOracle.sol",
+        "contracts/v2/{lido-parity => modular-staking}/OracleAdapter.sol",
+        "contracts/v2/{lido-parity => modular-staking}/QuorumOracleAdapter.sol",
+        "contracts/v2/{lido-parity => modular-staking}/ShareMath.sol",
+        "contracts/v2/{lido-parity => modular-staking}/StToken.sol",
+        "contracts/v2/{lido-parity => modular-staking}/StakingCore.sol",
+        "contracts/v2/{lido-parity => modular-staking}/StakingRouter.sol",
+        "contracts/v2/{lido-parity => modular-staking}/WithdrawalQueueV2.sol",
+        "contracts/v2/{lido-parity => modular-staking}/WstToken.sol",
+        "contracts/v2/{lido-parity => modular-staking}/interfaces/IDepositContract.sol",
+        "contracts/v2/{lido-parity => modular-staking}/interfaces/IInstitutionalPolicyRegistry.sol",
+        "contracts/v2/{lido-parity => modular-staking}/interfaces/ILSTPriceOracle.sol",
+        "contracts/v2/{lido-parity => modular-staking}/interfaces/IReportable.sol",
+        "contracts/v2/{lido-parity => modular-staking}/interfaces/IStakingModule.sol",
+        "contracts/v2/{lido-parity => modular-staking}/interfaces/IStakingRouter.sol",
+        "contracts/v2/{lido-parity => modular-staking}/modules/DVTModule.sol",
+        "contracts/v2/{lido-parity => modular-staking}/modules/LSTWrapModule.sol",
+        "contracts/v2/{lido-parity => modular-staking}/modules/ValidatorModule.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 758
+    },
+    {
+      "sha": "2857946",
+      "full_sha": "285794679eeb8a5d75a6378c674a8fd5866d2bb6",
+      "date": "2021-08-21",
+      "author": "Chimera Defi",
+      "subject": "add fixed vesting contracts",
+      "score": 18,
+      "reasons": [
+        "bug fix",
+        "adds runtime guards (+13/-0)",
+        "tightens access control (+4/-0)",
+        "changes token transfer logic",
+        "changes accounting/balance logic",
+        "spans 2 security domains (access_control, fund_flows)",
+        "focused change (2 source files)"
+      ],
+      "source_files_touched": [
+        "contracts/governance/SimpleVesting.sol",
+        "contracts/util/SingleTokenVestingNonRevocable.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 260
+    },
+    {
+      "sha": "293aa63",
+      "full_sha": "293aa63885ca20206df7bab2986f45397d8bb72c",
+      "date": "2024-06-05",
+      "author": "devlancer412",
+      "subject": "reentrant bugfix on wsgEth contract",
+      "score": 17,
+      "reasons": [
+        "explicit security language",
+        "loosens access control (+0/-1)",
+        "spans 3 security domains (fund_flows, oracle_price, signatures)",
+        "focused change (1 source files)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "contracts/v2/core/WSGEth.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 2
+    },
+    {
+      "sha": "540066c",
+      "full_sha": "540066c9c74de22fb4f5f11485f9c16cfd602b48",
+      "date": "2021-08-29",
+      "author": "Chimera Defi",
+      "subject": "contract fixes and minor improvements",
+      "score": 17,
+      "reasons": [
+        "bug fix",
+        "removes runtime guards (+1/-21)",
+        "loosens access control (+4/-9)",
+        "changes token transfer logic",
+        "changes accounting/balance logic",
+        "spans 2 security domains (access_control, fund_flows)",
+        "net code removal"
+      ],
+      "source_files_touched": [
+        "contracts/governance/MasterChef.sol",
+        "contracts/governance/SimpleVesting.sol",
+        "contracts/governance/TokenMigrator.sol",
+        "contracts/governance/govToken.sol",
+        "contracts/governance/voteEscrow.sol",
+        "contracts/governance/voteEscrowedTokenMultiple.sol",
+        "contracts/util/SingleTokenVestingNonRevocable.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 460
+    },
+    {
+      "sha": "e239a55",
+      "full_sha": "e239a55c3f117ea69f81739965e6313782daaaf9",
+      "date": "2026-05-06",
+      "author": "Codex GPT-5",
+      "subject": "fix(lido-parity): reconcile fee model across StakingCore and StakingRouter",
+      "score": 16,
+      "reasons": [
+        "bug fix",
+        "tightens access control (+1/-0)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "focused change (2 source files)",
+        "net code removal",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "contracts/v2/lido-parity/StakingCore.sol",
+        "contracts/v2/lido-parity/StakingRouter.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 13
+    },
+    {
+      "sha": "47a5869",
+      "full_sha": "47a58693eeaa78b9cb6f6606eacb83043b564cef",
+      "date": "2023-05-29",
+      "author": "Chimera Defi",
+      "subject": "add SSGEth.sol",
+      "score": 15,
+      "reasons": [
+        "feature addition",
+        "adds runtime guards (+28/-0)",
+        "tightens access control (+13/-0)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "spans 2 security domains (fund_flows, oracle_price)",
+        "focused change (2 source files)"
+      ],
+      "source_files_touched": [
+        "contracts/v2/core/SSGEth.sol",
+        "contracts/v2/core/Withdrawals.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 95
+    },
+    {
+      "sha": "13318cb",
+      "full_sha": "13318cbf35f08f78f0e90fc88d846a635ac1adb8",
+      "date": "2021-08-15",
+      "author": "Chimera Defi",
+      "subject": "updates to keep pre-existing contracts compiling",
+      "score": 15,
+      "reasons": [
+        "unclassified",
+        "removes runtime guards (+13/-26)",
+        "loosens access control (+1/-16)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "spans 3 security domains (access_control, fund_flows, signatures)",
+        "focused change (3 source files)",
+        "net code removal",
+        "large change (>500 source lines)"
+      ],
+      "source_files_touched": [
+        "contracts/sharedDepositUpgradeable.2.0.0.sol",
+        "contracts/sharedDeposit_1.1.0.sol",
+        "contracts/vEth2.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 675
+    },
+    {
+      "sha": "721a055",
+      "full_sha": "721a0553a3cbfcfe3c75cb9d78ea32da08ab6926",
+      "date": "2026-05-08",
+      "author": "Codex GPT-5",
+      "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2",
+      "score": 14,
+      "reasons": [
+        "feature addition",
+        "adds runtime guards (+24/-19)",
+        "tightens access control (+40/-29)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "spans 5 security domains (access_control, fund_flows, liquidation, oracle_price, state_machines)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "contracts/v2/modular-staking/FeeController.sol",
+        "contracts/v2/modular-staking/ShareMath.sol",
+        "contracts/v2/modular-staking/StakingCore.sol",
+        "contracts/v2/modular-staking/StakingRouter.sol",
+        "contracts/v2/modular-staking/WithdrawalQueueV2.sol",
+        "contracts/v2/modular-staking/WstToken.sol",
+        "contracts/v2/modular-staking/interfaces/ILSTPriceOracle.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 72
+    },
+    {
+      "sha": "dda5c09",
+      "full_sha": "dda5c09bb6a5e6e01841d727a9758e110aee3b89",
+      "date": "2024-07-02",
+      "author": "Chimera",
+      "subject": "new deployments and deploy scripts",
+      "score": 14,
+      "reasons": [
+        "unclassified",
+        "adds runtime guards (+39/-3)",
+        "tightens access control (+23/-3)",
+        "changes token transfer logic",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "touches access_control code",
+        "focused change (1 source files)"
+      ],
+      "source_files_touched": [
+        "contracts/v2/periphery/FeeCalc.sol"
+      ],
+      "test_changed": false,
+      "lines_changed": 2
+    }
+  ],
+  "dangerous_area_changes": {
+    "access_control": {
+      "commit_count": 77,
+      "files": [
+        "contracts/Allowlist.sol",
+        "contracts/blocklist.sol",
+        "contracts/governance/FundDistributor.sol",
+        "contracts/governance/MasterChef.sol",
+        "contracts/governance/SimpleTimelock.sol",
+        "contracts/governance/SimpleVesting.sol",
+        "contracts/governance/TokenMigrator.sol",
+        "contracts/governance/rewarders/ComplexRewarderTime.sol",
+        "contracts/governance/voteEscrow.sol",
+        "contracts/nfts/MintableNFTSale.sol",
+        "contracts/priceOracle.sol",
+        "contracts/tokenManager.sol",
+        "contracts/util/OwnershipRolesTemplate.sol",
+        "contracts/util/SingleTokenVestingNonRevocable.sol",
+        "contracts/util/TokenTimelock.sol",
+        "contracts/util/UpgradeableSafeContractBase.sol",
+        "contracts/util/VaultWithAdminFeeUpgradeable.sol",
+        "contracts/v2/core/RewardsReceiver.sol",
+        "contracts/v2/core/SgETH.sol",
+        "contracts/v2/core/SharedDepositMinterV2.sol",
+        "contracts/v2/core/WithdrawalQueue.sol",
+        "contracts/v2/modular-staking/FeeController.sol",
+        "contracts/v2/modular-staking/OracleAdapter.sol",
+        "contracts/v2/modular-staking/StToken.sol",
+        "contracts/v2/modular-staking/StakingCore.sol",
+        "contracts/v2/modular-staking/StakingRouter.sol",
+        "contracts/v2/modular-staking/WithdrawalQueueV2.sol",
+        "contracts/v2/modular/StakingRouterLite.sol",
+        "contracts/v2/modular/modules/CuratedNorModuleLite.sol",
+        "contracts/v2/periphery/FeeCalc.sol",
+        "contracts/vEth2.sol"
+      ],
+      "commits": [
+        {
+          "sha": "45b4078",
+          "date": "2026-05-08",
+          "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02"
+        },
+        {
+          "sha": "721a055",
+          "date": "2026-05-08",
+          "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2"
+        },
+        {
+          "sha": "4445689",
+          "date": "2026-05-06",
+          "subject": "feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Code"
+        },
+        {
+          "sha": "05dc8d9",
+          "date": "2026-05-05",
+          "subject": "feat(staking-router): modular StakingRouter \u2014 ValidatorModule, DVTModule, LSTWra"
+        },
+        {
+          "sha": "21fe833",
+          "date": "2024-08-21",
+          "subject": "fix + add test for cancel"
+        },
+        {
+          "sha": "04d2345",
+          "date": "2024-08-15",
+          "subject": "fix pause"
+        },
+        {
+          "sha": "47ba713",
+          "date": "2024-08-15",
+          "subject": "[feat/WithdrawQ]: add user ability to cancel a redemption request"
+        },
+        {
+          "sha": "dda5c09",
+          "date": "2024-07-02",
+          "subject": "new deployments and deploy scripts"
+        },
+        {
+          "sha": "5876f98",
+          "date": "2024-07-02",
+          "subject": "add old script changes"
+        },
+        {
+          "sha": "7578d91",
+          "date": "2024-06-27",
+          "subject": "slither doc, feecalc fixes, add mock deposit contract and feecalc to deploy pipe"
+        },
+        {
+          "sha": "131c42d",
+          "date": "2024-06-25",
+          "subject": "lint"
+        },
+        {
+          "sha": "baeb2be",
+          "date": "2024-06-25",
+          "subject": "flesh out the periphery contracts a bit"
+        },
+        {
+          "sha": "ffd327b",
+          "date": "2024-06-25",
+          "subject": "add granular pause to withdrawal queue"
+        },
+        {
+          "sha": "785b05c",
+          "date": "2024-06-25",
+          "subject": "reset minter"
+        },
+        {
+          "sha": "a9b0754",
+          "date": "2024-06-24",
+          "subject": "fixed withdrawal queue and minter contract"
+        }
+      ],
+      "truncated": true
+    },
+    "fund_flows": {
+      "commit_count": 87,
+      "files": [
+        "contracts/governance/FundDistributor.sol",
+        "contracts/governance/MasterChef.sol",
+        "contracts/governance/SimpleTimelock.sol",
+        "contracts/governance/SimpleVesting.sol",
+        "contracts/governance/TokenMigrator.sol",
+        "contracts/governance/rewarders/ComplexRewarderTime.sol",
+        "contracts/governance/testFaucet.sol",
+        "contracts/governance/voteEscrow.sol",
+        "contracts/interfaces/IDepositContract.sol",
+        "contracts/interfaces/IERC20MintableBurnable.sol",
+        "contracts/interfaces/IMasterChef.sol",
+        "contracts/interfaces/IMiniChefV2.sol",
+        "contracts/interfaces/ISGEth.sol",
+        "contracts/interfaces/ISharedDeposit.sol",
+        "contracts/interfaces/IVotingEscrow.sol",
+        "contracts/interfaces/IWSGEth.sol",
+        "contracts/interfaces/IvETH2.sol",
+        "contracts/mocks/DepositContract.sol",
+        "contracts/nfts/MintableNFTSale.sol",
+        "contracts/util/MintableBurnableTokenManagerUpgradeable.sol",
+        "contracts/util/SingleTokenVestingNonRevocable.sol",
+        "contracts/util/TokenTimelock.sol",
+        "contracts/util/VaultWithAdminFeeUpgradeable.sol",
+        "contracts/util/WithdrawQueueUpgradeable.sol",
+        "contracts/v2/core/RewardsReceiver.sol",
+        "contracts/v2/core/Rollover.sol",
+        "contracts/v2/core/SharedDepositMinterV2.sol",
+        "contracts/v2/core/WSGEth.sol",
+        "contracts/v2/core/WithdrawalQueue.sol",
+        "contracts/v2/core/Withdrawals.sol",
+        "contracts/v2/interfaces/IDepositContract.sol",
+        "contracts/v2/interfaces/IERC20MintableBurnable.sol",
+        "contracts/v2/interfaces/ISGEth.sol",
+        "contracts/v2/interfaces/ISharedDeposit.sol",
+        "contracts/v2/interfaces/IWSGEth.sol",
+        "contracts/v2/modular-staking/StToken.sol",
+        "contracts/v2/modular-staking/WstToken.sol",
+        "contracts/v2/modular/mocks/MockDepositContractLite.sol",
+        "contracts/v2/periphery/UserDepositHelper.sol",
+        "contracts/v2/periphery/Zap.sol",
+        "contracts/vEth2.sol"
+      ],
+      "commits": [
+        {
+          "sha": "45b4078",
+          "date": "2026-05-08",
+          "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02"
+        },
+        {
+          "sha": "721a055",
+          "date": "2026-05-08",
+          "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2"
+        },
+        {
+          "sha": "4445689",
+          "date": "2026-05-06",
+          "subject": "feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Code"
+        },
+        {
+          "sha": "05dc8d9",
+          "date": "2026-05-05",
+          "subject": "feat(staking-router): modular StakingRouter \u2014 ValidatorModule, DVTModule, LSTWra"
+        },
+        {
+          "sha": "21fe833",
+          "date": "2024-08-21",
+          "subject": "fix + add test for cancel"
+        },
+        {
+          "sha": "04d2345",
+          "date": "2024-08-15",
+          "subject": "fix pause"
+        },
+        {
+          "sha": "47ba713",
+          "date": "2024-08-15",
+          "subject": "[feat/WithdrawQ]: add user ability to cancel a redemption request"
+        },
+        {
+          "sha": "127617d",
+          "date": "2024-07-02",
+          "subject": "add mock deposit contract"
+        },
+        {
+          "sha": "5876f98",
+          "date": "2024-07-02",
+          "subject": "add old script changes"
+        },
+        {
+          "sha": "131c42d",
+          "date": "2024-06-25",
+          "subject": "lint"
+        },
+        {
+          "sha": "baeb2be",
+          "date": "2024-06-25",
+          "subject": "flesh out the periphery contracts a bit"
+        },
+        {
+          "sha": "ffd327b",
+          "date": "2024-06-25",
+          "subject": "add granular pause to withdrawal queue"
+        },
+        {
+          "sha": "785b05c",
+          "date": "2024-06-25",
+          "subject": "reset minter"
+        },
+        {
+          "sha": "a9b0754",
+          "date": "2024-06-24",
+          "subject": "fixed withdrawal queue and minter contract"
+        },
+        {
+          "sha": "a21d439",
+          "date": "2024-06-23",
+          "subject": "solidity compiler config"
+        }
+      ],
+      "truncated": true
+    },
+    "oracle_price": {
+      "commit_count": 53,
+      "files": [
+        "contracts/interfaces/IPriceOracle.sol",
+        "contracts/nfts/MintableNFTSale.sol",
+        "contracts/priceOracle.sol",
+        "contracts/util/PriceOracleUpgradeable.sol",
+        "contracts/util/VaultWithAdminFeeUpgradeable.sol",
+        "contracts/util/VaultWithSharesAndCapUpgradeable.sol",
+        "contracts/v2/core/Rollover.sol",
+        "contracts/v2/core/SharedDepositMinterV2.sol",
+        "contracts/v2/core/WSGEth.sol",
+        "contracts/v2/core/Withdrawals.sol",
+        "contracts/v2/modular-staking/FeeController.sol",
+        "contracts/v2/modular-staking/OracleAdapter.sol",
+        "contracts/v2/modular-staking/ShareMath.sol",
+        "contracts/v2/modular-staking/StToken.sol",
+        "contracts/v2/modular-staking/StakingCore.sol",
+        "contracts/v2/modular-staking/StakingRouter.sol",
+        "contracts/v2/modular-staking/WithdrawalQueueV2.sol",
+        "contracts/v2/modular-staking/interfaces/ILSTPriceOracle.sol"
+      ],
+      "commits": [
+        {
+          "sha": "45b4078",
+          "date": "2026-05-08",
+          "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02"
+        },
+        {
+          "sha": "721a055",
+          "date": "2026-05-08",
+          "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2"
+        },
+        {
+          "sha": "05dc8d9",
+          "date": "2026-05-05",
+          "subject": "feat(staking-router): modular StakingRouter \u2014 ValidatorModule, DVTModule, LSTWra"
+        },
+        {
+          "sha": "5876f98",
+          "date": "2024-07-02",
+          "subject": "add old script changes"
+        },
+        {
+          "sha": "785b05c",
+          "date": "2024-06-25",
+          "subject": "reset minter"
+        },
+        {
+          "sha": "a9b0754",
+          "date": "2024-06-24",
+          "subject": "fixed withdrawal queue and minter contract"
+        },
+        {
+          "sha": "34b4cd6",
+          "date": "2024-06-19",
+          "subject": "refactor out operators"
+        },
+        {
+          "sha": "bbaf69f",
+          "date": "2024-06-19",
+          "subject": "make things a bit more consistent"
+        },
+        {
+          "sha": "1f2ad8e",
+          "date": "2024-06-19",
+          "subject": "refactor repo"
+        },
+        {
+          "sha": "9641542",
+          "date": "2024-06-19",
+          "subject": "fixes, test"
+        },
+        {
+          "sha": "ced987a",
+          "date": "2024-06-07",
+          "subject": "follow solhint hints"
+        },
+        {
+          "sha": "293aa63",
+          "date": "2024-06-05",
+          "subject": "reentrant bugfix on wsgEth contract"
+        },
+        {
+          "sha": "a954a9a",
+          "date": "2024-05-30",
+          "subject": "chore: cleanup build and run process"
+        },
+        {
+          "sha": "c33a9b0",
+          "date": "2023-11-09",
+          "subject": "lint & gen"
+        },
+        {
+          "sha": "4157b11",
+          "date": "2023-11-09",
+          "subject": "feat: add event emit to withdrawals for airdrop tracking, and new goerli redempt"
+        }
+      ],
+      "truncated": true
+    },
+    "liquidation": {
+      "commit_count": 1,
+      "files": [
+        "contracts/v2/modular-staking/StakingRouter.sol"
+      ],
+      "commits": [
+        {
+          "sha": "721a055",
+          "date": "2026-05-08",
+          "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2"
+        }
+      ]
+    },
+    "signatures": {
+      "commit_count": 45,
+      "files": [
+        "contracts/governance/SGTv2.sol",
+        "contracts/interfaces/IDepositContract.sol",
+        "contracts/interfaces/IERC20MintableBurnable.sol",
+        "contracts/interfaces/IvETH2.sol",
+        "contracts/mocks/DepositContract.sol",
+        "contracts/util/Eth2DepositHelperUpgradeable.sol",
+        "contracts/v2/core/SharedDepositMinterV2.sol",
+        "contracts/v2/core/WSGEth.sol",
+        "contracts/v2/interfaces/IDepositContract.sol",
+        "contracts/v2/interfaces/IERC20MintableBurnable.sol",
+        "contracts/v2/modular-staking/StToken.sol",
+        "contracts/v2/modular/StakingRouterLite.sol",
+        "contracts/v2/modular/interfaces/IStakingModuleLite.sol",
+        "contracts/v2/modular/mocks/MockDepositContractLite.sol",
+        "contracts/v2/modular/modules/CuratedNorModuleLite.sol",
+        "contracts/vEth2.sol"
+      ],
+      "commits": [
+        {
+          "sha": "45b4078",
+          "date": "2026-05-08",
+          "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02"
+        },
+        {
+          "sha": "4445689",
+          "date": "2026-05-06",
+          "subject": "feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Code"
+        },
+        {
+          "sha": "05dc8d9",
+          "date": "2026-05-05",
+          "subject": "feat(staking-router): modular StakingRouter \u2014 ValidatorModule, DVTModule, LSTWra"
+        },
+        {
+          "sha": "127617d",
+          "date": "2024-07-02",
+          "subject": "add mock deposit contract"
+        },
+        {
+          "sha": "5876f98",
+          "date": "2024-07-02",
+          "subject": "add old script changes"
+        },
+        {
+          "sha": "785b05c",
+          "date": "2024-06-25",
+          "subject": "reset minter"
+        },
+        {
+          "sha": "a9b0754",
+          "date": "2024-06-24",
+          "subject": "fixed withdrawal queue and minter contract"
+        },
+        {
+          "sha": "34b4cd6",
+          "date": "2024-06-19",
+          "subject": "refactor out operators"
+        },
+        {
+          "sha": "bbaf69f",
+          "date": "2024-06-19",
+          "subject": "make things a bit more consistent"
+        },
+        {
+          "sha": "1f2ad8e",
+          "date": "2024-06-19",
+          "subject": "refactor repo"
+        },
+        {
+          "sha": "9641542",
+          "date": "2024-06-19",
+          "subject": "fixes, test"
+        },
+        {
+          "sha": "ced987a",
+          "date": "2024-06-07",
+          "subject": "follow solhint hints"
+        },
+        {
+          "sha": "293aa63",
+          "date": "2024-06-05",
+          "subject": "reentrant bugfix on wsgEth contract"
+        },
+        {
+          "sha": "a954a9a",
+          "date": "2024-05-30",
+          "subject": "chore: cleanup build and run process"
+        },
+        {
+          "sha": "c33a9b0",
+          "date": "2023-11-09",
+          "subject": "lint & gen"
+        }
+      ],
+      "truncated": true
+    },
+    "state_machines": {
+      "commit_count": 61,
+      "files": [
+        "contracts/Allowlist.sol",
+        "contracts/blocklist.sol",
+        "contracts/interfaces/IDepositContract.sol",
+        "contracts/mocks/DepositContract.sol",
+        "contracts/nfts/MintableNFTSale.sol",
+        "contracts/priceOracle.sol",
+        "contracts/tokenManager.sol",
+        "contracts/util/Eth2DepositHelperUpgradeable.sol",
+        "contracts/util/OwnershipRolesTemplate.sol",
+        "contracts/v2/core/RewardsReceiver.sol",
+        "contracts/v2/core/SharedDepositMinterV2.sol",
+        "contracts/v2/core/WithdrawalQueue.sol",
+        "contracts/v2/interfaces/IDepositContract.sol",
+        "contracts/v2/modular-staking/OracleAdapter.sol",
+        "contracts/v2/modular-staking/StakingCore.sol",
+        "contracts/v2/modular-staking/StakingRouter.sol",
+        "contracts/v2/modular-staking/WithdrawalQueueV2.sol",
+        "contracts/v2/modular/StakingRouterLite.sol",
+        "contracts/v2/modular/interfaces/IStakingRouterLite.sol"
+      ],
+      "commits": [
+        {
+          "sha": "45b4078",
+          "date": "2026-05-08",
+          "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02"
+        },
+        {
+          "sha": "721a055",
+          "date": "2026-05-08",
+          "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2"
+        },
+        {
+          "sha": "4445689",
+          "date": "2026-05-06",
+          "subject": "feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Code"
+        },
+        {
+          "sha": "05dc8d9",
+          "date": "2026-05-05",
+          "subject": "feat(staking-router): modular StakingRouter \u2014 ValidatorModule, DVTModule, LSTWra"
+        },
+        {
+          "sha": "21fe833",
+          "date": "2024-08-21",
+          "subject": "fix + add test for cancel"
+        },
+        {
+          "sha": "04d2345",
+          "date": "2024-08-15",
+          "subject": "fix pause"
+        },
+        {
+          "sha": "47ba713",
+          "date": "2024-08-15",
+          "subject": "[feat/WithdrawQ]: add user ability to cancel a redemption request"
+        },
+        {
+          "sha": "127617d",
+          "date": "2024-07-02",
+          "subject": "add mock deposit contract"
+        },
+        {
+          "sha": "5876f98",
+          "date": "2024-07-02",
+          "subject": "add old script changes"
+        },
+        {
+          "sha": "131c42d",
+          "date": "2024-06-25",
+          "subject": "lint"
+        },
+        {
+          "sha": "ffd327b",
+          "date": "2024-06-25",
+          "subject": "add granular pause to withdrawal queue"
+        },
+        {
+          "sha": "785b05c",
+          "date": "2024-06-25",
+          "subject": "reset minter"
+        },
+        {
+          "sha": "a9b0754",
+          "date": "2024-06-24",
+          "subject": "fixed withdrawal queue and minter contract"
+        },
+        {
+          "sha": "a21d439",
+          "date": "2024-06-23",
+          "subject": "solidity compiler config"
+        },
+        {
+          "sha": "e8d3e8f",
+          "date": "2024-06-21",
+          "subject": "add admin ability to set epoch length"
+        }
+      ],
+      "truncated": true
+    }
+  },
+  "late_changes": {
+    "window_days": 30,
+    "cutoff_date": "2026-04-08",
+    "latest_commit_date": "2026-05-08",
+    "late_commits": [
+      {
+        "sha": "45b4078",
+        "date": "2026-05-08",
+        "author": "Codex GPT-5",
+        "subject": "fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02",
+        "source_files": [
+          "contracts/v2/modular-staking/FeeController.sol",
+          "contracts/v2/modular-staking/OracleAdapter.sol",
+          "contracts/v2/modular-staking/StToken.sol"
+        ],
+        "test_changed": false,
+        "lines_changed": 16
+      },
+      {
+        "sha": "721a055",
+        "date": "2026-05-08",
+        "author": "Codex GPT-5",
+        "subject": "feat(modular-staking): advance contracts, tests, and deployments for V2",
+        "source_files": [
+          "contracts/v2/modular-staking/FeeController.sol",
+          "contracts/v2/modular-staking/ShareMath.sol",
+          "contracts/v2/modular-staking/StakingCore.sol",
+          "contracts/v2/modular-staking/StakingRouter.sol",
+          "contracts/v2/modular-staking/WithdrawalQueueV2.sol",
+          "contracts/v2/modular-staking/WstToken.sol",
+          "contracts/v2/modular-staking/interfaces/ILSTPriceOracle.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 72
+      },
+      {
+        "sha": "acc8801",
+        "date": "2026-05-06",
+        "author": "Codex GPT-5",
+        "subject": "refactor(modular-staking): complete lido-parity \u2192 modular-staking rename, add te",
+        "source_files": [
+          "contracts/drafts/Controller.sol",
+          "contracts/drafts/SharedDepositV2Upgradeable.sol",
+          "contracts/drafts/sharedDepositEth2Upgradeable.sol",
+          "contracts/drafts/sharedDepositUpgradeable.2.0.0.sol",
+          "contracts/v1/GoerliETHRecov.sol",
+          "contracts/v2/{lido-parity => modular-staking}/FeeController.sol",
+          "contracts/v2/{lido-parity => modular-staking}/InstitutionalPolicyRegistry.sol",
+          "contracts/v2/{lido-parity => modular-staking}/LidoPriceOracle.sol",
+          "contracts/v2/{lido-parity => modular-staking}/OracleAdapter.sol",
+          "contracts/v2/{lido-parity => modular-staking}/QuorumOracleAdapter.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 758
+      },
+      {
+        "sha": "e239a55",
+        "date": "2026-05-06",
+        "author": "Codex GPT-5",
+        "subject": "fix(lido-parity): reconcile fee model across StakingCore and StakingRouter",
+        "source_files": [
+          "contracts/v2/lido-parity/StakingCore.sol",
+          "contracts/v2/lido-parity/StakingRouter.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 13
+      },
+      {
+        "sha": "4445689",
+        "date": "2026-05-06",
+        "author": "Claudy Won",
+        "subject": "feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Code",
+        "source_files": [
+          "contracts/v2/lido-parity/InstitutionalPolicyRegistry.sol",
+          "contracts/v2/lido-parity/QuorumOracleAdapter.sol",
+          "contracts/v2/lido-parity/StakingCore.sol",
+          "contracts/v2/lido-parity/StakingRouter.sol",
+          "contracts/v2/lido-parity/WithdrawalQueueV2.sol",
+          "contracts/v2/lido-parity/interfaces/IInstitutionalPolicyRegistry.sol",
+          "contracts/v2/modular/StakingRouterLite.sol",
+          "contracts/v2/modular/interfaces/IStakingModuleLite.sol",
+          "contracts/v2/modular/interfaces/IStakingRouterLite.sol",
+          "contracts/v2/modular/mocks/MockDepositContractLite.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 1224
+      },
+      {
+        "sha": "d8b8eb1",
+        "date": "2026-05-05",
+        "author": "Claudy Won",
+        "subject": "security(lido-parity): harden contracts, add LST wrap tests, tighten keepers [Ag",
+        "source_files": [
+          "contracts/v2/lido-parity/LidoPriceOracle.sol",
+          "contracts/v2/lido-parity/StakingRouter.sol",
+          "contracts/v2/lido-parity/interfaces/ILSTPriceOracle.sol",
+          "contracts/v2/lido-parity/modules/LSTWrapModule.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 73
+      },
+      {
+        "sha": "05dc8d9",
+        "date": "2026-05-05",
+        "author": "Claudy Won",
+        "subject": "feat(staking-router): modular StakingRouter \u2014 ValidatorModule, DVTModule, LSTWra",
+        "source_files": [
+          "contracts/v2/core/RewardsReceiver.sol",
+          "contracts/v2/core/SgETH.sol",
+          "contracts/v2/core/SharedDepositMinterV2.sol",
+          "contracts/v2/core/WithdrawalQueue.sol",
+          "contracts/v2/lido-parity/LidoPriceOracle.sol",
+          "contracts/v2/lido-parity/OracleAdapter.sol",
+          "contracts/v2/lido-parity/StakingRouter.sol",
+          "contracts/v2/lido-parity/interfaces/IDepositContract.sol",
+          "contracts/v2/lido-parity/interfaces/ILSTPriceOracle.sol",
+          "contracts/v2/lido-parity/interfaces/IReportable.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 987
+      },
+      {
+        "sha": "58b117b",
+        "date": "2026-05-04",
+        "author": "Claudy Won",
+        "subject": "feat(lido-parity): add Lido-parity staking core MVP contracts, tests, and deploy",
+        "source_files": [
+          "contracts/v2/lido-parity/FeeController.sol",
+          "contracts/v2/lido-parity/OracleAdapter.sol",
+          "contracts/v2/lido-parity/ShareMath.sol",
+          "contracts/v2/lido-parity/StToken.sol",
+          "contracts/v2/lido-parity/StakingCore.sol",
+          "contracts/v2/lido-parity/WithdrawalQueueV2.sol",
+          "contracts/v2/lido-parity/WstToken.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 964
+      }
+    ],
+    "source_without_test_count": 1,
+    "total_late_source_commits": 8
+  },
+  "forked_deps": {
+    "detected_libs": [],
+    "removed_submodules": []
+  },
+  "tech_debt": {
+    "total_count": 4,
+    "items": [
+      {
+        "file": "contracts/governance/voteEscrow.sol",
+        "line": 196,
+        "type": "TODO",
+        "text": "we cannot burn univ2/sushi LP tokens, therefore they need to be sent to 0xdead or this needs to change",
+        "blame_author": "Cihmera Defi",
+        "blame_date": "2024-05-30"
+      },
+      {
+        "file": "contracts/v2/periphery/FeeCalc.sol",
+        "line": 53,
+        "type": "TODO",
+        "text": "semder is currently unsused but can be used later to calculate a fee reduction based on token holdings",
+        "blame_author": "Chimera",
+        "blame_date": "2024-07-02"
+      },
+      {
+        "file": "contracts/v2/periphery/FeeCalc.sol",
+        "line": 61,
+        "type": "TODO",
+        "text": "semder is currently unsused but can be used later to calculate a fee reduction based on token holdings",
+        "blame_author": "Chimera",
+        "blame_date": "2024-07-02"
+      },
+      {
+        "file": "contracts/v2/periphery/UserDepositHelper.sol",
+        "line": 10,
+        "type": "TODO",
+        "text": "Tests, scripts to aggregate events offchain and calc referral rewards",
+        "blame_author": "Chimera",
+        "blame_date": "2024-06-25"
+      }
+    ],
+    "files_with_debt": 3,
+    "capped": false
+  },
+  "dev_patterns": {
+    "test_co_change_rate": 0.126,
+    "fix_without_test_rate": 0.6,
+    "avg_commit_size": 216.3,
+    "avg_commit_size_note": null,
+    "single_developer_pct": 0.614,
+    "top_contributor": "Chimera Defi",
+    "contributor_breakdown": [
+      {
+        "author": "Chimera Defi",
+        "lines_added": 11102,
+        "pct": 0.614
+      },
+      {
+        "author": "Claudy Won",
+        "lines_added": 3176,
+        "pct": 0.176
+      },
+      {
+        "author": "Cihmera Defi",
+        "lines_added": 2067,
+        "pct": 0.114
+      },
+      {
+        "author": "Chimera",
+        "lines_added": 1370,
+        "pct": 0.076
+      },
+      {
+        "author": "devlancer412",
+        "lines_added": 251,
+        "pct": 0.014
+      },
+      {
+        "author": "Codex GPT-5",
+        "lines_added": 73,
+        "pct": 0.004
+      },
+      {
+        "author": "Val",
+        "lines_added": 32,
+        "pct": 0.002
+      }
+    ]
+  }
+}

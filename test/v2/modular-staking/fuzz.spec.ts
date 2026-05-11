@@ -20,7 +20,7 @@ describe("ModularStaking Fuzz / Invariants", () => {
     stToken = await StToken.deploy();
 
     const FeeController = await ethers.getContractFactory("FeeController");
-    feeController = await FeeController.deploy(gov.address, gov.address, deployer.address, 1000, 5000);
+    feeController = await FeeController.deploy(gov.address, gov.address, deployer.address, ZeroAddress, 1000, 5000, 5000);
 
     const StakingCore = await ethers.getContractFactory("StakingCore");
     stakingCore = await StakingCore.deploy(stToken.target, gov.address);
@@ -72,9 +72,9 @@ describe("ModularStaking Fuzz / Invariants", () => {
       parseEther("1000"), parseEther("100000")
     ];
     for (const rewards of testValues) {
-      const [treasury, operator] = await feeController.computeFees(rewards);
+      const [treasury, operator, referral] = await feeController.computeFees(rewards);
       const totalFee = (rewards * 1000n) / 10000n;
-      expect(treasury + operator).to.equal(totalFee);
+      expect(treasury + operator + referral).to.equal(totalFee);
     }
   });
 
@@ -84,12 +84,12 @@ describe("ModularStaking Fuzz / Invariants", () => {
     expect(operator).to.equal(0n);
   });
 
-  it("FeeController: treasury + operator == totalFee for edge cases", async () => {
+  it("FeeController: treasury + operator + referral == totalFee for edge cases", async () => {
     const edgeCases = [1n, 9999n, 10000n, 10001n, parseEther("0.0001"), parseEther("999999")];
     for (const rewards of edgeCases) {
-      const [treasury, operator] = await feeController.computeFees(rewards);
+      const [treasury, operator, referral] = await feeController.computeFees(rewards);
       const totalFee = (rewards * 1000n) / 10000n;
-      expect(treasury + operator).to.equal(totalFee);
+      expect(treasury + operator + referral).to.equal(totalFee);
     }
   });
 

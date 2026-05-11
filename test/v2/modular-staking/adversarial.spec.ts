@@ -55,7 +55,9 @@ describe("SharedStake V2 adversarial", () => {
       gov.address,
       gov.address,
       deployer.address,
+      ZeroAddress,
       1000,
+      5000,
       5000,
     );
 

@@ -2,6 +2,7 @@
 pragma solidity 0.8.20;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ShareMath} from "./ShareMath.sol";
@@ -14,7 +15,7 @@ import {Errors} from "../lib/Errors.sol";
 /// @dev EIP-712 permit supported (inherited via ERC20Permit initialisation).
 ///      ERC20 events are emitted with token amounts, not share amounts.
 ///      TransferShares events provide the share-level view.
-contract StToken is AccessControl {
+contract StToken is AccessControl, ReentrancyGuard {
     using ShareMath for *;
 
     // ── Roles ────────────────────────────────────────────────────────────────
@@ -64,12 +65,12 @@ contract StToken is AccessControl {
         return true;
     }
 
-    function transfer(address to, uint256 amount) external returns (bool) {
+    function transfer(address to, uint256 amount) external nonReentrant returns (bool) {
         _transfer(msg.sender, to, amount);
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) external nonReentrant returns (bool) {
         uint256 currentAllowance = _allowances[from][msg.sender];
         if (currentAllowance != type(uint256).max) {
             if (currentAllowance < amount) revert Errors.InsufficientBalance();

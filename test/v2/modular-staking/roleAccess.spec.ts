@@ -37,7 +37,9 @@ describe("modular-staking role/access sweep", () => {
         gov.address,
         gov.address,
         deployer.address,
+        ZeroAddress,
         1000,
+        5000,
         5000,
       );
 
@@ -97,7 +99,9 @@ describe("modular-staking role/access sweep", () => {
         gov.address,
         gov.address,
         deployer.address,
+        ZeroAddress,
         1000,
+        5000,
         5000,
       );
 

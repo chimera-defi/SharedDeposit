@@ -37,8 +37,10 @@ describe("StakingCore", () => {
       gov.address,          // gov
       gov.address,          // treasury
       deployer.address,     // operator
+      ZeroAddress,          // referral registry (unused in this suite)
       1000,                 // feeBps: 10%
       5000,                 // treasurySplitBps: 50%
+      5000,                 // operatorSplitBps: 50%
     );
 
     const StakingCore = await ethers.getContractFactory("StakingCore");
