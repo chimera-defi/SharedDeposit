@@ -198,11 +198,11 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         return _beaconValidators;
     }
 
-    /// @dev Direct ETH transfers buffer in place. They do NOT mint shares — those
-    ///      can only be minted via the Router's `submit*` path. The funds remain
-    ///      stuck unless GOV recovers them through a future migration.
+    /// @dev Direct ETH transfers are accepted but do NOT update _bufferedEther.
+    ///      Only Router-mediated deposits via receiveDeposit() update accounting.
+    ///      This prevents unbacked ETH from inflating totalEth() and breaking the
+    ///      Router accounting invariant (totalPooledEther == sum module.totalEth()).
     receive() external payable virtual {
-        _bufferedEther += msg.value;
         emit DepositReceived(msg.value, _bufferedEther);
     }
 }
