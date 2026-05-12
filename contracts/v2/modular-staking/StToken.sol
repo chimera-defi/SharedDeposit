@@ -73,7 +73,7 @@ contract StToken is AccessControl, ReentrancyGuard {
     function transferFrom(address from, address to, uint256 amount) external nonReentrant returns (bool) {
         uint256 currentAllowance = _allowances[from][msg.sender];
         if (currentAllowance != type(uint256).max) {
-            if (currentAllowance < amount) revert Errors.InsufficientBalance();
+            if (currentAllowance < amount) revert Errors.InsufficientAllowance();
             unchecked {
                 _approve(from, msg.sender, currentAllowance - amount);
             }
@@ -170,7 +170,12 @@ contract StToken is AccessControl, ReentrancyGuard {
 
     function _transfer(address from, address to, uint256 amount) internal {
         if (to == address(0)) revert Errors.ZeroAddress();
+        if (amount == 0) {
+            emit Transfer(from, to, 0);
+            return;
+        }
         uint256 shares = ShareMath.getSharesByPooledEth(amount, _totalShares, _totalPooledEther);
+        if (shares == 0) revert Errors.InvalidAmount();
         _transferShares(from, to, shares);
         emit Transfer(from, to, amount);
     }

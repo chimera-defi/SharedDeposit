@@ -241,7 +241,7 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
             // but kept for internal consistency.
             _vp = voting_power_locked_days(_amount, _days);
             _locked.end = _end + _days * 1 days;
-            require(_locked.end - _now <= MAXTIME, "Cannot extend lock beyond max");
+            if (_locked.end - _now > MAXTIME) revert CannotExtendBeyondMax();
         }
         if (_vp == 0) revert NoBenefitToLock();
         if (_value > 0) {

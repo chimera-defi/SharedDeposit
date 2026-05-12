@@ -11,6 +11,7 @@ library Errors {
     error InvalidAmount();
     error PermissionDenied();
     error InsufficientBalance();
+    error InsufficientAllowance();
     error TooEarly();
     error FailedCall();
     error StaleOracle();

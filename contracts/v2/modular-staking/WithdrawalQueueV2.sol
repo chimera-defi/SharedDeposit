@@ -231,6 +231,13 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
         emit BunkerParamsUpdated(bunkerMaxRequestsPerFinalize, bunkerMinRequestAge);
     }
 
+    /// @notice Recover accidentally sent ETH that is not locked for claims.
+    function recoverEth(address payable to, uint256 amount) external onlyRole(GOV) {
+        uint256 available = address(this).balance - lockedEther;
+        if (amount > available) revert Errors.InsufficientBalance();
+        to.sendValue(amount);
+    }
+
     // ── Claim ─────────────────────────────────────────────────────────────────
 
     /// @notice Claim ETH for a finalized withdrawal request.
