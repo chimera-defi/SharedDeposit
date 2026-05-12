@@ -15,3 +15,8 @@ logs.txt
 # coverage
 coverage/*
 coverage.json
+
+# Foundry
+out
+cache/foundry
+lib/forge-std
