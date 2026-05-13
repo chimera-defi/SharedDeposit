@@ -135,7 +135,18 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         bytes calldata withdrawal_credentials,
         bytes calldata signature,
         bytes32 deposit_data_root
-    ) external onlyRole(NODE_OPERATOR) nonReentrant whenNotPaused(PAUSE_RECEIVE) {
+    ) external virtual onlyRole(NODE_OPERATOR) nonReentrant whenNotPaused(PAUSE_RECEIVE) {
+        _doBeaconDeposit(pubkey, withdrawal_credentials, signature, deposit_data_root);
+    }
+
+    /// @dev Core deposit logic extracted so subclasses (e.g. DVTModule) can reuse
+    ///      it without duplicating reentrancy guards.
+    function _doBeaconDeposit(
+        bytes calldata pubkey,
+        bytes calldata withdrawal_credentials,
+        bytes calldata signature,
+        bytes32 deposit_data_root
+    ) internal {
         if (_bufferedEther < DEPOSIT_AMOUNT) {
             revert InsufficientBuffer(_bufferedEther, DEPOSIT_AMOUNT);
         }
@@ -160,10 +171,7 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
             deposit_data_root
         );
 
-        // Bump the router's baseline so subsequent oracle reports treat 32 ETH as
-        // already "in the beacon" (no double-count vs. existing totalPooledEther).
         ROUTER.notifyBeaconDeposit(MODULE_ID, DEPOSIT_AMOUNT);
-
         emit BeaconChainDeposit(pubkey, DEPOSIT_AMOUNT, _bufferedEther);
     }
 

@@ -31,7 +31,8 @@ const GOERLIPK = process.env.GOERLIPK
 // const GOERLI_RPC_URL = `https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_GOERLI_KEY}`;
 
 const ALCHEMY_KEY = process.env.ALCHEMY_KEY;
-const MAINNET_RPC_URL = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`;
+const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL
+  || (ALCHEMY_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined);
 
 const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : GOERLIPK;
 // Your API key for Etherscan
@@ -123,15 +124,18 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       tags: ["hardhat"],
+      ...(MAINNET_RPC_URL ? { forking: { url: MAINNET_RPC_URL } } : {}),
     },
     localhost: {
       accounts: [`0x${GOERLIPK}`],
     },
-    mainnet: {
-      url: MAINNET_RPC_URL,
-      accounts: [`0x${MAINNET_PRIVATE_KEY}`],
-      chainId: chainIds.mainnet,
-    },
+    ...(MAINNET_RPC_URL ? {
+      mainnet: {
+        url: MAINNET_RPC_URL,
+        accounts: [`0x${MAINNET_PRIVATE_KEY}`],
+        chainId: chainIds.mainnet,
+      },
+    } : {}),
     sepolia: {
       url: SEPOLIA_RPC_URL,
       accounts: [`0x${SEPOLIA_PRIVATE_KEY}`],
