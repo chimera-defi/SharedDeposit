@@ -52,6 +52,7 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     uint256 internal _beaconBalance;     // last reported sum of validator balances
     uint256 internal _beaconValidators;  // last reported validator count
     bytes32 public expectedWithdrawalCredentials; // validated withdrawal creds prefix
+    mapping(bytes32 => bool) internal _depositedPubkeys; // keccak256(pubkey) → already deposited
 
     // ── Events ────────────────────────────────────────────────────────────────
     event DepositReceived(uint256 amount, uint256 newBufferedEther);
@@ -64,6 +65,7 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     error InsufficientBuffer(uint256 available, uint256 required);
     error BeaconBalanceSanityFailed(uint256 reported, uint256 expected);
     error InvalidWithdrawalCredentials();
+    error DuplicatePubkey(bytes32 pubkeyHash);
 
     constructor(address router, bytes32 moduleId, address gov, address beaconDepositContract) {
         if (router == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -150,6 +152,10 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         if (_bufferedEther < DEPOSIT_AMOUNT) {
             revert InsufficientBuffer(_bufferedEther, DEPOSIT_AMOUNT);
         }
+
+        bytes32 pkHash = keccak256(pubkey);
+        if (_depositedPubkeys[pkHash]) revert DuplicatePubkey(pkHash);
+        _depositedPubkeys[pkHash] = true;
 
         // Validate withdrawal credentials belong to the protocol
         bytes32 expected = expectedWithdrawalCredentials;

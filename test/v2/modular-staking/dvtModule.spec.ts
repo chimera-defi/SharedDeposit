@@ -61,9 +61,13 @@ describe("DVTModule", () => {
   });
 
   it("inherits ValidatorModule behavior: reportBeacon", async () => {
-    // Initialize beacon baseline via deposit so notifyBeaconDeposit is called
+    // Register cluster with nodeOp so depositToBeaconChainInCluster is available
+    const CLUSTER_ID = ethers.keccak256(ethers.toUtf8Bytes("CLUSTER_BEACON"));
+    await dvtModule.connect(gov).registerCluster(CLUSTER_ID, [nodeOp.address], 1);
+
     await router.submitToModule(DVT_ID, ZeroAddress, {value: parseEther("32")});
-    await dvtModule.connect(nodeOp).depositToBeaconChain(
+    await dvtModule.connect(nodeOp).depositToBeaconChainInCluster(
+      CLUSTER_ID,
       "0x" + "00".repeat(48), "0x" + "00".repeat(32), "0x" + "00".repeat(96), "0x" + "00".repeat(32)
     );
     await dvtModule.connect(oracle).reportBeacon(1, parseEther("32"));
@@ -71,18 +75,16 @@ describe("DVTModule", () => {
     expect(await dvtModule.beaconValidators()).to.equal(1);
   });
 
-  it("inherits ValidatorModule behavior: depositToBeaconChain", async () => {
+  it("depositToBeaconChain reverts with UseClusteredDeposit (DVTM-01)", async () => {
     await router.submitToModule(DVT_ID, ZeroAddress, {value: parseEther("32")});
-    const tx = await dvtModule.connect(nodeOp).depositToBeaconChain(
-      "0x" + "00".repeat(48),
-      "0x" + "00".repeat(32),
-      "0x" + "00".repeat(96),
-      "0x" + "00".repeat(32)
-    );
-    const receipt = await tx.wait();
-    expect(await dvtModule.bufferedEther()).to.equal(0);
-    // Verify the deposit happened by checking the mock received 32 ETH
-    expect(await ethers.provider.getBalance(mockDeposit.target)).to.equal(parseEther("32"));
+    await expect(
+      dvtModule.connect(nodeOp).depositToBeaconChain(
+        "0x" + "00".repeat(48),
+        "0x" + "00".repeat(32),
+        "0x" + "00".repeat(96),
+        "0x" + "00".repeat(32)
+      )
+    ).to.be.revertedWithCustomError(dvtModule, "UseClusteredDeposit");
   });
 
   it("has granular pause on router submit", async () => {

@@ -9,8 +9,8 @@ import {ValidatorModule} from "./ValidatorModule.sol";
 ///         registered, active cluster so governance can track which operator ensembles
 ///         (Obol, SSV, Diva, …) are permitted to key validators.
 ///
-///         `depositToBeaconChain` (base) remains callable for backward compat and
-///         for testing; production deployments should call the cluster-aware variant.
+///         `depositToBeaconChain` (base) is overridden to revert — all deposits
+///         must go through `depositToBeaconChainInCluster` for cluster attribution.
 contract DVTModule is ValidatorModule {
     // ── Structs ───────────────────────────────────────────────────────────────
     struct Cluster {
@@ -37,6 +37,8 @@ contract DVTModule is ValidatorModule {
     error ClusterNotActive(bytes32 clusterId);
     error InvalidThreshold(uint8 threshold, uint256 operatorCount);
     error EmptyOperators();
+    error UseClusteredDeposit();
+    error IndexOutOfBounds(uint256 index, uint256 length);
 
     constructor(address router, bytes32 moduleId, address gov, address beaconDepositContract)
         ValidatorModule(router, moduleId, gov, beaconDepositContract)
@@ -46,6 +48,17 @@ contract DVTModule is ValidatorModule {
 
     function moduleType() external pure override returns (bytes32) {
         return keccak256("DVT_VALIDATOR");
+    }
+
+    /// @notice Blocked: DVTModule requires cluster-attributed deposits.
+    ///         Call `depositToBeaconChainInCluster` instead.
+    function depositToBeaconChain(
+        bytes calldata,
+        bytes calldata,
+        bytes calldata,
+        bytes32
+    ) external override onlyRole(NODE_OPERATOR) nonReentrant whenNotPaused(PAUSE_RECEIVE) {
+        revert UseClusteredDeposit();
     }
 
     // ── Cluster registry (GOV only) ──────────────────────────────────────────
@@ -112,6 +125,7 @@ contract DVTModule is ValidatorModule {
     }
 
     function clusterIdAt(uint256 index) external view returns (bytes32) {
+        if (index >= _clusterIds.length) revert IndexOutOfBounds(index, _clusterIds.length);
         return _clusterIds[index];
     }
 
