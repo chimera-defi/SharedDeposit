@@ -57,6 +57,7 @@ contract MigrationHelper {
 
     error NotGov();
     error NoMigrationPending();
+    error MigrationAlreadyPending();
     error MigrationNoticePeriodNotMet(uint256 readyAt);
     error MigrationAlreadyActive();
 
@@ -81,12 +82,12 @@ contract MigrationHelper {
     // ─── governance actions ──────────────────────────────────────────────────
 
     /// @notice Announce a pending migration to a new router.
-    ///         Starts the 14-day notice clock.  Can be called again to update
-    ///         the target address while the notice period is still running,
-    ///         which resets the clock.
+    ///         Starts the 14-day notice clock. Call cancelMigration() first
+    ///         if a previous announcement needs to be replaced.
     /// @param _newRouter  Address of the replacement StakingRouter.
     function announceMigration(address _newRouter) external onlyGov {
         if (migrationActive) revert MigrationAlreadyActive();
+        if (migrationActiveAt != 0) revert MigrationAlreadyPending();
         require(_newRouter != address(0), "MigrationHelper: zero newRouter");
         require(_newRouter != OLD_ROUTER, "MigrationHelper: same router");
 
@@ -110,9 +111,12 @@ contract MigrationHelper {
         emit MigrationActivated();
     }
 
-    /// @notice Cancel a pending (or active) migration and reset all state.
+    /// @notice Cancel a pending migration and reset all state.
+    ///         Cannot be called after activateMigration() — activated migrations
+    ///         are terminal to prevent post-activation state regression.
     function cancelMigration() external onlyGov {
-        if (migrationActiveAt == 0 && !migrationActive) revert NoMigrationPending();
+        if (migrationActive) revert MigrationAlreadyActive();
+        if (migrationActiveAt == 0) revert NoMigrationPending();
 
         newRouter = address(0);
         migrationActiveAt = 0;
