@@ -19,6 +19,8 @@ import {ZeroAddress} from "ethers";
  * Wiring:
  *   - Governor is granted PROPOSER + EXECUTOR roles on Timelock
  *   - Deployer's admin role on Timelock is renounced (Timelock becomes self-governing)
+ *   - VoteEscrowV2.gov is transferred to GovernanceTimelock so penalty parameter
+ *     changes require a full governance vote + 48h delay
  */
 const func: DeployFunction = async hre => {
   const {deploy, accounts, address} = await Ship.init(hre);
@@ -97,6 +99,17 @@ const func: DeployFunction = async hre => {
 
   console.log("  Revoking deployer DEFAULT_ADMIN_ROLE on Timelock...");
   await timelock.connect(accounts.deployer).renounceRole(DEFAULT_ADMIN_ROLE, accounts.deployer.address);
+
+  // ── Transfer VoteEscrowV2.gov to Timelock ──────────────────────────────────
+  // Security requirement: penalty rate and collector changes must go through
+  // the 48h governance delay, not a single EOA key.
+  console.log("  Transferring VoteEscrowV2.gov to GovernanceTimelock...");
+  await voteEscrow.connect(govSigner).transferGov(timelock.target as string);
+  const veGov = await voteEscrow.gov();
+  if (veGov.toLowerCase() !== (timelock.target as string).toLowerCase()) {
+    throw new Error(`VoteEscrowV2.gov assertion failed: got ${veGov}, expected ${timelock.target}`);
+  }
+  console.log("  VoteEscrowV2.gov verified as GovernanceTimelock.");
 
   console.log("  Governance stack fully wired.");
 };

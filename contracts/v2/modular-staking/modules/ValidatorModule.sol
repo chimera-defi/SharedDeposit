@@ -63,7 +63,8 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     // ── Errors ────────────────────────────────────────────────────────────────
     error NotRouter(address caller);
     error InsufficientBuffer(uint256 available, uint256 required);
-    error BeaconBalanceSanityFailed(uint256 reported, uint256 expected);
+    error BeaconBalanceSanityFailed(uint256 reported, uint256 maxAllowed);
+    error BeaconValidatorCountSanityFailed(uint256 reported, uint256 maxAllowed);
     error InvalidWithdrawalCredentials();
     error DuplicatePubkey(bytes32 pubkeyHash);
 
@@ -114,10 +115,14 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         whenNotPaused(PAUSE_RECEIVE)
     {
         if (_beaconValidators > 0) {
-            uint256 maxPlausible = _beaconValidators * 32 ether * 3 / 2;
-            if (newBeaconBalance > maxPlausible) {
+            // Validator count cannot more than double per report (defense-in-depth)
+            uint256 maxValidators = _beaconValidators * 2;
+            if (newBeaconValidators > maxValidators)
+                revert BeaconValidatorCountSanityFailed(newBeaconValidators, maxValidators);
+            // Balance cap scales with the new validator count
+            uint256 maxPlausible = newBeaconValidators * 32 ether * 3 / 2;
+            if (newBeaconBalance > maxPlausible)
                 revert BeaconBalanceSanityFailed(newBeaconBalance, maxPlausible);
-            }
         }
 
         _beaconValidators = newBeaconValidators;

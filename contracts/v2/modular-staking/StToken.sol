@@ -3,8 +3,6 @@ pragma solidity 0.8.20;
 
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {ERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -12,8 +10,7 @@ import {Errors} from "../lib/Errors.sol";
 /// @notice Balances rebase automatically when oracle reports new pooled ETH.
 ///         Under the hood, the contract stores shares. The rebasing balance is:
 ///             balanceOf(account) = sharesOf(account) * totalPooledEther / totalShares
-/// @dev EIP-712 permit supported (inherited via ERC20Permit initialisation).
-///      ERC20 events are emitted with token amounts, not share amounts.
+/// @dev ERC20 events are emitted with token amounts, not share amounts.
 ///      TransferShares events provide the share-level view.
 contract StToken is AccessControl, ReentrancyGuard {
     using ShareMath for *;

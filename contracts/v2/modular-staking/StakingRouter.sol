@@ -299,7 +299,8 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         override
         nonReentrant
     {
-        _requireModuleCaller(moduleId);
+        ModuleInfo storage m = _requireModuleCaller(moduleId);
+        if (m.paused) revert ModulePaused(moduleId);
         uint256 prior = moduleBeaconBalance[moduleId];
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
         moduleBeaconBalance[moduleId] = newBeaconBalance;

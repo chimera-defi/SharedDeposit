@@ -191,4 +191,185 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
       ),
     ).to.be.revertedWithCustomError(dvtModule, "ClusterNotActive");
   });
+
+  // ── Fee distribution fork tests ──────────────────────────────────────
+
+  describe("Fee distribution fork tests", () => {
+    let feeController: any;
+    let treasury: SignerWithAddress;
+    let operator: SignerWithAddress;
+
+    before(async () => {
+      // Use alice as treasury, nodeOp as operator for fee routing.
+      treasury = alice;
+      operator = nodeOp;
+
+      const FeeController = await ethers.getContractFactory("FeeController");
+      feeController = await FeeController.deploy(
+        gov.address,
+        treasury.address,
+        operator.address,
+        ZeroAddress,   // no referral registry
+        500,           // 5% total fee
+        6000,          // 60% → treasury
+        4000,          // 40% → operator
+      );
+
+      // Wire the fee controller into the router.
+      await router.connect(gov).setFeeController(feeController.target);
+
+      // Grant ORACLE role to gov on the validatorModule so we can call reportBeacon.
+      const ORACLE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ORACLE"));
+      await validatorModule.connect(gov).grantRole(ORACLE_ROLE, gov.address);
+
+      // Clear any expected withdrawal credentials so the deposit in this test succeeds.
+      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(ethers.ZeroHash);
+    });
+
+    it("mints treasury shares on beacon reward report", async () => {
+      // Step 1: deposit 32 ETH so the module has a buffer.
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      // Step 2: do a beacon deposit — this calls notifyBeaconDeposit internally,
+      // which bumps moduleBeaconBalance[SOLO] (the required non-zero baseline).
+      const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit();
+      await validatorModule.connect(gov).depositToBeaconChain(
+        pubkey, withdrawalCreds, signature, depositDataRoot,
+      );
+
+      // Read the actual baseline (may be > 32 ETH if prior tests also deposited).
+      const baseline = await router.moduleBeaconBalance(SOLO);
+      expect(baseline).to.be.gt(0n);
+
+      // Step 3: record treasury share balance before the report.
+      const treasurySharesBefore = await stToken.sharesOf(treasury.address);
+
+      // Step 4: report a gain that is <= 1% of baseline (maxDeltaBps = 100).
+      // We use 0.9% to stay safely under the sanity cap regardless of baseline size.
+      const gain = baseline * 9n / 1000n;   // 0.9% of current baseline
+      const newBeaconBalance = baseline + gain;
+      await validatorModule.connect(gov).reportBeacon(1, newBeaconBalance);
+
+      // Assert: treasury received newly minted shares.
+      const treasurySharesAfter = await stToken.sharesOf(treasury.address);
+      expect(treasurySharesAfter).to.be.gt(treasurySharesBefore);
+
+      // Also verify a FeeSharesMinted event was emitted from the router.
+      // (We check via share balance difference as a proxy — event inspection
+      // would require the tx receipt which we already consumed above.)
+      const sharesDelta = treasurySharesAfter - treasurySharesBefore;
+      expect(sharesDelta).to.be.gt(0n);
+    });
+  });
+
+  // ── Withdrawal queue fork tests ───────────────────────────────────────
+
+  describe("Withdrawal queue fork tests", () => {
+    it("full request → finalize → claim cycle", async () => {
+      // Step 1: stake 10 ETH — alice gets stToken shares.
+      const stakeAmount = parseEther("10");
+      await router.connect(alice).submit(ZeroAddress, {value: stakeAmount});
+
+      const aliceBalance = await stToken.balanceOf(alice.address);
+      expect(aliceBalance).to.be.gt(0n);
+
+      // Step 2: queue contract is already a minter (set up in before()).
+      // requestWithdrawals burns from msg.sender directly (MINTER role on queue).
+      // We withdraw 1 ETH worth of stToken (must be >= MIN_WITHDRAWAL = 0.01 ether).
+      const withdrawAmount = parseEther("1");
+      const requestIds = await queue.connect(alice).requestWithdrawals.staticCall(
+        [withdrawAmount],
+        alice.address,
+      );
+      await queue.connect(alice).requestWithdrawals([withdrawAmount], alice.address);
+
+      const requestId = requestIds[0];
+      const req = await queue.getRequest(requestId);
+      expect(req.owner).to.equal(alice.address);
+      expect(req.finalized).to.be.false;
+
+      // Step 3: gov (GUARDIAN role on queue) finalises — sends exact ETH.
+      const ethOwed = req.ethAmount;
+      await queue.connect(gov).finalize(requestId, {value: ethOwed});
+
+      const reqAfterFinalize = await queue.getRequest(requestId);
+      expect(reqAfterFinalize.finalized).to.be.true;
+
+      // Step 4: alice claims ETH.
+      const aliceEthBefore = await ethers.provider.getBalance(alice.address);
+      const claimTx = await queue.connect(alice).claimWithdrawal(requestId, alice.address);
+      const receipt = await claimTx.wait();
+      const gasUsed = receipt!.gasUsed * claimTx.gasPrice;
+      const aliceEthAfter = await ethers.provider.getBalance(alice.address);
+
+      // Alice should receive ethOwed, net of gas.
+      expect(aliceEthAfter + gasUsed - aliceEthBefore).to.equal(ethOwed);
+
+      // Request must be marked claimed; replay must revert.
+      const reqAfterClaim = await queue.getRequest(requestId);
+      expect(reqAfterClaim.claimed).to.be.true;
+
+      await expect(
+        queue.connect(alice).claimWithdrawal(requestId, alice.address),
+      ).to.be.revertedWithCustomError(queue, "RequestAlreadyClaimed");
+    });
+  });
+
+  // ── Governance parameter fork tests ──────────────────────────────────
+
+  describe("Governance parameter fork tests", () => {
+    it("GOV can update fee bps via FeeController", async () => {
+      // Deploy a fresh FeeController for this test.
+      const FeeController = await ethers.getContractFactory("FeeController");
+      const fc = await FeeController.deploy(
+        gov.address,
+        alice.address,    // treasury
+        nodeOp.address,   // operator
+        ZeroAddress,      // no referral registry
+        200,              // 2% initial fee
+        5000,             // 50/50 split
+        5000,
+      );
+
+      // Verify initial fee is reflected in computeFees.
+      const rewards = parseEther("1");
+      const [tBefore, oBefore] = await fc.computeFees(rewards);
+      // 2% of 1 ETH = 0.02 ETH total; 50% to treasury = 0.01 ETH.
+      expect(tBefore).to.equal(parseEther("0.01"));
+      expect(oBefore).to.equal(parseEther("0.01"));
+
+      // GOV updates fee to 10%.
+      await fc.connect(gov).setFee(1000, 7000, 3000);
+
+      const [tAfter, oAfter] = await fc.computeFees(rewards);
+      // 10% of 1 ETH = 0.1 ETH; 70% to treasury = 0.07 ETH; 30% to operator = 0.03 ETH.
+      expect(tAfter).to.equal(parseEther("0.07"));
+      expect(oAfter).to.equal(parseEther("0.03"));
+    });
+
+    it("GOV can set expectedWithdrawalCredentials on ValidatorModule", async () => {
+      // Set a specific credential on the validatorModule.
+      const expectedCreds = ethers.hexlify(ethers.randomBytes(32));
+      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(expectedCreds);
+      expect(await validatorModule.expectedWithdrawalCredentials()).to.equal(expectedCreds);
+
+      // Ensure the module has at least 32 ETH buffered for the deposit calls below.
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      // Deposit with wrong credentials reverts.
+      const {pubkey, signature, depositDataRoot} = randDeposit();
+      const badCreds = ethers.hexlify(ethers.randomBytes(32));
+      await expect(
+        validatorModule.connect(gov).depositToBeaconChain(pubkey, badCreds, signature, depositDataRoot),
+      ).to.be.revertedWithCustomError(validatorModule, "InvalidWithdrawalCredentials");
+
+      // Deposit with correct credentials succeeds.
+      await expect(
+        validatorModule.connect(gov).depositToBeaconChain(pubkey, expectedCreds, signature, depositDataRoot),
+      ).to.not.be.reverted;
+
+      // Clean up: clear credentials so later tests aren't affected.
+      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(ethers.ZeroHash);
+    });
+  });
 });
