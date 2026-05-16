@@ -87,13 +87,13 @@ contract LSTWrapModule is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (recipient == address(0)) revert Errors.ZeroAddress();
         if (address(priceOracle) == address(0)) revert PriceOracleNotSet();
 
-        ethEquiv = priceOracle.getEthValue(lstAmount);
-        if (ethEquiv == 0) revert Errors.InvalidAmount();
-        // Reject stale oracle readings — protects against minting unbacked stToken
-        // if an LST depegs and the oracle hasn't updated.
+        // Reject stale oracle readings before querying price — protects against minting
+        // unbacked stToken if an LST depegs and the oracle hasn't updated.
         if (block.timestamp - priceOracle.lastUpdated() > maxOracleAgeSecs) {
             revert Errors.StaleOracle();
         }
+        ethEquiv = priceOracle.getEthValue(lstAmount);
+        if (ethEquiv == 0) revert Errors.InvalidAmount();
 
         // Pull LST in first so the router's totalEth() / mint-cap check sees the new balance.
         LST_TOKEN.safeTransferFrom(msg.sender, address(this), lstAmount);
@@ -116,6 +116,10 @@ contract LSTWrapModule is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (stTokenAmount == 0) revert Errors.InvalidAmount();
         if (recipient == address(0)) revert Errors.ZeroAddress();
         if (address(priceOracle) == address(0)) revert PriceOracleNotSet();
+
+        if (block.timestamp - priceOracle.lastUpdated() > maxOracleAgeSecs) {
+            revert Errors.StaleOracle();
+        }
 
         // Router burns the stToken shares from msg.sender and tells us the ETH value.
         uint256 ethValue = ROUTER.unwrapToModule(MODULE_ID, msg.sender, stTokenAmount);

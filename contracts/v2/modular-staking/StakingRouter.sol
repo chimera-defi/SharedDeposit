@@ -184,7 +184,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     {
         if (msg.value == 0) revert Errors.InvalidAmount();
         if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
-        sharesAmount = _deposit(defaultModuleId, msg.sender, msg.value, referral);
+        sharesAmount = _deposit(defaultModuleId, msg.sender, msg.value, referral, false, bytes32(0));
     }
 
     /// @notice Deposit ETH into a specific module by id.
@@ -196,7 +196,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         returns (uint256 sharesAmount)
     {
         if (msg.value == 0) revert Errors.InvalidAmount();
-        sharesAmount = _deposit(moduleId, msg.sender, msg.value, referral);
+        sharesAmount = _deposit(moduleId, msg.sender, msg.value, referral, false, bytes32(0));
     }
 
     /// @notice Deposit ETH and include source attribution metadata for indexers.
@@ -209,7 +209,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     {
         if (msg.value == 0) revert Errors.InvalidAmount();
         if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
-        sharesAmount = _depositWithAttribution(defaultModuleId, msg.sender, msg.value, referral, sourceId);
+        sharesAmount = _deposit(defaultModuleId, msg.sender, msg.value, referral, true, sourceId);
     }
 
     /// @notice Deposit ETH into a specific module and include source attribution metadata for indexers.
@@ -221,31 +221,17 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         returns (uint256 sharesAmount)
     {
         if (msg.value == 0) revert Errors.InvalidAmount();
-        sharesAmount = _depositWithAttribution(moduleId, msg.sender, msg.value, referral, sourceId);
+        sharesAmount = _deposit(moduleId, msg.sender, msg.value, referral, true, sourceId);
     }
 
     /// @dev Plain ETH transfer: route to default module (no referral).
     receive() external payable nonReentrant whenNotPaused(PAUSE_SUBMIT) {
         if (msg.value == 0) revert Errors.InvalidAmount();
         if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
-        _deposit(defaultModuleId, msg.sender, msg.value, address(0));
+        _deposit(defaultModuleId, msg.sender, msg.value, address(0), false, bytes32(0));
     }
 
     // ── Internal: deposit pipeline ────────────────────────────────────────────
-
-    function _deposit(bytes32 moduleId, address user, uint256 amount, address referral)
-        internal
-        returns (uint256 sharesAmount)
-    {
-        sharesAmount = _deposit(moduleId, user, amount, referral, false, bytes32(0));
-    }
-
-    function _depositWithAttribution(bytes32 moduleId, address user, uint256 amount, address referral, bytes32 sourceId)
-        internal
-        returns (uint256 sharesAmount)
-    {
-        sharesAmount = _deposit(moduleId, user, amount, referral, true, sourceId);
-    }
 
     function _deposit(bytes32 moduleId, address user, uint256 amount, address referral, bool emitAttribution, bytes32 sourceId)
         internal
@@ -276,12 +262,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         IStakingModule(m.addr).receiveDeposit{value: amount}();
 
         // Increase totalPooledEther by deposit amount (the ETH is in the module).
-        uint256 postDepositPooled = currentPooled + amount;
-        uint256 globalCap = maxTotalPooledEther;
-        if (globalCap != 0 && postDepositPooled > globalCap) {
-            revert MaxTotalPooledExceeded(postDepositPooled, globalCap);
-        }
-        ST_TOKEN.setTotalPooledEther(postDepositPooled);
+        uint256 postDepositPooled = _enforceGlobalCap(currentPooled + amount);
         ST_TOKEN.mintShares(user, sharesAmount);
         _recordReferral(user, referral, amount, sharesAmount);
 
@@ -343,12 +324,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         uint256 currentShares = ST_TOKEN.getTotalShares();
         uint256 shares = ShareMath.getSharesByPooledEth(ethEquiv, currentShares, currentPooled);
 
-        uint256 postWrapPooled = currentPooled + ethEquiv;
-        uint256 globalCapWrap = maxTotalPooledEther;
-        if (globalCapWrap != 0 && postWrapPooled > globalCapWrap) {
-            revert MaxTotalPooledExceeded(postWrapPooled, globalCapWrap);
-        }
-        ST_TOKEN.setTotalPooledEther(postWrapPooled);
+        ST_TOKEN.setTotalPooledEther(_enforceGlobalCap(currentPooled + ethEquiv));
         ST_TOKEN.mintShares(recipient, shares);
 
         emit LSTWrapped(moduleId, recipient, ethEquiv, shares);
@@ -480,6 +456,20 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (msg.sender != m.addr) revert NotModule(moduleId, msg.sender);
     }
 
+    function _requireModuleRegistered(bytes32 moduleId) internal view returns (ModuleInfo storage m) {
+        m = _modules[moduleId];
+        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+    }
+
+    /// @dev Checks the global pooled-ether cap, updates StToken, and returns `newPooled`.
+    ///      Reverts if the cap is set and would be exceeded.
+    function _enforceGlobalCap(uint256 newPooled) internal returns (uint256) {
+        uint256 cap = maxTotalPooledEther;
+        if (cap != 0 && newPooled > cap) revert MaxTotalPooledExceeded(newPooled, cap);
+        ST_TOKEN.setTotalPooledEther(newPooled);
+        return newPooled;
+    }
+
     function _applyBeaconDelta(bytes32 moduleId, uint256 prior, uint256 newBeaconBalance, uint256 currentPooled)
         internal
         returns (int256 delta)
@@ -555,8 +545,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     }
 
     function setMintCap(bytes32 moduleId, uint256 mintCapEth) external onlyRole(GOV) {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        ModuleInfo storage m = _requireModuleRegistered(moduleId);
         m.mintCapEth = mintCapEth;
         emit ModuleMintCapSet(moduleId, mintCapEth);
     }
@@ -567,9 +556,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         external
         onlyRole(GOV)
     {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
-
+        _requireModuleRegistered(moduleId);
         moduleInflowLimitConfig[moduleId] = InflowLimitConfig({
             windowSeconds: windowSeconds,
             maxInflowEthPerWindow: maxInflowEthPerWindow
@@ -586,29 +573,25 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
     /// @notice Assign policy id for a module. Set to zero bytes32 to disable module-level policy checks.
     function setModulePolicy(bytes32 moduleId, bytes32 policyId) external onlyRole(GOV) {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        _requireModuleRegistered(moduleId);
         modulePolicyId[moduleId] = policyId;
         emit ModulePolicySet(moduleId, policyId);
     }
 
     function setDefaultModule(bytes32 moduleId) external onlyRole(GOV) {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        _requireModuleRegistered(moduleId);
         defaultModuleId = moduleId;
         emit DefaultModuleSet(moduleId);
     }
 
     function pauseModule(bytes32 moduleId) external onlyRole(GUARDIAN) {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        ModuleInfo storage m = _requireModuleRegistered(moduleId);
         m.paused = true;
         emit ModulePausedSet(moduleId, true);
     }
 
     function unpauseModule(bytes32 moduleId) external onlyRole(GOV) {
-        ModuleInfo storage m = _modules[moduleId];
-        if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+        ModuleInfo storage m = _requireModuleRegistered(moduleId);
         m.paused = false;
         emit ModulePausedSet(moduleId, false);
     }
