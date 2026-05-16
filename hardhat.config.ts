@@ -34,7 +34,15 @@ const ALCHEMY_KEY = process.env.ALCHEMY_KEY;
 const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL
   || (ALCHEMY_KEY ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : undefined);
 
-const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ? process.env.MAINNET_PRIVATE_KEY : GOERLIPK;
+// Guard: refuse to use the public Anvil test key for mainnet deployments.
+const _isMainnetRun = process.argv.some(a => a === "mainnet") || process.env.HARDHAT_NETWORK === "mainnet";
+if (_isMainnetRun && !process.env.MAINNET_PRIVATE_KEY) {
+  throw new Error(
+    "MAINNET_PRIVATE_KEY is not set. Refusing to deploy to mainnet with the public Anvil test key.\n" +
+    "Export MAINNET_PRIVATE_KEY=<your deployer private key> before running.",
+  );
+}
+const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY ?? GOERLIPK;
 // Your API key for Etherscan
 // Obtain one at https://etherscan.io/
 const ETHERSCAN_API = process.env.ETHERSCAN_API ? process.env.ETHERSCAN_API : false;
@@ -46,8 +54,8 @@ const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL
 
 const SEPOLIA_PRIVATE_KEY = process.env.SEPOLIA_PRIVATE_KEY ? process.env.SEPOLIA_PRIVATE_KEY : GOERLIPK;
 
-// const ACTIVE_DEPLOYER_PK = SEPOLIA_PRIVATE_KEY; // use for real deploys
-const ACTIVE_DEPLOYER_PK = GOERLIPK; // use for test
+// For test/local: GOERLIPK (public Anvil key). For any real network: the env-var-derived key.
+const ACTIVE_DEPLOYER_PK = _isMainnetRun ? MAINNET_PRIVATE_KEY : GOERLIPK;
 
 // END required user input
 

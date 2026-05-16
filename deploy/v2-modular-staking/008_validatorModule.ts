@@ -61,6 +61,13 @@ const func: DeployFunction = async hre => {
     await router.connect(govSigner).registerModule(moduleId, validatorModule.target as string, 0);
     console.log("  Setting as default module...");
     await router.connect(govSigner).setDefaultModule(moduleId);
+
+    // Verify registration succeeded on-chain
+    const registered = await router.modules(moduleId);
+    if (registered.addr.toLowerCase() !== (validatorModule.target as string).toLowerCase()) {
+      throw new Error(`ValidatorModule registration verification failed: on-chain addr=${registered.addr}`);
+    }
+    console.log("  Registration verified.");
   }
 
   // Grant ORACLE role to gov as a placeholder. The OracleAdapter deployment
