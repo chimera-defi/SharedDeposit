@@ -262,7 +262,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         IStakingModule(m.addr).receiveDeposit{value: amount}();
 
         // Increase totalPooledEther by deposit amount (the ETH is in the module).
-        uint256 postDepositPooled = _enforceGlobalCap(currentPooled + amount);
+        _enforceGlobalCap(currentPooled + amount);
         ST_TOKEN.mintShares(user, sharesAmount);
         _recordReferral(user, referral, amount, sharesAmount);
 
