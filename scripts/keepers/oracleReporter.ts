@@ -35,6 +35,8 @@ const ORACLE_ADAPTER_ABI = [
   "function lastReportTime() view returns (uint256)",
   "function maxStalenessSeconds() view returns (uint256)",
   "function submitReport(uint256 beaconValidators, uint256 beaconBalance, uint256 reportTimestamp)",
+  "function SUBMITTER() view returns (bytes32)",
+  "function hasRole(bytes32 role, address account) view returns (bool)",
 ];
 
 // Explicit gas limit for submitReport — avoid relying on automatic estimation
@@ -214,8 +216,27 @@ async function reportOnce(cfg: Config) {
   }
 }
 
+async function verifySubmitterRole(oracle: ethers.Contract, submitter: string): Promise<void> {
+  const SUBMITTER_ROLE: string = await oracle.SUBMITTER();
+  const has: boolean = await oracle.hasRole(SUBMITTER_ROLE, submitter);
+  if (!has) {
+    throw new Error(
+      `Address ${submitter} does not hold the SUBMITTER role on oracle ${await oracle.getAddress()}`
+    );
+  }
+}
+
 async function main() {
   const cfg = loadConfig();
+
+  // Verify the SUBMITTER role once before entering any work loop.
+  {
+    const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
+    const wallet = new ethers.Wallet(cfg.privateKey, provider);
+    const oracle = new ethers.Contract(cfg.oracleAddress, ORACLE_ADAPTER_ABI, wallet);
+    await verifySubmitterRole(oracle, wallet.address);
+    console.log("[oracle] SUBMITTER role confirmed");
+  }
 
   if (!cfg.watch) {
     await reportOnce(cfg);
