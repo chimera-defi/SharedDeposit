@@ -32,6 +32,8 @@ const QUEUE_ABI = [
   "function lastFinalizedRequestId() view returns (uint256)",
   "function getRequest(uint256) view returns (tuple(address owner, uint256 stShares, uint256 ethAmount, bool finalized, bool claimed))",
   "function finalize(uint256 lastRequestId) payable",
+  "function GUARDIAN() view returns (bytes32)",
+  "function hasRole(bytes32 role, address account) view returns (bool)",
 ];
 
 // Explicit gas limits — avoid relying on automatic estimation, which can fail
@@ -219,8 +221,28 @@ async function finalizeOnce(cfg: Config) {
   }
 }
 
+async function verifyGuardianRole(queue: ethers.Contract, guardian: string): Promise<void> {
+  const GUARDIAN_ROLE: string = await queue.GUARDIAN();
+  const has: boolean = await queue.hasRole(GUARDIAN_ROLE, guardian);
+  if (!has) {
+    throw new Error(
+      `Address ${guardian} does not hold the GUARDIAN role on queue ${await queue.getAddress()}`
+    );
+  }
+}
+
 async function main() {
   const cfg = loadConfig();
+
+  // Verify the GUARDIAN role once before entering any work loop.
+  // Fail fast: a misconfigured wallet should not silently skip work.
+  {
+    const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
+    const wallet = new ethers.Wallet(cfg.privateKey, provider);
+    const queue = new ethers.Contract(cfg.queueAddress, QUEUE_ABI, wallet);
+    await verifyGuardianRole(queue, wallet.address);
+    console.log("[finalize] GUARDIAN role confirmed");
+  }
 
   if (!cfg.watch) {
     await finalizeOnce(cfg);

@@ -34,6 +34,8 @@ const VALIDATOR_MODULE_ABI = [
   "function bufferedEther() view returns (uint256)",
   "function DEPOSIT_AMOUNT() view returns (uint256)",
   "function depositToBeaconChain(bytes pubkey, bytes withdrawal_credentials, bytes signature, bytes32 deposit_data_root)",
+  "function NODE_OPERATOR() view returns (bytes32)",
+  "function hasRole(bytes32 role, address account) view returns (bool)",
 ];
 
 // Explicit gas limit for the beacon-chain deposit. This call always processes
@@ -143,12 +145,31 @@ async function sweepOnce(cfg: Config) {
   }
 }
 
+async function verifyNodeOperatorRole(module: ethers.Contract, operator: string): Promise<void> {
+  const NODE_OPERATOR_ROLE: string = await module.NODE_OPERATOR();
+  const has: boolean = await module.hasRole(NODE_OPERATOR_ROLE, operator);
+  if (!has) {
+    throw new Error(
+      `Address ${operator} does not hold the NODE_OPERATOR role on module ${await module.getAddress()}`
+    );
+  }
+}
+
 async function main() {
   const cfg = loadConfig();
   validateHex("VALIDATOR_PUBKEY_HEX", cfg.pubkey, 48);
   validateHex("WITHDRAWAL_CREDS_HEX", cfg.creds, 32);
   validateHex("SIGNATURE_HEX", cfg.signature, 96);
   validateHex("DEPOSIT_DATA_ROOT_HEX", cfg.depositDataRoot, 32);
+
+  // Verify the NODE_OPERATOR role once before entering any work loop.
+  {
+    const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
+    const wallet = new ethers.Wallet(cfg.privateKey, provider);
+    const module = new ethers.Contract(cfg.moduleAddress, VALIDATOR_MODULE_ABI, wallet);
+    await verifyNodeOperatorRole(module, wallet.address);
+    console.log("[sweep] NODE_OPERATOR role confirmed");
+  }
 
   if (!cfg.watch) {
     await sweepOnce(cfg);
