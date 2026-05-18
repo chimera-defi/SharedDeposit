@@ -42,7 +42,7 @@ const VALIDATOR_MODULE_ABI = [
 // a single validator in this script, so a flat budget is sufficient.
 const GAS_BEACON_DEPOSIT = 300_000n;
 
-interface Config {
+export interface Config {
   rpcUrl: string;
   moduleAddress: string;
   privateKey: string;
@@ -100,7 +100,7 @@ async function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function sweepOnce(cfg: Config) {
+export async function sweepOnce(cfg: Config) {
   const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
   const wallet = new ethers.Wallet(cfg.privateKey, provider);
   const module = new ethers.Contract(cfg.moduleAddress, VALIDATOR_MODULE_ABI, wallet);
@@ -145,7 +145,7 @@ async function sweepOnce(cfg: Config) {
   }
 }
 
-async function verifyNodeOperatorRole(module: ethers.Contract, operator: string): Promise<void> {
+export async function verifyNodeOperatorRole(module: ethers.Contract, operator: string): Promise<void> {
   const NODE_OPERATOR_ROLE: string = await module.NODE_OPERATOR();
   const has: boolean = await module.hasRole(NODE_OPERATOR_ROLE, operator);
   if (!has) {
@@ -188,7 +188,11 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error("[sweep] fatal:", err);
-  process.exit(1);
-});
+// Only run the keeper loop when executed directly (ts-node / node), not when
+// the module is imported by unit tests.
+if (require.main === module) {
+  main().catch(err => {
+    console.error("[sweep] fatal:", err);
+    process.exit(1);
+  });
+}

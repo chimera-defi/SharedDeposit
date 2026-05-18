@@ -37,7 +37,7 @@ const DEFAULT_ALERT_THRESHOLD_BPS = 500; // 5%
 const DEFAULT_POLL_INTERVAL_SEC = 60;
 const DEFAULT_MAX_ORACLE_AGE_SEC = 3600;
 
-interface Config {
+export interface Config {
   rpcUrl: string;
   routerAddress: string;
   guardianKey: string;
@@ -106,7 +106,7 @@ async function postWebhook(url: string, payload: object) {
   } catch { /* non-fatal */ }
 }
 
-async function verifyGuardianRole(router: ethers.Contract, guardian: string) {
+export async function verifyGuardianRole(router: ethers.Contract, guardian: string) {
   const GUARDIAN_ROLE: string = await router.GUARDIAN();
   const has: boolean = await router.hasRole(GUARDIAN_ROLE, guardian);
   if (!has) {
@@ -114,7 +114,7 @@ async function verifyGuardianRole(router: ethers.Contract, guardian: string) {
   }
 }
 
-async function triggerPause(router: ethers.Contract, cfg: Config, reason: string) {
+export async function triggerPause(router: ethers.Contract, cfg: Config, reason: string) {
   console.error(`[monitor] ANOMALY DETECTED: ${reason}`);
 
   if (cfg.webhookUrl) {
@@ -138,12 +138,12 @@ async function triggerPause(router: ethers.Contract, cfg: Config, reason: string
   console.log(`[monitor] Protocol PAUSED. tx=${tx.hash} block=${rcpt?.blockNumber}`);
 }
 
-interface State {
+export interface State {
   lastPooledEther: bigint | null;
   paused: boolean;
 }
 
-async function checkOnce(router: ethers.Contract, cfg: Config, state: State): Promise<void> {
+export async function checkOnce(router: ethers.Contract, cfg: Config, state: State): Promise<void> {
   const totalPooled: bigint = await router.totalPooledEther();
   const ts = new Date().toISOString();
 
@@ -219,7 +219,11 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error("[monitor] Fatal:", err);
-  process.exit(1);
-});
+// Only run the keeper loop when executed directly (ts-node / node), not when
+// the module is imported by unit tests.
+if (require.main === module) {
+  main().catch(err => {
+    console.error("[monitor] Fatal:", err);
+    process.exit(1);
+  });
+}

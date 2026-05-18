@@ -73,7 +73,7 @@ interface ValidatorInfo {
   status: string;
 }
 
-interface Config {
+export interface Config {
   beaconApi: string;
   rpcUrl: string;
   oracleAddress: string;
@@ -153,7 +153,7 @@ async function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function reportOnce(cfg: Config) {
+export async function reportOnce(cfg: Config) {
   const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
   const wallet = new ethers.Wallet(cfg.privateKey, provider);
   const adapter = new ethers.Contract(cfg.oracleAddress, ORACLE_ADAPTER_ABI, wallet);
@@ -216,7 +216,7 @@ async function reportOnce(cfg: Config) {
   }
 }
 
-async function verifySubmitterRole(oracle: ethers.Contract, submitter: string): Promise<void> {
+export async function verifySubmitterRole(oracle: ethers.Contract, submitter: string): Promise<void> {
   const SUBMITTER_ROLE: string = await oracle.SUBMITTER();
   const has: boolean = await oracle.hasRole(SUBMITTER_ROLE, submitter);
   if (!has) {
@@ -255,7 +255,11 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error("[oracle] fatal:", err);
-  process.exit(1);
-});
+// Only run the keeper loop when executed directly (ts-node / node), not when
+// the module is imported by unit tests.
+if (require.main === module) {
+  main().catch(err => {
+    console.error("[oracle] fatal:", err);
+    process.exit(1);
+  });
+}

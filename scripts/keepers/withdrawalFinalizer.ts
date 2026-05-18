@@ -45,7 +45,7 @@ const GAS_FINALIZE_PER_REQUEST = 50_000n;
 // as orphaned (e.g. a crashed prior instance) and reclaimed.
 const STALE_LOCK_MS = 5 * 60 * 1000;
 
-interface Config {
+export interface Config {
   rpcUrl: string;
   queueAddress: string;
   privateKey: string;
@@ -135,7 +135,7 @@ async function releaseLock(lockPath: string): Promise<void> {
   await fs.unlink(lockPath).catch(() => {});
 }
 
-async function finalizeOnce(cfg: Config) {
+export async function finalizeOnce(cfg: Config) {
   const lockPath = lockPathFor(cfg.queueAddress);
   const acquired = await acquireLock(lockPath);
   if (!acquired) {
@@ -221,7 +221,7 @@ async function finalizeOnce(cfg: Config) {
   }
 }
 
-async function verifyGuardianRole(queue: ethers.Contract, guardian: string): Promise<void> {
+export async function verifyGuardianRole(queue: ethers.Contract, guardian: string): Promise<void> {
   const GUARDIAN_ROLE: string = await queue.GUARDIAN();
   const has: boolean = await queue.hasRole(GUARDIAN_ROLE, guardian);
   if (!has) {
@@ -261,7 +261,11 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error("[finalize] fatal:", err);
-  process.exit(1);
-});
+// Only run the keeper loop when executed directly (ts-node / node), not when
+// the module is imported by unit tests.
+if (require.main === module) {
+  main().catch(err => {
+    console.error("[finalize] fatal:", err);
+    process.exit(1);
+  });
+}
