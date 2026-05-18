@@ -4,13 +4,13 @@ import {parseEther, ZeroAddress} from "ethers";
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("DVTModule", () => {
-  let deployer: SignerWithAddress, gov: SignerWithAddress, oracle: SignerWithAddress, nodeOp: SignerWithAddress;
+  let deployer: SignerWithAddress, gov: SignerWithAddress, oracle: SignerWithAddress, nodeOp: SignerWithAddress, outsider: SignerWithAddress;
   let router: any, dvtModule: any, mockDeposit: any, stToken: any;
 
   const DVT_ID = ethers.keccak256(ethers.toUtf8Bytes("DVT_CLUSTER_1"));
 
   async function deployFresh() {
-    [deployer, gov, oracle, nodeOp] = await ethers.getSigners();
+    [deployer, gov, oracle, nodeOp, outsider] = await ethers.getSigners();
 
     const StToken = await ethers.getContractFactory("StToken");
     stToken = await StToken.deploy();
@@ -85,6 +85,25 @@ describe("DVTModule", () => {
         "0x" + "00".repeat(32)
       )
     ).to.be.revertedWithCustomError(dvtModule, "UseClusteredDeposit");
+  });
+
+  it("rejects clustered deposit when NODE_OPERATOR is not part of that cluster", async () => {
+    const CLUSTER_ID = ethers.keccak256(ethers.toUtf8Bytes("CLUSTER_MEMBERSHIP"));
+    await dvtModule.connect(gov).registerCluster(CLUSTER_ID, [nodeOp.address], 1);
+    const NODE_OPERATOR_ROLE = await dvtModule.NODE_OPERATOR();
+    await dvtModule.connect(gov).grantRole(NODE_OPERATOR_ROLE, outsider.address);
+
+    await router.submitToModule(DVT_ID, ZeroAddress, {value: parseEther("32")});
+
+    await expect(
+      dvtModule.connect(outsider).depositToBeaconChainInCluster(
+        CLUSTER_ID,
+        "0x" + "00".repeat(48),
+        "0x" + "00".repeat(32),
+        "0x" + "00".repeat(96),
+        "0x" + "00".repeat(32),
+      ),
+    ).to.be.revertedWithCustomError(dvtModule, "OperatorNotInCluster");
   });
 
   it("has granular pause on router submit", async () => {

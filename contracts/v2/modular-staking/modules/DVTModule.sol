@@ -22,6 +22,7 @@ contract DVTModule is ValidatorModule {
     // ── State ─────────────────────────────────────────────────────────────────
     mapping(bytes32 => Cluster) public clusters;
     mapping(bytes32 => uint256) public clusterDepositCount;
+    mapping(bytes32 => mapping(address => bool)) internal _clusterOperatorSet;
     bytes32[] internal _clusterIds;
     mapping(bytes32 => uint256) internal _clusterIdToIndex; // 1-based; 0 = not registered
 
@@ -37,6 +38,9 @@ contract DVTModule is ValidatorModule {
     error ClusterNotActive(bytes32 clusterId);
     error InvalidThreshold(uint8 threshold, uint256 operatorCount);
     error EmptyOperators();
+    error InvalidOperator(address operator);
+    error DuplicateOperator(address operator);
+    error OperatorNotInCluster(bytes32 clusterId, address operator);
     error UseClusteredDeposit();
     error IndexOutOfBounds(uint256 index, uint256 length);
 
@@ -71,6 +75,13 @@ contract DVTModule is ValidatorModule {
         if (operators.length == 0) revert EmptyOperators();
         if (threshold == 0 || threshold > operators.length) revert InvalidThreshold(threshold, operators.length);
         if (_clusterIdToIndex[clusterId] != 0) revert ClusterAlreadyRegistered(clusterId);
+
+        for (uint256 i = 0; i < operators.length; ++i) {
+            address op = operators[i];
+            if (op == address(0)) revert InvalidOperator(op);
+            if (_clusterOperatorSet[clusterId][op]) revert DuplicateOperator(op);
+            _clusterOperatorSet[clusterId][op] = true;
+        }
 
         clusters[clusterId] = Cluster({operators: operators, threshold: threshold, active: true});
         _clusterIds.push(clusterId);
@@ -112,6 +123,9 @@ contract DVTModule is ValidatorModule {
     ) external onlyRole(NODE_OPERATOR) nonReentrant whenNotPaused(PAUSE_RECEIVE) {
         if (_clusterIdToIndex[clusterId] == 0 || !clusters[clusterId].active) {
             revert ClusterNotActive(clusterId);
+        }
+        if (!_clusterOperatorSet[clusterId][msg.sender]) {
+            revert OperatorNotInCluster(clusterId, msg.sender);
         }
         uint256 depositIndex = clusterDepositCount[clusterId]++;
         emit ClusterDeposit(clusterId, depositIndex, pubkey);

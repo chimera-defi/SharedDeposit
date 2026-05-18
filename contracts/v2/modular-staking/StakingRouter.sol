@@ -380,6 +380,16 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
         uint256 referralShares = ShareMath.getSharesByPooledEth(referralAmount, newTotalShares, newTotalPooled);
 
+        // If no referred volume exists yet, route referral-share allocation to treasury
+        // instead of reverting the whole beacon report path.
+        if (referralRegistry != address(0) && referralShares > 0) {
+            uint256 referredEth = IReferralRegistry(referralRegistry).totalReferredEth();
+            if (referredEth == 0) {
+                treasuryShares += referralShares;
+                referralShares = 0;
+            }
+        }
+
         if (treasuryShares > 0) ST_TOKEN.mintShares(treasury, treasuryShares);
         if (operatorShares > 0) ST_TOKEN.mintShares(operator, operatorShares);
         if (referralRegistry != address(0) && referralShares > 0) {

@@ -88,6 +88,23 @@ describe("StTokenERC4626Wrapper", () => {
     expect(await mockStToken.balanceOf(wrapper.target)).to.equal(amount);
   });
 
+  it("reverts zero-share deposit after donation inflation", async () => {
+    const seed = parseEther("1");
+    await mintAndApprove(alice, seed);
+    await wrapper.connect(alice).deposit(seed, alice.address);
+
+    // Inflate assets/share ratio by donating directly to the vault.
+    const donation = parseEther("1");
+    await mockStToken.mint(wrapper.target, donation);
+
+    const victimAmount = 1n;
+    await mintAndApprove(bob, victimAmount);
+
+    await expect(
+      wrapper.connect(bob).deposit(victimAmount, bob.address),
+    ).to.be.revertedWithCustomError(wrapper, "ZeroSharesDeposit");
+  });
+
   it("second depositor receives proportional shares", async () => {
     const first = parseEther("100");
     const second = parseEther("50");

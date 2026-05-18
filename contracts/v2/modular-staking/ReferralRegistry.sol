@@ -7,6 +7,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Errors} from "../lib/Errors.sol";
 
+interface IShareTransferToken {
+    function transferShares(address to, uint256 sharesAmount) external returns (uint256 tokensAmount);
+}
+
 /// @title ReferralRegistry — on-chain referral attribution for SharedStake V2
 /// @notice Tracks referrer → referee relationships and accrued referral fees.
 ///         Uses a MasterChef-style reward-per-share model for gas-efficient
@@ -64,7 +68,8 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
 
     mapping(address => mapping(address => ReferralRecord)) public records; // referrer => referee => record
     mapping(address => ReferrerStats) public stats;
-    mapping(address => bool) public hasReferred; // referee => true (prevents re-referral)
+    mapping(address => bool) public hasReferred; // referee => true (legacy mirror of `referrerOf`)
+    mapping(address => address) public referrerOf; // referee => canonical referrer (first referrer wins)
 
     address public feeToken; // token used for fee payouts (address(0) = stToken shares)
 
@@ -105,29 +110,38 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
         if (referrer == referee) revert SelfReferral();
         if (ethAmount == 0 || shares == 0) revert ZeroAmount();
 
-        // Prevent a referee from being referred twice (first referrer wins)
-        if (hasReferred[referee]) {
+        // First referrer wins; subsequent deposits for the same referee continue
+        // accruing to that canonical referrer.
+        address canonicalReferrer = referrerOf[referee];
+        bool isNewReferee = canonicalReferrer == address(0);
+        if (isNewReferee) {
+            canonicalReferrer = referrer;
+            referrerOf[referee] = referrer;
+            hasReferred[referee] = true;
+        } else if (canonicalReferrer != referrer) {
+            // Ignore attempts to override attribution.
             return;
         }
-        hasReferred[referee] = true;
 
-        ReferralRecord storage rec = records[referrer][referee];
+        ReferralRecord storage rec = records[canonicalReferrer][referee];
         rec.totalReferredEth += ethAmount;
         rec.totalReferredShares += shares;
         if (rec.firstReferralTime == 0) {
             rec.firstReferralTime = block.timestamp;
         }
 
-        ReferrerStats storage s = stats[referrer];
+        ReferrerStats storage s = stats[canonicalReferrer];
         // Update reward debt before changing totalReferredEth
         s.rewardDebt += int256((ethAmount * accRewardPerEth) / ACC_PRECISION);
         s.totalReferredEth += ethAmount;
         s.totalReferredShares += shares;
-        s.refereeCount += 1;
+        if (isNewReferee) {
+            s.refereeCount += 1;
+        }
 
         totalReferredEth += ethAmount;
 
-        emit DepositRecorded(referrer, referee, ethAmount, shares);
+        emit DepositRecorded(canonicalReferrer, referee, ethAmount, shares);
     }
 
     // ── Core: fee deposit (FEE_CTRL only) ─────────────────────────────────────
@@ -159,8 +173,8 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
 
         s.rewardDebt = int256((referredEth * accRewardPerEth) / ACC_PRECISION);
 
-        // Transfer fee shares to referrer
-        IERC20(feeToken).safeTransfer(msg.sender, pending);
+        // Transfer fee shares to referrer using share-native transfer semantics.
+        IShareTransferToken(feeToken).transferShares(msg.sender, pending);
 
         emit FeesClaimed(msg.sender, pending);
     }

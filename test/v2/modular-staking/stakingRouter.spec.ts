@@ -576,6 +576,37 @@ describe("StakingRouter", () => {
       expect(treasuryShares).to.be.lte((operatorShares * 105n) / 100n);
     });
 
+    it("routes referral fee shares to treasury when referral registry has zero referred volume", async () => {
+      const ReferralRegistry = await ethers.getContractFactory("ReferralRegistry");
+      const registry = await ReferralRegistry.deploy(gov.address, stToken.target);
+
+      await registry.connect(gov).grantRole(await registry.FEE_CTRL(), router.target);
+      await registry.connect(gov).grantRole(await registry.ROUTER(), router.target);
+
+      // Keep feeBps at 10%, but reserve 20% of that fee for referrals.
+      await feeController.connect(gov).setFee(1000, 4000, 4000);
+      await feeController.connect(gov).setRecipients(gov.address, deployer.address, registry.target);
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
+      const treasuryBefore = await stToken.sharesOf(gov.address);
+      const operatorBefore = await stToken.sharesOf(deployer.address);
+      const registryBefore = await stToken.sharesOf(registry.target);
+
+      await expect(mod1.connect(oracle).reportBeacon(1, parseEther("32.5"))).to.not.be.reverted;
+
+      const treasuryAfter = await stToken.sharesOf(gov.address);
+      const operatorAfter = await stToken.sharesOf(deployer.address);
+      const registryAfter = await stToken.sharesOf(registry.target);
+
+      expect(registryAfter - registryBefore).to.equal(0n);
+      expect(treasuryAfter - treasuryBefore).to.be.gt(operatorAfter - operatorBefore);
+    });
+
     it("rejects positive reports before beacon baseline is initialized", async () => {
       await expect(mod1.connect(oracle).reportBeacon(1, parseEther("32")))
         .to.be.revertedWithCustomError(router, "BeaconBaselineNotInitialized")

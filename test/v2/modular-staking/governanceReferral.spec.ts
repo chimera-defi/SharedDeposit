@@ -80,6 +80,24 @@ describe("Governance + Referral hardening", () => {
       expect(await registry.pendingReward(referrer.address)).to.equal(0n);
     });
 
+    it("claims exact share amount even when stToken share price is > 1", async () => {
+      const amount = parseEther("5");
+      const shares = parseEther("5");
+      await registry.connect(router).recordDeposit(referrer.address, referee.address, amount, shares);
+
+      const feeShares = parseEther("10");
+      await stToken.mintShares(registry.target, feeShares);
+      // Force a 2:1 pooled/share price to catch token-vs-share payout bugs.
+      await stToken.setTotalPooledEther(parseEther("20"));
+      await registry.connect(feeCtl).depositReferralFeeShares(feeShares);
+
+      const beforeShares = await stToken.sharesOf(referrer.address);
+      await registry.connect(referrer).claimFees();
+      const afterShares = await stToken.sharesOf(referrer.address);
+
+      expect(afterShares - beforeShares).to.equal(feeShares);
+    });
+
     it("reverts claim when nothing accrued", async () => {
       await expect(registry.connect(referrer).claimFees()).to.be.revertedWithCustomError(
         registry,
@@ -124,6 +142,25 @@ describe("Governance + Referral hardening", () => {
       await registry.connect(router).recordDeposit(outsider.address, referee.address, amount, shares);
       const rec = await registry.getRecord(outsider.address, referee.address);
       expect(rec.totalReferredEth).to.equal(0n); // no-op
+    });
+
+    it("accrues repeated deposits from same referee to canonical referrer", async () => {
+      const first = parseEther("5");
+      const second = parseEther("3");
+      const firstShares = parseEther("5");
+      const secondShares = parseEther("3");
+
+      await registry.connect(router).recordDeposit(referrer.address, referee.address, first, firstShares);
+      await registry.connect(router).recordDeposit(referrer.address, referee.address, second, secondShares);
+
+      const rec = await registry.getRecord(referrer.address, referee.address);
+      expect(rec.totalReferredEth).to.equal(first + second);
+      expect(rec.totalReferredShares).to.equal(firstShares + secondShares);
+
+      const stats = await registry.getReferrerStats(referrer.address);
+      expect(stats.refereeCount).to.equal(1n);
+      expect(stats.totalReferredEth).to.equal(first + second);
+      expect(stats.totalReferredShares).to.equal(firstShares + secondShares);
     });
   });
 

@@ -25,6 +25,8 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 contract StTokenERC4626Wrapper is ERC4626 {
     using Math for uint256;
 
+    error ZeroSharesDeposit(uint256 assets);
+
     // Cached to avoid repeated asset() calls; same address as ERC4626._asset.
     IERC20 private immutable ST_TOKEN;
 
@@ -93,6 +95,8 @@ contract StTokenERC4626Wrapper is ERC4626 {
     // ─── Internal deposit/withdraw (OZ ERC4626 hooks) ────────────────────────
 
     function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
+        // Prevent zero-share deposits (donation inflation attack vector).
+        if (assets > 0 && shares == 0) revert ZeroSharesDeposit(assets);
         SafeERC20.safeTransferFrom(ST_TOKEN, caller, address(this), assets);
         _mint(receiver, shares);
         emit Deposit(caller, receiver, assets, shares);
