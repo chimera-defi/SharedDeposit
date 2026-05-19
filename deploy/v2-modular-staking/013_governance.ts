@@ -7,7 +7,18 @@ import {
   MockERC20__factory,
 } from "../../types";
 import {resolveGovernanceAddress} from "../helpers/governance";
-import {ZeroAddress} from "ethers";
+import {isAddress, ZeroAddress} from "ethers";
+
+const SGT_ADDRESS_ENV_KEYS = ["V2_SGT_ADDRESS"];
+
+function readConfiguredSgtAddress(): string | undefined {
+  for (const key of SGT_ADDRESS_ENV_KEYS) {
+    const value = process.env[key];
+    if (!value || value.trim().length === 0) continue;
+    return value.trim();
+  }
+  return undefined;
+}
 
 /**
  * Deploys the SharedStake V2 governance stack:
@@ -18,14 +29,22 @@ import {ZeroAddress} from "ethers";
  *
  * Wiring:
  *   - Governor is granted PROPOSER + EXECUTOR roles on Timelock
+ *   - Governance multisig is granted EXECUTOR + CANCELLER roles on Timelock
  *   - Deployer's admin role on Timelock is renounced (Timelock becomes self-governing)
  *   - VoteEscrowV2.gov is transferred to GovernanceTimelock so penalty parameter
  *     changes require a full governance vote + 48h delay
  */
 const func: DeployFunction = async hre => {
-  const {deploy, accounts, address} = await Ship.init(hre);
-  const gov = await resolveGovernanceAddress(hre, await Ship.init(hre));
+  const ship = await Ship.init(hre);
+  const {deploy, accounts} = ship;
+  const gov = await resolveGovernanceAddress(hre, ship);
   const govSigner = accounts.multiSig ?? accounts.deployer;
+  if (govSigner.address.toLowerCase() !== gov.toLowerCase()) {
+    throw new Error(
+      `Governance signer mismatch: signer=${govSigner.address} resolvedGov=${gov}. ` +
+      "Set governance env/config so the signer that executes transferGov is the current gov."
+    );
+  }
 
   const isLocal = hre.network.tags.hardhat || hre.network.name === "localhost";
 
@@ -43,12 +62,13 @@ const func: DeployFunction = async hre => {
     sgtAddress = mockSGT.target as string;
     console.log("  Deployed MockERC20 as SGTV2:", sgtAddress);
   } else {
-    const existing = await address(MockERC20__factory);
-    sgtAddress = existing ?? ZeroAddress;
-    if (sgtAddress === ZeroAddress) {
-      console.warn("  SGTV2 not deployed — skipping governance deployment on non-local network.");
-      return;
+    const configured = readConfiguredSgtAddress();
+    if (!configured || !isAddress(configured) || configured.toLowerCase() === ZeroAddress.toLowerCase()) {
+      throw new Error(
+        `Missing valid SGT address for non-local deployment. Set one of ${SGT_ADDRESS_ENV_KEYS.join(", ")}.`,
+      );
     }
+    sgtAddress = configured;
     console.log("  Using existing SGTV2:", sgtAddress);
   }
 
@@ -64,8 +84,8 @@ const func: DeployFunction = async hre => {
   // ── 3. GovernanceTimelock ───────────────────────────────────────────────────
   // minDelay: 1 second on local (fast tests), 48h on real networks
   const timelockDelay = isLocal ? 1n : 48n * 3600n;
-  const proposers: string[] = [];  // will be set below once Governor is deployed
-  const executors: string[] = [ZeroAddress]; // address(0) = anyone can execute
+  const proposers: string[] = [];  // set after Governor deployment
+  const executors: string[] = [];  // set after Governor deployment
   const admin = accounts.deployer.address;   // renounced after wiring
 
   const {contract: timelock} = await deploy(GovernanceTimelock__factory, {
@@ -92,10 +112,14 @@ const func: DeployFunction = async hre => {
   console.log("  Granting PROPOSER to Governor...");
   await timelock.connect(accounts.deployer).grantRole(PROPOSER_ROLE, governor.target);
 
-  console.log("  Granting CANCELLER to Governor...");
-  await timelock.connect(accounts.deployer).grantRole(CANCELLER_ROLE, governor.target);
+  console.log("  Granting EXECUTOR to Governor...");
+  await timelock.connect(accounts.deployer).grantRole(EXECUTOR_ROLE, governor.target);
 
-  // Executor is already address(0) — anyone can execute once delay has passed.
+  console.log(`  Granting EXECUTOR to governance signer (${gov})...`);
+  await timelock.connect(accounts.deployer).grantRole(EXECUTOR_ROLE, gov);
+
+  console.log(`  Granting CANCELLER to governance signer (${gov})...`);
+  await timelock.connect(accounts.deployer).grantRole(CANCELLER_ROLE, gov);
 
   console.log("  Revoking deployer DEFAULT_ADMIN_ROLE on Timelock...");
   await timelock.connect(accounts.deployer).renounceRole(DEFAULT_ADMIN_ROLE, accounts.deployer.address);

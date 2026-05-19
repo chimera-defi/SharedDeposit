@@ -80,7 +80,10 @@ describe("keepers/depositSweep", () => {
   describe("sweepOnce", () => {
     /** Wire patched ethers so sweepOnce sees the fake ValidatorModule. */
     function wire(contractMethods: Record<string, unknown>) {
-      const module = makeFakeContract(contractMethods);
+      const module = makeFakeContract({
+        expectedWithdrawalCredentials: async () => makeConfig().creds,
+        ...contractMethods,
+      });
       restore = patchEthers({
         JsonRpcProvider: function () {
           return makeFakeProvider();
@@ -118,6 +121,24 @@ describe("keepers/depositSweep", () => {
       await sweepOnce(makeConfig({dryRun: true}));
 
       expect(module.__calls.depositToBeaconChain.length).to.equal(0);
+    });
+
+    it("throws when configured creds mismatch module expectedWithdrawalCredentials", async () => {
+      wire({
+        bufferedEther: async () => ethers.parseEther("32"),
+        DEPOSIT_AMOUNT: async () => ethers.parseEther("32"),
+        expectedWithdrawalCredentials: async () => "0x" + "ff".repeat(32),
+        depositToBeaconChain: async () => makeFakeTx(),
+      });
+
+      let threw = false;
+      try {
+        await sweepOnce(makeConfig());
+      } catch (err) {
+        threw = true;
+        expect((err as Error).message).to.contain("WITHDRAWAL_CREDS_HEX");
+      }
+      expect(threw, "expected sweepOnce to throw on credentials mismatch").to.equal(true);
     });
 
     it("calls depositToBeaconChain when bufferedEther >= DEPOSIT_AMOUNT (not dry-run)", async () => {

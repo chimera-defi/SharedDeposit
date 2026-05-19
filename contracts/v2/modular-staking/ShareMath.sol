@@ -6,6 +6,8 @@ pragma solidity 0.8.20;
 ///         Rounding policy: share minting rounds DOWN (protects pool);
 ///         pooled-ETH-by-shares rounds DOWN (protects pool on redemption).
 library ShareMath {
+    error InvalidBootstrapState(uint256 totalShares, uint256 totalPooledEth);
+
     /// @dev Bootstrap: first depositor receives shares 1:1 with wei.
     ///      Prevents the classic "first deposit inflation" attack because the
     ///      attacker cannot make totalPooledEth >> totalShares before any shares exist.
@@ -15,6 +17,9 @@ library ShareMath {
         uint256 totalPooledEth
     ) internal pure returns (uint256) {
         if (totalPooledEth == 0) {
+            if (totalShares != 0) {
+                revert InvalidBootstrapState(totalShares, totalPooledEth);
+            }
             // Bootstrap: 1 wei => 1 share
             return ethAmount;
         }

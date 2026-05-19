@@ -51,6 +51,7 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     uint256 internal _bufferedEther;     // ETH held here, pending validator assignment
     uint256 internal _beaconBalance;     // last reported sum of validator balances
     uint256 internal _beaconValidators;  // last reported validator count
+    uint256 internal _depositedValidatorCount; // number of validator deposits ever pushed on beacon
     bytes32 public expectedWithdrawalCredentials; // validated withdrawal creds prefix
     mapping(bytes32 => bool) internal _depositedPubkeys; // keccak256(pubkey) → already deposited
 
@@ -65,7 +66,10 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     error InsufficientBuffer(uint256 available, uint256 required);
     error BeaconBalanceSanityFailed(uint256 reported, uint256 maxAllowed);
     error BeaconValidatorCountSanityFailed(uint256 reported, uint256 maxAllowed);
+    error InvalidBeaconReportTuple(uint256 beaconValidators, uint256 beaconBalance);
+    error WithdrawalCredentialsNotConfigured();
     error InvalidWithdrawalCredentials();
+    error BeaconDepositContractUnavailable(address beaconDepositContract);
     error DuplicatePubkey(bytes32 pubkeyHash);
 
     constructor(address router, bytes32 moduleId, address gov, address beaconDepositContract) {
@@ -114,6 +118,18 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
         onlyRole(ORACLE)
         whenNotPaused(PAUSE_RECEIVE)
     {
+        if (newBeaconValidators == 0 && newBeaconBalance != 0) {
+            revert InvalidBeaconReportTuple(newBeaconValidators, newBeaconBalance);
+        }
+
+        // Reported active validators cannot exceed validators ever deposited by this module.
+        // This blocks count-manipulation reports (e.g. huge validator count with unchanged
+        // balance) that can weaken later per-validator drift checks.
+        uint256 depositedValidators = _depositedValidatorCount;
+        if (newBeaconValidators > depositedValidators) {
+            revert BeaconValidatorCountSanityFailed(newBeaconValidators, depositedValidators);
+        }
+
         if (_beaconValidators > 0) {
             // Validator count cannot more than double per report (defense-in-depth)
             uint256 maxValidators = _beaconValidators * 2;
@@ -158,20 +174,24 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
             revert InsufficientBuffer(_bufferedEther, DEPOSIT_AMOUNT);
         }
 
+        // Validate withdrawal credentials belong to the protocol
+        bytes32 expected = expectedWithdrawalCredentials;
+        if (expected == bytes32(0)) revert WithdrawalCredentialsNotConfigured();
+        if (withdrawal_credentials.length != 32) revert InvalidWithdrawalCredentials();
+        bytes32 provided;
+        assembly {
+            provided := calldataload(add(withdrawal_credentials.offset, 0))
+        }
+        if (provided != expected) revert InvalidWithdrawalCredentials();
+
+        if (BEACON_DEPOSIT_CONTRACT.code.length == 0) {
+            revert BeaconDepositContractUnavailable(BEACON_DEPOSIT_CONTRACT);
+        }
+
         bytes32 pkHash = keccak256(pubkey);
         if (_depositedPubkeys[pkHash]) revert DuplicatePubkey(pkHash);
         _depositedPubkeys[pkHash] = true;
-
-        // Validate withdrawal credentials belong to the protocol
-        bytes32 expected = expectedWithdrawalCredentials;
-        if (expected != bytes32(0)) {
-            if (withdrawal_credentials.length != 32) revert InvalidWithdrawalCredentials();
-            bytes32 provided;
-            assembly {
-                provided := calldataload(add(withdrawal_credentials.offset, 0))
-            }
-            if (provided != expected) revert InvalidWithdrawalCredentials();
-        }
+        _depositedValidatorCount += 1;
 
         _bufferedEther -= DEPOSIT_AMOUNT;
 
@@ -189,6 +209,7 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
     // ── Admin ────────────────────────────────────────────────────────────────
 
     function setExpectedWithdrawalCredentials(bytes32 _expected) external onlyRole(GOV) {
+        if (_expected == bytes32(0)) revert InvalidWithdrawalCredentials();
         expectedWithdrawalCredentials = _expected;
         emit ExpectedWithdrawalCredentialsSet(_expected);
     }
@@ -215,6 +236,10 @@ contract ValidatorModule is AccessControl, ReentrancyGuard, GranularPause, IStak
 
     function beaconValidators() external view returns (uint256) {
         return _beaconValidators;
+    }
+
+    function depositedValidatorCount() external view returns (uint256) {
+        return _depositedValidatorCount;
     }
 
     /// @dev Direct ETH transfers are accepted but do NOT update _bufferedEther.

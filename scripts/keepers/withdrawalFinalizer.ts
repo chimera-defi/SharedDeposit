@@ -164,7 +164,9 @@ export async function finalizeOnce(cfg: Config) {
       return;
     }
 
-    const batchEnd = fromId + BigInt(Math.min(cfg.maxBatchSize, Number(pending))) - 1n;
+    const maxBatch = BigInt(cfg.maxBatchSize);
+    const batchSize = pending > maxBatch ? maxBatch : pending;
+    const batchEnd = fromId + batchSize - 1n;
     console.log(`[finalize] finalizing requests [${fromId}, ${batchEnd}]`);
 
     let totalEth = 0n;

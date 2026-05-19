@@ -71,6 +71,7 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
     error BeaconBalanceSanityFailed(uint256 reported, uint256 expected);
     error BeaconBaselineNotInitialized(uint256 reportedBalance);
     error BeaconDepositExceedsBuffered(uint256 amount, uint256 bufferedEther);
+    error InvalidBeaconReportTuple(uint256 beaconValidators, uint256 beaconBalance);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -145,6 +146,10 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         external
         onlyRole(ORACLE)
     {
+        if (newBeaconValidators == 0 && newBeaconBalance != 0) {
+            revert InvalidBeaconReportTuple(newBeaconValidators, newBeaconBalance);
+        }
+
         // Sanity: beacon balance cannot be more than 1.5× the maximum honest value.
         if (newBeaconValidators > 0) {
             uint256 maxPlausible = newBeaconValidators * 32 ether * 3 / 2;
@@ -209,6 +214,15 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         uint256 treasuryShares = ShareMath.getSharesByPooledEth(treasuryAmount, newTotalShares, newTotalPooled);
         uint256 operatorShares = ShareMath.getSharesByPooledEth(operatorAmount, newTotalShares, newTotalPooled);
         uint256 referralShares = ShareMath.getSharesByPooledEth(referralAmount, newTotalShares, newTotalPooled);
+
+        // Keep reward reporting live even before any referee exists.
+        if (referralRegistry != address(0) && referralShares > 0) {
+            uint256 referredEth = IReferralRegistry(referralRegistry).totalReferredEth();
+            if (referredEth == 0) {
+                treasuryShares += referralShares;
+                referralShares = 0;
+            }
+        }
 
         // Keep pool accounting strictly tied to real backing (buffer + beacon).
         // Fee recipients are paid via share dilution from existing rewards.

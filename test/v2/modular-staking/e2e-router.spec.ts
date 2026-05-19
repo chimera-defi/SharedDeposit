@@ -42,6 +42,7 @@ describe("StakingRouter E2E (SharedStake V2 modular)", () => {
     mockBeaconDeposit: any,
     withdrawalQueue: any,
     oracleAdapter: any;
+  let expectedWithdrawalCreds: string;
 
   before(async () => {
     [deployer, gov, alice, bob, oracleSigner] = await ethers.getSigners();
@@ -92,6 +93,8 @@ describe("StakingRouter E2E (SharedStake V2 modular)", () => {
     await validatorModule.connect(gov).grantRole(ORACLE_ROLE, oracleAdapter.target);
     await validatorModule.connect(gov).grantRole(NODE_OPERATOR_ROLE, gov.address);
     await oracleAdapter.connect(gov).addSubmitter(oracleSigner.address);
+    expectedWithdrawalCreds = ethers.hexlify(ethers.randomBytes(32));
+    await validatorModule.connect(gov).setExpectedWithdrawalCredentials(expectedWithdrawalCreds);
 
     // Relax maxDeltaBps for E2E tests so we can simulate realistic rewards.
     await router.connect(gov).setMaxDeltaBps(1000);
@@ -113,7 +116,7 @@ describe("StakingRouter E2E (SharedStake V2 modular)", () => {
     expect(await validatorModule.bufferedEther()).to.equal(parseEther("32"));
 
     const pubkey = ethers.hexlify(ethers.randomBytes(48));
-    const creds = ethers.hexlify(ethers.randomBytes(32));
+    const creds = expectedWithdrawalCreds;
     const sig = ethers.hexlify(ethers.randomBytes(96));
     const root = ethers.hexlify(ethers.randomBytes(32));
 

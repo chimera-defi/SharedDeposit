@@ -176,6 +176,23 @@ describe("WithdrawalQueueV2", () => {
       expect(await queue.lastOracleReportTimestamp()).to.equal(BigInt(ts));
     });
 
+    it("rejects non-monotonic oracle report timestamps", async () => {
+      const ts = (await ethers.provider.getBlock("latest"))!.timestamp;
+      await queue.connect(oracle).updateModeFromOracle(true, ts);
+
+      await expect(
+        queue.connect(oracle).updateModeFromOracle(false, ts)
+      )
+        .to.be.revertedWithCustomError(queue, "StaleReportTimestamp")
+        .withArgs(ts, ts);
+
+      await expect(
+        queue.connect(oracle).updateModeFromOracle(false, ts - 1)
+      )
+        .to.be.revertedWithCustomError(queue, "StaleReportTimestamp")
+        .withArgs(ts - 1, ts);
+    });
+
     it("applies bunker finalize constraints (batch-size + minimum age)", async () => {
       await queue.connect(alice).requestWithdrawals(
         [parseEther("1"), parseEther("1"), parseEther("1")],

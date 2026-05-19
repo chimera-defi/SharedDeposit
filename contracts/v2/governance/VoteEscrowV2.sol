@@ -50,6 +50,8 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
 
     mapping(address => LockedBalance) public locked;
     mapping(address => uint256) public mintedForLock;
+    mapping(address => uint256) public lastCheckpointBlock;
+    mapping(address => uint256) public lastCheckpointTimestamp;
 
     // ── Events ────────────────────────────────────────────────────────────────
     event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 timestamp);
@@ -59,6 +61,7 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
     event EarlyWithdrawPenaltySet(uint256 indexed penalty);
     event MinLockedAmountSet(uint256 indexed amount);
     event GovTransferred(address indexed oldGov, address indexed newGov);
+    event CheckpointSynced(address indexed account, uint256 checkpointBlock, uint256 checkpointTimestamp);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error NothingToWithdraw();
@@ -73,6 +76,7 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
     error PenaltyTooHigh();
     error ZeroAddress();
     error PermissionDenied();
+    error NonTransferable();
 
     constructor(
         string memory _name,
@@ -106,6 +110,7 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
 
     function increase_amount(uint256 _value) external nonReentrant {
         if (_value < minLockedAmount) revert LessThanMinAmount();
+        _syncVotingPower(msg.sender);
         _deposit_for(msg.sender, _value, 0);
     }
 
@@ -116,6 +121,8 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
         LockedBalance storage _locked = locked[msg.sender];
         if (_locked.amount == 0) revert NothingToWithdraw();
         if (block.timestamp >= _locked.end) revert LockExpired();
+
+        _syncVotingPower(msg.sender);
 
         uint256 _now = block.timestamp;
         uint256 _end = _locked.end;
@@ -136,6 +143,8 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
     }
 
     function withdraw() external nonReentrant {
+        _syncVotingPower(msg.sender);
+
         LockedBalance storage _locked = locked[msg.sender];
         uint256 _now = block.timestamp;
         if (_locked.amount == 0) revert NothingToWithdraw();
@@ -154,6 +163,8 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
     }
 
     function emergencyWithdraw() external nonReentrant {
+        _syncVotingPower(msg.sender);
+
         LockedBalance storage _locked = locked[msg.sender];
         uint256 _now = block.timestamp;
         if (_locked.amount == 0) revert NothingToWithdraw();
@@ -200,6 +211,19 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
         address oldGov = gov;
         gov = _newGov;
         emit GovTransferred(oldGov, _newGov);
+    }
+
+    /// @notice Permissionless voting-power decay checkpoint.
+    /// @dev Burns stale ve balance down to current lock-derived voting power.
+    function checkpoint(address account) external {
+        _syncVotingPower(account);
+    }
+
+    /// @notice Batch checkpoint helper to refresh multiple delegates in one transaction.
+    function checkpointMany(address[] calldata accounts) external {
+        for (uint256 i; i < accounts.length; ++i) {
+            _syncVotingPower(accounts[i]);
+        }
     }
 
     // ── Public views ──────────────────────────────────────────────────────────
@@ -249,6 +273,7 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
         }
         _mint(_addr, _vp);
         mintedForLock[_addr] += _vp;
+        _markCheckpoint(_addr);
 
         emit Deposit(_addr, _locked.amount, _locked.end, _now);
     }
@@ -263,6 +288,33 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
         }
     }
 
+    function _syncVotingPower(address account) internal {
+        uint256 minted = mintedForLock[account];
+        if (minted == 0) {
+            _markCheckpoint(account);
+            return;
+        }
+
+        LockedBalance storage lock = locked[account];
+        uint256 currentPower = voting_power_unlock_time(lock.amount, lock.end);
+        if (currentPower >= minted) {
+            _markCheckpoint(account);
+            return;
+        }
+
+        uint256 decay = minted - currentPower;
+        mintedForLock[account] = currentPower;
+        _burn(account, decay);
+        _markCheckpoint(account);
+    }
+
+    function _markCheckpoint(address account) internal {
+        if (account == address(0)) return;
+        lastCheckpointBlock[account] = block.number;
+        lastCheckpointTimestamp[account] = block.timestamp;
+        emit CheckpointSynced(account, block.number, block.timestamp);
+    }
+
     // ── ERC20Votes required overrides ─────────────────────────────────────────
 
     function _mint(address to, uint256 amount) internal override(ERC20, ERC20Votes) {
@@ -275,5 +327,10 @@ contract VoteEscrowV2 is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard {
 
     function _afterTokenTransfer(address from, address to, uint256 amount) internal override(ERC20, ERC20Votes) {
         super._afterTokenTransfer(from, to, amount);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
+        if (from != address(0) && to != address(0)) revert NonTransferable();
+        super._beforeTokenTransfer(from, to, amount);
     }
 }

@@ -36,6 +36,10 @@ import {Errors} from "../lib/Errors.sol";
 contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakingRouter {
     using ShareMath for *;
 
+    bytes32 private constant MODULE_TYPE_SOLO_VALIDATOR = keccak256("SOLO_VALIDATOR");
+    bytes32 private constant MODULE_TYPE_DVT_VALIDATOR = keccak256("DVT_VALIDATOR");
+    bytes32 private constant MODULE_TYPE_LST_WRAP = keccak256("LST_WRAP");
+
     struct FeeRoutingData {
         uint256 rewards;
         uint256 treasuryAmount;
@@ -72,6 +76,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
     /// @notice Module registry. moduleId => info.
     mapping(bytes32 => ModuleInfo) private _modules;
+    mapping(address => bytes32) private _moduleIdByAddress;
 
     /// @notice Last reported beacon balance per module — used for delta-only oracle reports.
     mapping(bytes32 => uint256) public moduleBeaconBalance;
@@ -82,6 +87,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     /// @notice Current inflow window state per module.
     mapping(bytes32 => InflowWindowState) public moduleInflowWindowState;
 
+    /// @notice Optional global limiter config across all module inflows.
+    ///         Disabled if either field is zero.
+    InflowLimitConfig public globalInflowLimitConfig;
+
+    /// @notice Current global inflow window state.
+    InflowWindowState public globalInflowWindowState;
+
     /// @notice The module that `submit()` (no moduleId) routes to.
     bytes32 public defaultModuleId;
 
@@ -90,6 +102,13 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
     /// @notice Optional per-module policy id. Zero value disables policy checks for that module.
     mapping(bytes32 => bytes32) public modulePolicyId;
+
+    /// @notice Optional allowlist for module runtime code hashes keyed by module type.
+    ///         When enforcement is enabled, registration only succeeds for allowlisted hashes.
+    mapping(bytes32 => mapping(bytes32 => bool)) public moduleCodeHashAllowed;
+
+    /// @notice Enable strict code-hash allowlist checks in registerModule().
+    bool public enforceModuleCodeHashAllowlist;
 
     /// @notice Sanity bound (basis points) on per-report beacon balance gains.
     ///         A module reporting `newBeaconBalance > prior * (1 + maxDeltaBps/10000)`
@@ -147,12 +166,19 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     event MaxTotalPooledEtherSet(uint256 newValue);
     event PoolInsolvent(bytes32 indexed moduleId, uint256 loss, uint256 pooledAtTime);
     event ModuleInflowLimitSet(bytes32 indexed moduleId, uint256 windowSeconds, uint256 maxInflowEthPerWindow);
+    event GlobalInflowLimitSet(uint256 windowSeconds, uint256 maxInflowEthPerWindow);
     event PolicyRegistrySet(address indexed registry);
     event ModulePolicySet(bytes32 indexed moduleId, bytes32 indexed policyId);
+    event ModuleCodeHashAllowedSet(bytes32 indexed moduleType, bytes32 indexed codeHash, bool allowed);
+    event ModuleCodeHashAllowlistEnforcementSet(bool enabled);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error ModuleNotRegistered(bytes32 moduleId);
     error ModuleAlreadyRegistered(bytes32 moduleId);
+    error ModuleAddressAlreadyRegistered(address moduleAddr, bytes32 existingModuleId);
+    error ModuleAddressNotContract(address moduleAddr);
+    error ModuleIdMismatch(bytes32 expectedModuleId, bytes32 moduleReportedId);
+    error ModuleRouterMismatch(bytes32 moduleId, address moduleAddr, address expectedRouter, address actualRouter);
     error ModuleInactive(bytes32 moduleId);
     error ModulePaused(bytes32 moduleId);
     error MintCapExceeded(bytes32 moduleId, uint256 attempted, uint256 cap);
@@ -162,7 +188,10 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     error MaxTotalPooledExceeded(uint256 attempted, uint256 cap);
     error BeaconBaselineNotInitialized(bytes32 moduleId, uint256 reportedBalance);
     error InflowLimitExceeded(bytes32 moduleId, uint256 attemptedWindowInflow, uint256 maxInflowEthPerWindow);
+    error GlobalInflowLimitExceeded(uint256 attemptedWindowInflow, uint256 maxInflowEthPerWindow);
     error PolicyDenied(bytes32 moduleId, bytes32 policyId, address account);
+    error ModuleTypeActionMismatch(bytes32 moduleId, bytes32 moduleType, bytes4 action);
+    error ModuleCodeHashNotAllowed(bytes32 moduleId, address moduleAddr, bytes32 moduleType, bytes32 codeHash);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -245,16 +274,18 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
         // Mint cap: 0 == unlimited; otherwise post-deposit total must not exceed cap.
         if (m.mintCapEth != 0) {
-            uint256 newTotal = IStakingModule(m.addr).totalEth() + amount;
+            uint256 newTotal = _effectiveModuleTotalForCap(moduleId, m.addr) + amount;
             if (newTotal > m.mintCapEth) revert MintCapExceeded(moduleId, newTotal, m.mintCapEth);
         }
 
         _consumeInflow(moduleId, amount);
+        _consumeGlobalInflow(amount);
 
         // Compute shares BEFORE updating pool — pre-deposit exchange rate (no inflation).
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
         uint256 currentShares = ST_TOKEN.getTotalShares();
         sharesAmount = ShareMath.getSharesByPooledEth(amount, currentShares, currentPooled);
+        if (sharesAmount == 0) revert Errors.InvalidAmount();
 
         // Send ETH to the module first (Checks-Effects-Interactions-friendly: nonReentrant
         // and we mutate StToken state after this call. The module is trusted (registered
@@ -281,6 +312,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         nonReentrant
     {
         ModuleInfo storage m = _requireModuleCaller(moduleId);
+        _requireValidatorModuleType(moduleId, m.moduleType, this.reportModuleBeaconBalance.selector);
         if (m.paused) revert ModulePaused(moduleId);
         uint256 prior = moduleBeaconBalance[moduleId];
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
@@ -292,7 +324,8 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
 
     /// @inheritdoc IStakingRouter
     function notifyBeaconDeposit(bytes32 moduleId, uint256 amount) external override nonReentrant {
-        _requireModuleCaller(moduleId);
+        ModuleInfo storage m = _requireModuleCaller(moduleId);
+        _requireValidatorModuleType(moduleId, m.moduleType, this.notifyBeaconDeposit.selector);
         moduleBeaconBalance[moduleId] += amount;
         emit BeaconDepositNotified(moduleId, amount);
     }
@@ -305,6 +338,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         whenNotPaused(PAUSE_SUBMIT)
     {
         ModuleInfo storage m = _requireModuleCaller(moduleId);
+        _requireLSTWrapModuleType(moduleId, m.moduleType, this.wrapFromModule.selector);
         if (!m.active) revert ModuleInactive(moduleId);
         if (m.paused) revert ModulePaused(moduleId);
         if (recipient == address(0)) revert Errors.ZeroAddress();
@@ -312,17 +346,19 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         _enforcePolicy(moduleId, recipient);
 
         if (m.mintCapEth != 0) {
-            // For LST modules, totalEth() already reflects the new balance because the
-            // module pulled the LST in before calling us. We compare directly to cap.
-            uint256 newTotal = IStakingModule(m.addr).totalEth();
+            // For validator modules, include pending beacon principal tracked in
+            // `moduleBeaconBalance` but not yet reflected in module-reported beaconBalance().
+            uint256 newTotal = _effectiveModuleTotalForCap(moduleId, m.addr);
             if (newTotal > m.mintCapEth) revert MintCapExceeded(moduleId, newTotal, m.mintCapEth);
         }
 
         _consumeInflow(moduleId, ethEquiv);
+        _consumeGlobalInflow(ethEquiv);
 
         uint256 currentPooled = ST_TOKEN.totalPooledEther();
         uint256 currentShares = ST_TOKEN.getTotalShares();
         uint256 shares = ShareMath.getSharesByPooledEth(ethEquiv, currentShares, currentPooled);
+        if (shares == 0) revert Errors.InvalidAmount();
 
         ST_TOKEN.setTotalPooledEther(_enforceGlobalCap(currentPooled + ethEquiv));
         ST_TOKEN.mintShares(recipient, shares);
@@ -337,7 +373,8 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         nonReentrant
         returns (uint256 ethValue)
     {
-        _requireModuleCaller(moduleId);
+        ModuleInfo storage m = _requireModuleCaller(moduleId);
+        _requireLSTWrapModuleType(moduleId, m.moduleType, this.unwrapToModule.selector);
         if (caller == address(0)) revert Errors.ZeroAddress();
         if (stTokenAmount == 0) revert Errors.InvalidAmount();
 
@@ -460,6 +497,26 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         windowState.inflowEth = newInflow;
     }
 
+    function _consumeGlobalInflow(uint256 amount) internal {
+        InflowLimitConfig storage cfg = globalInflowLimitConfig;
+        if (cfg.windowSeconds == 0 || cfg.maxInflowEthPerWindow == 0) {
+            return;
+        }
+
+        InflowWindowState storage windowState = globalInflowWindowState;
+        if (windowState.windowStart == 0 || block.timestamp - windowState.windowStart >= cfg.windowSeconds) {
+            windowState.windowStart = block.timestamp;
+            windowState.inflowEth = 0;
+        }
+
+        uint256 newInflow = windowState.inflowEth + amount;
+        if (newInflow > cfg.maxInflowEthPerWindow) {
+            revert GlobalInflowLimitExceeded(newInflow, cfg.maxInflowEthPerWindow);
+        }
+
+        windowState.inflowEth = newInflow;
+    }
+
     function _requireModuleCaller(bytes32 moduleId) internal view returns (ModuleInfo storage m) {
         m = _modules[moduleId];
         if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
@@ -469,6 +526,23 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     function _requireModuleRegistered(bytes32 moduleId) internal view returns (ModuleInfo storage m) {
         m = _modules[moduleId];
         if (m.addr == address(0)) revert ModuleNotRegistered(moduleId);
+    }
+
+    /// @dev Effective module TVL used by mint-cap checks.
+    ///      For validator modules, include pending principal that was moved to
+    ///      beacon via `notifyBeaconDeposit` but is not yet reflected in module
+    ///      `beaconBalance()` until the next oracle report.
+    function _effectiveModuleTotalForCap(bytes32 moduleId, address moduleAddr) internal view returns (uint256) {
+        uint256 total = IStakingModule(moduleAddr).totalEth();
+        uint256 baseline = moduleBeaconBalance[moduleId];
+        if (baseline == 0) return total;
+
+        (bool ok, bytes memory data) = moduleAddr.staticcall(abi.encodeWithSignature("beaconBalance()"));
+        if (!ok || data.length < 32) return total;
+
+        uint256 reportedBeacon = abi.decode(data, (uint256));
+        if (baseline <= reportedBeacon) return total;
+        return total + (baseline - reportedBeacon);
     }
 
     /// @dev Checks the global pooled-ether cap, updates StToken, and returns `newPooled`.
@@ -533,6 +607,22 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         }
     }
 
+    function _isValidatorModuleType(bytes32 moduleType) internal pure returns (bool) {
+        return moduleType == MODULE_TYPE_SOLO_VALIDATOR || moduleType == MODULE_TYPE_DVT_VALIDATOR;
+    }
+
+    function _requireValidatorModuleType(bytes32 moduleId, bytes32 moduleType, bytes4 action) internal pure {
+        if (!_isValidatorModuleType(moduleType)) {
+            revert ModuleTypeActionMismatch(moduleId, moduleType, action);
+        }
+    }
+
+    function _requireLSTWrapModuleType(bytes32 moduleId, bytes32 moduleType, bytes4 action) internal pure {
+        if (moduleType != MODULE_TYPE_LST_WRAP) {
+            revert ModuleTypeActionMismatch(moduleId, moduleType, action);
+        }
+    }
+
     // ── GOV: module registry ──────────────────────────────────────────────────
 
     function registerModule(bytes32 moduleId, address moduleAddr, uint256 mintCapEth)
@@ -542,8 +632,28 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (moduleId == bytes32(0)) revert Errors.InvalidAmount();
         if (moduleAddr == address(0)) revert Errors.ZeroAddress();
         if (_modules[moduleId].addr != address(0)) revert ModuleAlreadyRegistered(moduleId);
+        if (moduleAddr.code.length == 0) revert ModuleAddressNotContract(moduleAddr);
+        bytes32 existingModuleId = _moduleIdByAddress[moduleAddr];
+        if (existingModuleId != bytes32(0)) {
+            revert ModuleAddressAlreadyRegistered(moduleAddr, existingModuleId);
+        }
+
+        address wiredRouter = address(IStakingModule(moduleAddr).ROUTER());
+        if (wiredRouter != address(this)) {
+            revert ModuleRouterMismatch(moduleId, moduleAddr, address(this), wiredRouter);
+        }
+        bytes32 moduleReportedId = IStakingModule(moduleAddr).MODULE_ID();
+        if (moduleReportedId != moduleId) {
+            revert ModuleIdMismatch(moduleId, moduleReportedId);
+        }
 
         bytes32 mType = IStakingModule(moduleAddr).moduleType();
+        if (enforceModuleCodeHashAllowlist) {
+            bytes32 codeHash = moduleAddr.codehash;
+            if (!moduleCodeHashAllowed[mType][codeHash]) {
+                revert ModuleCodeHashNotAllowed(moduleId, moduleAddr, mType, codeHash);
+            }
+        }
         _modules[moduleId] = ModuleInfo({
             addr: moduleAddr,
             moduleType: mType,
@@ -551,6 +661,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
             active: true,
             paused: false
         });
+        _moduleIdByAddress[moduleAddr] = moduleId;
         emit ModuleRegistered(moduleId, moduleAddr, mType, mintCapEth);
     }
 
@@ -575,6 +686,20 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         emit ModuleInflowLimitSet(moduleId, windowSeconds, maxInflowEthPerWindow);
     }
 
+    /// @notice Configure optional global inflow limiter across all module routes.
+    /// @dev Disabled whenever `windowSeconds == 0` or `maxInflowEthPerWindow == 0`.
+    function setGlobalInflowLimit(uint256 windowSeconds, uint256 maxInflowEthPerWindow)
+        external
+        onlyRole(GOV)
+    {
+        globalInflowLimitConfig = InflowLimitConfig({
+            windowSeconds: windowSeconds,
+            maxInflowEthPerWindow: maxInflowEthPerWindow
+        });
+        delete globalInflowWindowState;
+        emit GlobalInflowLimitSet(windowSeconds, maxInflowEthPerWindow);
+    }
+
     /// @notice Set or clear institutional policy registry. Zero address disables policy checks.
     function setPolicyRegistry(address registry) external onlyRole(GOV) {
         policyRegistry = IInstitutionalPolicyRegistry(registry);
@@ -586,6 +711,19 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         _requireModuleRegistered(moduleId);
         modulePolicyId[moduleId] = policyId;
         emit ModulePolicySet(moduleId, policyId);
+    }
+
+    /// @notice Allow or disallow a module runtime code hash for a module type.
+    function setModuleCodeHashAllowed(bytes32 moduleType, bytes32 codeHash, bool allowed) external onlyRole(GOV) {
+        if (moduleType == bytes32(0) || codeHash == bytes32(0)) revert Errors.InvalidAmount();
+        moduleCodeHashAllowed[moduleType][codeHash] = allowed;
+        emit ModuleCodeHashAllowedSet(moduleType, codeHash, allowed);
+    }
+
+    /// @notice Enable or disable strict module code-hash allowlist checks at registration time.
+    function setEnforceModuleCodeHashAllowlist(bool enabled) external onlyRole(GOV) {
+        enforceModuleCodeHashAllowlist = enabled;
+        emit ModuleCodeHashAllowlistEnforcementSet(enabled);
     }
 
     function setDefaultModule(bytes32 moduleId) external onlyRole(GOV) {

@@ -15,6 +15,7 @@
  *   GUARDIAN_PRIVATE_KEY     Private key holding the GUARDIAN role
  *
  * Optional env vars:
+ *   ORACLE_ADAPTER_ADDRESS   Optional OracleAdapter/QuorumOracleAdapter for staleness checks
  *   MODULE_IDS               Comma-separated 0x-prefixed bytes32 moduleIds to include
  *                            in emergencyPauseAll(). Defaults to the solo-validator module.
  *   ALERT_THRESHOLD_BPS      Max single-poll ETH drop in basis points before pausing
@@ -31,6 +32,7 @@ const ROUTER_ABI = [
   "function GUARDIAN() view returns (bytes32)",
   "function hasRole(bytes32 role, address account) view returns (bool)",
 ];
+const ORACLE_ADAPTER_ABI = ["function lastReportTime() view returns (uint256)"];
 
 const DEFAULT_MODULE_ID = ethers.keccak256(ethers.toUtf8Bytes("SOLO_VALIDATOR_1"));
 const DEFAULT_ALERT_THRESHOLD_BPS = 500; // 5%
@@ -41,6 +43,7 @@ export interface Config {
   rpcUrl: string;
   routerAddress: string;
   guardianKey: string;
+  oracleAddress: string | null;
   moduleIds: string[];
   alertThresholdBps: number;
   pollIntervalSec: number;
@@ -74,6 +77,7 @@ function loadConfig(): Config {
     rpcUrl: req("RPC_URL"),
     routerAddress: req("ROUTER_ADDRESS"),
     guardianKey: req("GUARDIAN_PRIVATE_KEY"),
+    oracleAddress: process.env.ORACLE_ADAPTER_ADDRESS ?? null,
     moduleIds,
     alertThresholdBps: parseInt(process.env.ALERT_THRESHOLD_BPS ?? String(DEFAULT_ALERT_THRESHOLD_BPS), 10),
     pollIntervalSec,
@@ -143,9 +147,15 @@ export interface State {
   paused: boolean;
 }
 
-export async function checkOnce(router: ethers.Contract, cfg: Config, state: State): Promise<void> {
+export async function checkOnce(
+  router: ethers.Contract,
+  cfg: Config,
+  state: State,
+  oracle: ethers.Contract | null = null,
+): Promise<void> {
   const totalPooled: bigint = await router.totalPooledEther();
   const ts = new Date().toISOString();
+  const nowSec = Math.floor(Date.now() / 1000);
 
   if (state.paused) {
     console.log(`[monitor] ${ts} Protocol already paused. totalPooled=${ethers.formatEther(totalPooled)} ETH`);
@@ -157,6 +167,24 @@ export async function checkOnce(router: ethers.Contract, cfg: Config, state: Sta
     state.lastPooledEther = totalPooled;
     console.log(`[monitor] ${ts} Baseline: totalPooled=${ethers.formatEther(totalPooled)} ETH`);
     return;
+  }
+
+  if (oracle && cfg.maxOracleAgeSec > 0) {
+    const lastReportTime: bigint = await oracle.lastReportTime();
+    if (lastReportTime > 0n) {
+      const ageSec = nowSec - Number(lastReportTime);
+      if (ageSec > cfg.maxOracleAgeSec) {
+        await triggerPause(
+          router,
+          cfg,
+          `oracle report stale by ${ageSec}s (threshold=${cfg.maxOracleAgeSec}s)`,
+        );
+        state.paused = true;
+        return;
+      }
+    } else {
+      console.warn("[monitor] oracle has no report yet; staleness check deferred");
+    }
   }
 
   const prev = state.lastPooledEther;
@@ -188,12 +216,20 @@ async function main() {
   const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
   const wallet = new ethers.Wallet(cfg.guardianKey, provider);
   const router = new ethers.Contract(cfg.routerAddress, ROUTER_ABI, wallet);
+  const oracle = cfg.oracleAddress
+    ? new ethers.Contract(cfg.oracleAddress, ORACLE_ADAPTER_ABI, wallet)
+    : null;
 
   console.log(`[monitor] Starting balance monitor`);
   console.log(`[monitor] Router: ${cfg.routerAddress}`);
   console.log(`[monitor] Guardian: ${wallet.address}`);
   console.log(`[monitor] Alert threshold: ${cfg.alertThresholdBps} bps`);
   console.log(`[monitor] Module IDs: ${cfg.moduleIds.join(", ")}`);
+  if (oracle) {
+    console.log(`[monitor] Oracle staleness threshold: ${cfg.maxOracleAgeSec}s`);
+  } else {
+    console.log("[monitor] Oracle staleness checks disabled (ORACLE_ADAPTER_ADDRESS unset)");
+  }
   if (cfg.dryRun) console.log("[monitor] DRY-RUN mode — no on-chain transactions");
 
   // Verify GUARDIAN role before entering the loop
@@ -203,7 +239,7 @@ async function main() {
   const state: State = {lastPooledEther: null, paused: false};
 
   if (!cfg.watch) {
-    await checkOnce(router, cfg, state);
+    await checkOnce(router, cfg, state, oracle);
     return;
   }
 
@@ -211,7 +247,7 @@ async function main() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      await checkOnce(router, cfg, state);
+      await checkOnce(router, cfg, state, oracle);
     } catch (err) {
       console.error("[monitor] Poll error:", (err as Error).message);
     }

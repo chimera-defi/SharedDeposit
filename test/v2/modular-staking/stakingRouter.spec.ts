@@ -16,6 +16,7 @@ import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
 const SOLO = ethers.keccak256(ethers.toUtf8Bytes("SOLO_MOD_1"));
 const SECONDARY = ethers.keccak256(ethers.toUtf8Bytes("SOLO_MOD_2"));
+const WRONG_ID = ethers.keccak256(ethers.toUtf8Bytes("SOLO_MOD_WRONG"));
 const POLICY = ethers.keccak256(ethers.toUtf8Bytes("INSTITUTIONAL_POLICY_A"));
 const SOURCE_A = ethers.keccak256(ethers.toUtf8Bytes("SOURCE_ATTR_A"));
 const SOURCE_B = ethers.keccak256(ethers.toUtf8Bytes("SOURCE_ATTR_B"));
@@ -37,6 +38,22 @@ describe("StakingRouter", () => {
   const NODE_OPERATOR_ROLE = ethers.keccak256(ethers.toUtf8Bytes("NODE_OPERATOR"));
 
   let mockBeaconDeposit: any;
+  let expectedWithdrawalCreds: string;
+
+  async function runtimeCodeHash(addr: string): Promise<string> {
+    const code = await ethers.provider.getCode(addr);
+    return ethers.keccak256(code);
+  }
+
+  async function impersonateAccount(account: string): Promise<any> {
+    await ethers.provider.send("hardhat_impersonateAccount", [account]);
+    await ethers.provider.send("hardhat_setBalance", [account, ethers.toBeHex(parseEther("1"))]);
+    return await ethers.getSigner(account);
+  }
+
+  async function stopImpersonatingAccount(account: string) {
+    await ethers.provider.send("hardhat_stopImpersonatingAccount", [account]);
+  }
 
   async function deployFresh() {
     [deployer, gov, guardian, alice, bob, oracle, impostor] = await ethers.getSigners();
@@ -83,6 +100,9 @@ describe("StakingRouter", () => {
 
     // Gov gets NODE_OPERATOR on mod1 so tests can drive depositToBeaconChain.
     await mod1.connect(gov).grantRole(NODE_OPERATOR_ROLE, gov.address);
+    expectedWithdrawalCreds = ethers.hexlify(ethers.randomBytes(32));
+    await mod1.connect(gov).setExpectedWithdrawalCredentials(expectedWithdrawalCreds);
+    await mod2.connect(gov).setExpectedWithdrawalCredentials(expectedWithdrawalCreds);
   }
 
   beforeEach(deployFresh);
@@ -105,6 +125,12 @@ describe("StakingRouter", () => {
       ).to.be.revertedWithCustomError(router, "ModuleAlreadyRegistered");
     });
 
+    it("rejects re-registering the same module address under a different id", async () => {
+      await expect(
+        router.connect(gov).registerModule(SECONDARY, mod1.target, parseEther("50"))
+      ).to.be.revertedWithCustomError(router, "ModuleAddressAlreadyRegistered");
+    });
+
     it("non-GOV cannot register a module", async () => {
       await expect(
         router.connect(alice).registerModule(SECONDARY, mod2.target, 0)
@@ -115,6 +141,69 @@ describe("StakingRouter", () => {
       await expect(
         router.connect(gov).registerModule(SECONDARY, ZeroAddress, 0)
       ).to.be.reverted;
+    });
+
+    it("rejects non-contract module addresses", async () => {
+      await expect(
+        router.connect(gov).registerModule(SECONDARY, alice.address, 0)
+      ).to.be.revertedWithCustomError(router, "ModuleAddressNotContract");
+    });
+
+    it("rejects registration when module is wired to a different router", async () => {
+      const StakingRouter = await ethers.getContractFactory("StakingRouter");
+      const foreignRouter = await StakingRouter.deploy(stToken.target, gov.address);
+
+      const ValidatorModule = await ethers.getContractFactory("ValidatorModule");
+      const foreignModule = await ValidatorModule.deploy(
+        foreignRouter.target,
+        SECONDARY,
+        gov.address,
+        mockBeaconDeposit.target,
+      );
+
+      await expect(
+        router.connect(gov).registerModule(SECONDARY, foreignModule.target, 0),
+      ).to.be.revertedWithCustomError(router, "ModuleRouterMismatch");
+    });
+
+    it("rejects registration when module internal id does not match router id", async () => {
+      const ValidatorModule = await ethers.getContractFactory("ValidatorModule");
+      const wrongIdModule = await ValidatorModule.deploy(
+        router.target,
+        SECONDARY,
+        gov.address,
+        mockBeaconDeposit.target,
+      );
+
+      await expect(
+        router.connect(gov).registerModule(WRONG_ID, wrongIdModule.target, 0),
+      ).to.be.revertedWithCustomError(router, "ModuleIdMismatch");
+    });
+
+    it("enforced code-hash allowlist blocks unallowlisted module registration", async () => {
+      const StakingRouter = await ethers.getContractFactory("StakingRouter");
+      const router2 = await StakingRouter.deploy(stToken.target, gov.address);
+
+      const ValidatorModule = await ethers.getContractFactory("ValidatorModule");
+      const mod = await ValidatorModule.deploy(
+        router2.target,
+        SECONDARY,
+        gov.address,
+        mockBeaconDeposit.target,
+      );
+
+      await router2.connect(gov).setEnforceModuleCodeHashAllowlist(true);
+      await expect(
+        router2.connect(gov).registerModule(SECONDARY, mod.target, 0),
+      ).to.be.revertedWithCustomError(router2, "ModuleCodeHashNotAllowed");
+
+      const moduleType = await mod.moduleType();
+      const codeHash = await runtimeCodeHash(mod.target as string);
+      await router2.connect(gov).setModuleCodeHashAllowed(moduleType, codeHash, true);
+
+      await expect(
+        router2.connect(gov).registerModule(SECONDARY, mod.target, 0),
+      ).to.not.be.reverted;
     });
   });
 
@@ -146,7 +235,7 @@ describe("StakingRouter", () => {
       expect(await mod1.bufferedEther()).to.equal(amount);
     });
 
-    it("legacy submit path is unchanged and does not emit attribution telemetry", async () => {
+    it("default submit path is unchanged and does not emit attribution telemetry", async () => {
       const amount = parseEther("1");
       const tx = await router.connect(alice).submit(ZeroAddress, {value: amount});
       const receipt = await tx.wait();
@@ -184,6 +273,22 @@ describe("StakingRouter", () => {
       await expect(
         router2.connect(alice).submit(ZeroAddress, {value: parseEther("1")})
       ).to.be.revertedWithCustomError(router2, "DefaultModuleNotSet");
+    });
+
+    it("reverts tiny deposits when the current exchange rate would mint zero shares", async () => {
+      await router.connect(gov).setMaxDeltaBps(1000);
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+      await mod1.connect(oracle).reportBeacon(1, parseEther("33"));
+
+      await expect(
+        router.connect(bob).submit(ZeroAddress, {value: 1n})
+      ).to.be.reverted;
     });
   });
 
@@ -241,6 +346,26 @@ describe("StakingRouter", () => {
       expect(await mod1.bufferedEther()).to.equal(parseEther("500"));
     });
 
+    it("counts pending beacon principal toward cap during report lag window", async () => {
+      await router.connect(gov).setMintCap(SOLO, parseEther("64"));
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("64")});
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
+      // Module's internal totalEth() is temporarily lower until the next report,
+      // but cap checks must include pending principal tracked by the router.
+      expect(await mod1.totalEth()).to.equal(parseEther("32"));
+      expect(await router.moduleBeaconBalance(SOLO)).to.equal(parseEther("32"));
+
+      await expect(
+        router.connect(bob).submit(ZeroAddress, {value: parseEther("1")})
+      ).to.be.revertedWithCustomError(router, "MintCapExceeded");
+    });
+
     it("setMintCap is GOV-only", async () => {
       await expect(
         router.connect(alice).setMintCap(SOLO, parseEther("1"))
@@ -290,7 +415,7 @@ describe("StakingRouter", () => {
         .withArgs(SOLO, parseEther("6"), parseEther("5"));
     });
 
-    it("disabled config (zeroed) allows flows", async () => {
+    it("disabled global config (zeroed) allows flows", async () => {
       await router.connect(gov).setModuleInflowLimit(SOLO, 3600, parseEther("1"));
       await router.connect(gov).setModuleInflowLimit(SOLO, 0, 0);
 
@@ -305,6 +430,56 @@ describe("StakingRouter", () => {
     it("setModuleInflowLimit is GOV-only", async () => {
       await expect(
         router.connect(alice).setModuleInflowLimit(SOLO, 3600, parseEther("1"))
+      ).to.be.reverted;
+    });
+  });
+
+  // ── Global inflow limiter ────────────────────────────────────────────────
+
+  describe("Global inflow limiter", () => {
+    it("blocks aggregate inflow across multiple modules in the same window", async () => {
+      await router.connect(gov).registerModule(SECONDARY, mod2.target, 0);
+      await router.connect(gov).setGlobalInflowLimit(3600, parseEther("5"));
+
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("4")});
+      await expect(
+        router.connect(alice).submitToModule(SECONDARY, ZeroAddress, {value: parseEther("2")})
+      )
+        .to.be.revertedWithCustomError(router, "GlobalInflowLimitExceeded")
+        .withArgs(parseEther("6"), parseEther("5"));
+    });
+
+    it("resets global inflow limiter after the window elapses", async () => {
+      await router.connect(gov).setGlobalInflowLimit(60, parseEther("5"));
+
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("4")});
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("2")})
+      ).to.be.revertedWithCustomError(router, "GlobalInflowLimitExceeded");
+
+      await ethers.provider.send("evm_increaseTime", [61]);
+      await ethers.provider.send("evm_mine", []);
+
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("2")})
+      ).to.not.be.reverted;
+    });
+
+    it("disabled config (zeroed) allows flows", async () => {
+      await router.connect(gov).setGlobalInflowLimit(3600, parseEther("1"));
+      await router.connect(gov).setGlobalInflowLimit(0, 0);
+
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("3")})
+      ).to.not.be.reverted;
+      await expect(
+        router.connect(alice).submit(ZeroAddress, {value: parseEther("3")})
+      ).to.not.be.reverted;
+    });
+
+    it("setGlobalInflowLimit is GOV-only", async () => {
+      await expect(
+        router.connect(alice).setGlobalInflowLimit(3600, parseEther("1"))
       ).to.be.reverted;
     });
   });
@@ -516,7 +691,7 @@ describe("StakingRouter", () => {
     it("positive delta increases totalPooledEther and mints fees with exact 50/50 split", async () => {
       // First move one validator principal (32 ETH) from buffer to beacon.
       const pubkey = ethers.hexlify(ethers.randomBytes(48));
-      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const creds = expectedWithdrawalCreds;
       const sig = ethers.hexlify(ethers.randomBytes(96));
       const root = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
@@ -588,7 +763,7 @@ describe("StakingRouter", () => {
       await feeController.connect(gov).setRecipients(gov.address, deployer.address, registry.target);
 
       const pubkey = ethers.hexlify(ethers.randomBytes(48));
-      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const creds = expectedWithdrawalCreds;
       const sig = ethers.hexlify(ethers.randomBytes(96));
       const root = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
@@ -607,10 +782,10 @@ describe("StakingRouter", () => {
       expect(treasuryAfter - treasuryBefore).to.be.gt(operatorAfter - operatorBefore);
     });
 
-    it("rejects positive reports before beacon baseline is initialized", async () => {
+    it("rejects reports with validator count above deposited validator count", async () => {
       await expect(mod1.connect(oracle).reportBeacon(1, parseEther("32")))
-        .to.be.revertedWithCustomError(router, "BeaconBaselineNotInitialized")
-        .withArgs(SOLO, parseEther("32"));
+        .to.be.revertedWithCustomError(mod1, "BeaconValidatorCountSanityFailed")
+        .withArgs(1, 0);
     });
 
     it("double notifyBeaconDeposit inflates baseline only once — second call adds to existing baseline", async () => {
@@ -620,7 +795,7 @@ describe("StakingRouter", () => {
 
       // First push: 32 ETH from buffer → baseline becomes 32.
       const pubkey1 = ethers.hexlify(ethers.randomBytes(48));
-      const creds1 = ethers.hexlify(ethers.randomBytes(32));
+      const creds1 = expectedWithdrawalCreds;
       const sig1 = ethers.hexlify(ethers.randomBytes(96));
       const root1 = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey1, creds1, sig1, root1);
@@ -633,7 +808,7 @@ describe("StakingRouter", () => {
 
       // Second legitimate push: another 32 ETH → baseline accumulates to 64.
       const pubkey2 = ethers.hexlify(ethers.randomBytes(48));
-      const creds2 = ethers.hexlify(ethers.randomBytes(32));
+      const creds2 = expectedWithdrawalCreds;
       const sig2 = ethers.hexlify(ethers.randomBytes(96));
       const root2 = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey2, creds2, sig2, root2);
@@ -659,7 +834,7 @@ describe("StakingRouter", () => {
       // First push 32 ETH from buffer to (mock) beacon contract. This calls
       // notifyBeaconDeposit on the router, setting moduleBeaconBalance baseline = 32.
       const pubkey = ethers.hexlify(ethers.randomBytes(48));
-      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const creds = expectedWithdrawalCreds;
       const sig = ethers.hexlify(ethers.randomBytes(96));
       const root = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
@@ -680,7 +855,7 @@ describe("StakingRouter", () => {
 
     it("notifyBeaconDeposit baseline math: 32 ETH push then 33 ETH report yields +1 ETH delta", async () => {
       const pubkey = ethers.hexlify(ethers.randomBytes(48));
-      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const creds = expectedWithdrawalCreds;
       const sig = ethers.hexlify(ethers.randomBytes(96));
       const root = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
@@ -731,6 +906,65 @@ describe("StakingRouter", () => {
       await router.connect(alice).submit(ZeroAddress, {value: parseEther("4")});
       await router.connect(alice).submitToModule(SECONDARY, ZeroAddress, {value: parseEther("6")});
       expect(await router.totalEthOf([SOLO, SECONDARY])).to.equal(parseEther("10"));
+    });
+
+    it("non-GOV cannot configure code-hash allowlist controls", async () => {
+      const validatorType = await mod1.moduleType();
+      const validatorCodeHash = await runtimeCodeHash(mod1.target as string);
+
+      await expect(
+        router.connect(alice).setModuleCodeHashAllowed(validatorType, validatorCodeHash, true),
+      ).to.be.reverted;
+      await expect(
+        router.connect(alice).setEnforceModuleCodeHashAllowlist(true),
+      ).to.be.reverted;
+    });
+  });
+
+  // ── Module action gating ─────────────────────────────────────────────────
+
+  describe("Module action gating", () => {
+    const LST_GATED = ethers.keccak256(ethers.toUtf8Bytes("LST_WRAP_GATED"));
+    let lstToken: any, lstModule: any, oracleContract: any;
+
+    beforeEach(async () => {
+      const MockERC20 = await ethers.getContractFactory("MockERC20");
+      lstToken = await MockERC20.deploy("Mock LST", "mLST");
+
+      const MockLSTPriceOracle = await ethers.getContractFactory("MockLSTPriceOracle");
+      oracleContract = await MockLSTPriceOracle.deploy(parseEther("1"));
+
+      const LSTWrapModule = await ethers.getContractFactory("LSTWrapModule");
+      lstModule = await LSTWrapModule.deploy(
+        router.target,
+        LST_GATED,
+        lstToken.target,
+        gov.address,
+      );
+      await lstModule.connect(gov).setPriceOracle(oracleContract.target);
+      await router.connect(gov).registerModule(LST_GATED, lstModule.target, parseEther("10"));
+    });
+
+    it("validator modules cannot call LST-only wrap path", async () => {
+      const validatorSigner = await impersonateAccount(mod1.target as string);
+      const action = router.interface.getFunction("wrapFromModule")!.selector;
+      await expect(
+        router.connect(validatorSigner).wrapFromModule(SOLO, alice.address, parseEther("1")),
+      )
+        .to.be.revertedWithCustomError(router, "ModuleTypeActionMismatch")
+        .withArgs(SOLO, await mod1.moduleType(), action);
+      await stopImpersonatingAccount(mod1.target as string);
+    });
+
+    it("LST modules cannot call validator-only report path", async () => {
+      const lstSigner = await impersonateAccount(lstModule.target as string);
+      const action = router.interface.getFunction("reportModuleBeaconBalance")!.selector;
+      await expect(
+        router.connect(lstSigner).reportModuleBeaconBalance(LST_GATED, parseEther("1")),
+      )
+        .to.be.revertedWithCustomError(router, "ModuleTypeActionMismatch")
+        .withArgs(LST_GATED, await lstModule.moduleType(), action);
+      await stopImpersonatingAccount(lstModule.target as string);
     });
   });
 
@@ -837,6 +1071,33 @@ describe("StakingRouter", () => {
       )
         .to.be.revertedWithCustomError(router, "InflowLimitExceeded")
         .withArgs(LST_MOD, parseEther("1.1"), parseEther("1"));
+    });
+
+    it("enforces global inflow limiter on LST wrap mint path", async () => {
+      await router.connect(gov).setGlobalInflowLimit(3600, parseEther("1"));
+
+      await lstModule.connect(alice).wrapLST(parseEther("1"), alice.address);
+      await expect(
+        lstModule.connect(alice).wrapLST(parseEther("0.1"), alice.address)
+      )
+        .to.be.revertedWithCustomError(router, "GlobalInflowLimitExceeded")
+        .withArgs(parseEther("1.1"), parseEther("1"));
+    });
+
+    it("reverts tiny wraps when the current exchange rate would mint zero shares", async () => {
+      await router.connect(gov).setMaxDeltaBps(1000);
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+      await mod1.connect(oracle).reportBeacon(1, parseEther("33"));
+
+      await expect(
+        lstModule.connect(alice).wrapLST(1n, alice.address)
+      ).to.be.reverted;
     });
   });
 });

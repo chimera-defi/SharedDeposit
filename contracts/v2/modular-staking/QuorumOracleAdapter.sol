@@ -22,9 +22,11 @@ contract QuorumOracleAdapter is AccessControl {
     uint256 public maxStalenessSeconds = 6 hours;
     uint256 public maxDriftBps = 1000; // 10% per-validator balance change cap
     uint256 public maxSlashBps = 500; // 5% total-balance slash cap per report
+    uint256 public minReportIntervalSeconds = 1 hours;
 
     // ── State ─────────────────────────────────────────────────────────────────
     uint256 public lastReportTime;
+    uint256 public lastReportTimestamp;
     uint256 public lastBeaconBalance;
     uint256 public lastBeaconValidators;
 
@@ -55,6 +57,7 @@ contract QuorumOracleAdapter is AccessControl {
     event MaxStalenessSet(uint256 seconds_);
     event MaxDriftSet(uint256 bps);
     event MaxSlashSet(uint256 bps);
+    event MinReportIntervalSet(uint256 seconds_);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error InvalidQuorum(uint256 provided, uint256 submitterCount_);
@@ -64,6 +67,9 @@ contract QuorumOracleAdapter is AccessControl {
     error FutureReportTimestamp(uint256 reportTimestamp, uint256 currentTimestamp);
     error BalanceDriftTooHigh(uint256 actual, uint256 max);
     error SlashTooLarge(uint256 actual, uint256 max);
+    error InvalidBeaconReportTuple(uint256 beaconValidators, uint256 beaconBalance);
+    error NonMonotonicReportTimestamp(uint256 reportTimestamp, uint256 lastReportTimestamp);
+    error ReportTooFrequent(uint256 earliestNextReportTime, uint256 currentTime);
 
     constructor(address reportTarget, address gov, uint256 initialQuorum) {
         if (reportTarget == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -90,6 +96,7 @@ contract QuorumOracleAdapter is AccessControl {
 
         if (reportFinalized[reportHash]) revert ReportAlreadyFinalized(reportHash);
         if (hasVoted[reportHash][msg.sender]) revert DuplicateVote(reportHash, msg.sender);
+        _enforceSanityChecks(beaconValidators, beaconBalance, reportTimestamp);
 
         hasVoted[reportHash][msg.sender] = true;
         uint256 votes = ++reportVotes[reportHash];
@@ -106,12 +113,11 @@ contract QuorumOracleAdapter is AccessControl {
 
         if (votes < quorum) return;
 
-        _enforceSanityChecks(beaconValidators, beaconBalance, reportTimestamp);
-
         reportFinalized[reportHash] = true;
         lastBeaconBalance = beaconBalance;
         lastBeaconValidators = beaconValidators;
         lastReportTime = block.timestamp;
+        lastReportTimestamp = reportTimestamp;
 
         REPORT_TARGET.reportBeacon(beaconValidators, beaconBalance);
 
@@ -123,8 +129,23 @@ contract QuorumOracleAdapter is AccessControl {
         uint256 beaconBalance,
         uint256 reportTimestamp
     ) internal view {
+        if (beaconValidators == 0 && beaconBalance != 0) {
+            revert InvalidBeaconReportTuple(beaconValidators, beaconBalance);
+        }
+
         if (reportTimestamp > block.timestamp) {
             revert FutureReportTimestamp(reportTimestamp, block.timestamp);
+        }
+
+        if (lastReportTimestamp != 0 && reportTimestamp <= lastReportTimestamp) {
+            revert NonMonotonicReportTimestamp(reportTimestamp, lastReportTimestamp);
+        }
+
+        if (lastReportTime != 0 && minReportIntervalSeconds != 0) {
+            uint256 earliest = lastReportTime + minReportIntervalSeconds;
+            if (block.timestamp < earliest) {
+                revert ReportTooFrequent(earliest, block.timestamp);
+            }
         }
 
         uint256 reportAge = block.timestamp - reportTimestamp;
@@ -171,6 +192,12 @@ contract QuorumOracleAdapter is AccessControl {
     function setMaxSlashBps(uint256 bps) external onlyRole(GOV) {
         maxSlashBps = bps;
         emit MaxSlashSet(bps);
+    }
+
+    /// @notice Set minimum interval between accepted reports. 0 disables cadence gating.
+    function setMinReportInterval(uint256 seconds_) external onlyRole(GOV) {
+        minReportIntervalSeconds = seconds_;
+        emit MinReportIntervalSet(seconds_);
     }
 
     function addSubmitter(address submitter) external onlyRole(GOV) {

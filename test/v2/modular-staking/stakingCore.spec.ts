@@ -262,10 +262,42 @@ describe("StakingCore", () => {
       ).to.be.revertedWithCustomError(stakingCore, "BeaconBaselineNotInitialized");
     });
 
+    it("rejects impossible report tuple (0 validators with non-zero balance)", async () => {
+      await expect(
+        stakingCore.connect(oracle).reportBeacon(0, parseEther("1"))
+      ).to.be.revertedWithCustomError(stakingCore, "InvalidBeaconReportTuple");
+    });
+
     it("reverts when baseline notification exceeds buffered ETH", async () => {
       await expect(
         stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10.1"))
       ).to.be.revertedWithCustomError(stakingCore, "BeaconDepositExceedsBuffered");
+    });
+
+    it("routes referral fee shares to treasury when referral registry has no referees", async () => {
+      const ReferralRegistry = await ethers.getContractFactory("ReferralRegistry");
+      const registry = await ReferralRegistry.deploy(gov.address, stToken.target);
+      await registry.connect(gov).grantRole(await registry.FEE_CTRL(), stakingCore.target);
+
+      await feeController.connect(gov).setFee(1000, 4000, 4000);
+      await feeController.connect(gov).setRecipients(gov.address, deployer.address, registry.target);
+
+      await stakingCore.connect(gov).notifyBeaconDeposit(parseEther("10"));
+
+      const treasuryBefore = await stToken.sharesOf(gov.address);
+      const operatorBefore = await stToken.sharesOf(deployer.address);
+      const registryBefore = await stToken.sharesOf(registry.target);
+
+      await expect(
+        stakingCore.connect(oracle).reportBeacon(1, parseEther("10.5"))
+      ).to.not.be.reverted;
+
+      const treasuryAfter = await stToken.sharesOf(gov.address);
+      const operatorAfter = await stToken.sharesOf(deployer.address);
+      const registryAfter = await stToken.sharesOf(registry.target);
+
+      expect(registryAfter - registryBefore).to.equal(0n);
+      expect(treasuryAfter - treasuryBefore).to.be.gt(operatorAfter - operatorBefore);
     });
   });
 

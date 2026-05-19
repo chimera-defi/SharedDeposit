@@ -44,6 +44,7 @@ describe("QuorumOracleAdapter operational flows", () => {
     await quorumAdapter.connect(gov).addSubmitter(submitter1.address);
     await quorumAdapter.connect(gov).addSubmitter(submitter2.address);
     await quorumAdapter.connect(gov).addSubmitter(submitter3.address);
+    await quorumAdapter.connect(gov).setMinReportInterval(0);
     await stakingCore.connect(gov).submit(gov.address, {value: BASELINE});
     await stakingCore.connect(gov).notifyBeaconDeposit(BASELINE);
   });

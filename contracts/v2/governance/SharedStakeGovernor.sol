@@ -15,7 +15,7 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 /// @notice OpenZeppelin Governor using veSGT (VoteEscrowV2) as voting token.
 ///
 ///         Parameters (tunable by future proposal):
-///           - Voting delay: 1 block (~12s on mainnet)
+///           - Voting delay: ~1 day (7,200 blocks @ ~12s)
 ///           - Voting period: ~1 week (40,320 blocks @ 15s)
 ///           - Proposal threshold: 1,000 veSGT
 ///           - Quorum: 4% of total veSGT supply

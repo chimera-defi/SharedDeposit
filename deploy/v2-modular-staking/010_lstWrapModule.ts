@@ -68,6 +68,13 @@ const func: DeployFunction = async hre => {
 
   // Register with the router. Conservative initial cap.
   const router = await connect(StakingRouter__factory);
+  const moduleType = await lstMod.moduleType();
+  const moduleRuntimeCode = await hre.ethers.provider.getCode(lstMod.target as string);
+  const moduleCodeHash = hre.ethers.keccak256(moduleRuntimeCode);
+  if (!(await router.moduleCodeHashAllowed(moduleType, moduleCodeHash))) {
+    console.log(`  Allowlisting LSTWrapModule code hash (${moduleCodeHash})...`);
+    await router.connect(govSigner).setModuleCodeHashAllowed(moduleType, moduleCodeHash, true);
+  }
   const existing = await router.modules(moduleId);
   if (existing.addr === "0x0000000000000000000000000000000000000000") {
     const cap = parseEther("1000");

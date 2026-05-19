@@ -209,7 +209,7 @@ describe("Governance + Referral hardening", () => {
       );
     });
 
-    it("adds voting power on extension via additive minting", async () => {
+    it("keeps voting power aligned and increases from decayed level on extension", async () => {
       const [holder, timelockAdmin] = await ethers.getSigners();
 
       const MockERC20 = await ethers.getContractFactory("MockERC20");
@@ -229,19 +229,73 @@ describe("Governance + Referral hardening", () => {
       await sgt.connect(holder).approve(voteEscrow.target, lockAmount);
       await voteEscrow.connect(holder).create_lock(lockAmount, 30);
 
-      const initialMinted = await voteEscrow.mintedForLock(holder.address);
-      const initialBalance = await voteEscrow.balanceOf(holder.address);
-      expect(initialBalance).to.equal(initialMinted);
-
       await ethers.provider.send("evm_increaseTime", [5 * 24 * 60 * 60]);
       await ethers.provider.send("evm_mine", []);
+
+      await voteEscrow.checkpoint(holder.address);
+      const decayedMinted = await voteEscrow.mintedForLock(holder.address);
+      const decayedBalance = await voteEscrow.balanceOf(holder.address);
+      expect(decayedBalance).to.equal(decayedMinted);
 
       await voteEscrow.connect(holder).increase_unlock_time(7);
       const afterMinted = await voteEscrow.mintedForLock(holder.address);
       const afterBalance = await voteEscrow.balanceOf(holder.address);
 
       expect(afterBalance).to.equal(afterMinted);
-      expect(afterMinted).to.be.gt(initialMinted);
+      expect(afterMinted).to.be.gt(decayedMinted);
+    });
+
+    it("burns stale voting power via permissionless checkpoint after expiry", async () => {
+      const [holder, timelockAdmin] = await ethers.getSigners();
+
+      const MockERC20 = await ethers.getContractFactory("MockERC20");
+      const sgt = await MockERC20.deploy("SharedStake Governance Token", "SGT");
+
+      const VoteEscrowV2 = await ethers.getContractFactory("VoteEscrowV2");
+      const voteEscrow = await VoteEscrowV2.deploy(
+        "Vote Escrow SGT",
+        "veSGT",
+        sgt.target,
+        parseEther("1"),
+        timelockAdmin.address,
+      );
+
+      const lockAmount = parseEther("100");
+      await sgt.mint(holder.address, lockAmount);
+      await sgt.connect(holder).approve(voteEscrow.target, lockAmount);
+      await voteEscrow.connect(holder).create_lock(lockAmount, 7);
+
+      await ethers.provider.send("evm_increaseTime", [8 * 24 * 60 * 60]);
+      await ethers.provider.send("evm_mine", []);
+
+      await voteEscrow.checkpoint(holder.address);
+      expect(await voteEscrow.balanceOf(holder.address)).to.equal(0n);
+      expect(await voteEscrow.mintedForLock(holder.address)).to.equal(0n);
+    });
+
+    it("rejects transfers of veSGT", async () => {
+      const [holder, receiver, timelockAdmin] = await ethers.getSigners();
+
+      const MockERC20 = await ethers.getContractFactory("MockERC20");
+      const sgt = await MockERC20.deploy("SharedStake Governance Token", "SGT");
+
+      const VoteEscrowV2 = await ethers.getContractFactory("VoteEscrowV2");
+      const voteEscrow = await VoteEscrowV2.deploy(
+        "Vote Escrow SGT",
+        "veSGT",
+        sgt.target,
+        parseEther("1"),
+        timelockAdmin.address,
+      );
+
+      const lockAmount = parseEther("100");
+      await sgt.mint(holder.address, lockAmount);
+      await sgt.connect(holder).approve(voteEscrow.target, lockAmount);
+      await voteEscrow.connect(holder).create_lock(lockAmount, 30);
+
+      await expect(
+        voteEscrow.connect(holder).transfer(receiver.address, 1),
+      ).to.be.revertedWithCustomError(voteEscrow, "NonTransferable");
     });
   });
 

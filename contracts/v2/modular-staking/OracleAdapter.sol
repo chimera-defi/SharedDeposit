@@ -7,9 +7,7 @@ import {Errors} from "../lib/Errors.sol";
 
 /// @title OracleAdapter - beacon chain report ingestion with sanity gates
 /// @notice Accepts signed reports from authorized submitters and forwards valid
-///         ones to a target implementing IReportable. The target can be either
-///         the legacy `StakingCore` or a `ValidatorModule` behind StakingRouter
-///         — both expose `reportBeacon(uint256,uint256)` with identical semantics.
+///         ones to a target implementing IReportable.
 ///
 /// Safety rules enforced before forwarding:
 ///   1. Staleness   — report must arrive within `maxStalenessSeconds` of now.
@@ -29,9 +27,11 @@ contract OracleAdapter is AccessControl {
     uint256 public maxStalenessSeconds = 6 hours;
     uint256 public maxDriftBps = 1000;  // 10% per-validator balance change cap
     uint256 public maxSlashBps = 500;   // 5% total-balance slash cap per report
+    uint256 public minReportIntervalSeconds = 1 hours;
 
     // ── State ─────────────────────────────────────────────────────────────────
     uint256 public lastReportTime;
+    uint256 public lastReportTimestamp;
     uint256 public lastBeaconBalance;
     uint256 public lastBeaconValidators;
 
@@ -46,12 +46,16 @@ contract OracleAdapter is AccessControl {
     event MaxStalenessSet(uint256 seconds_);
     event MaxDriftSet(uint256 bps);
     event MaxSlashSet(uint256 bps);
+    event MinReportIntervalSet(uint256 seconds_);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error StaleReport(uint256 reportAge, uint256 maxAge);
     error BalanceDriftTooHigh(uint256 actual, uint256 max);
     error SlashTooLarge(uint256 actual, uint256 max);
     error FutureReportTimestamp(uint256 reportTimestamp, uint256 currentTimestamp);
+    error InvalidBeaconReportTuple(uint256 beaconValidators, uint256 beaconBalance);
+    error NonMonotonicReportTimestamp(uint256 reportTimestamp, uint256 lastReportTimestamp);
+    error ReportTooFrequent(uint256 earliestNextReportTime, uint256 currentTime);
 
     constructor(address reportTarget, address gov) {
         if (reportTarget == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -72,9 +76,28 @@ contract OracleAdapter is AccessControl {
         uint256 beaconBalance,
         uint256 reportTimestamp
     ) external onlyRole(SUBMITTER) {
+        // Impossible tuple: no validators cannot hold non-zero beacon balance.
+        if (beaconValidators == 0 && beaconBalance != 0) {
+            revert InvalidBeaconReportTuple(beaconValidators, beaconBalance);
+        }
+
         // Reject reports from the future.
         if (reportTimestamp > block.timestamp) {
             revert FutureReportTimestamp(reportTimestamp, block.timestamp);
+        }
+
+        // Require strictly increasing report timestamp to block replay/ratcheting
+        // on the same oracle frame.
+        if (lastReportTimestamp != 0 && reportTimestamp <= lastReportTimestamp) {
+            revert NonMonotonicReportTimestamp(reportTimestamp, lastReportTimestamp);
+        }
+
+        // Optional cadence guard to prevent rapid repeated reports.
+        if (lastReportTime != 0 && minReportIntervalSeconds != 0) {
+            uint256 earliest = lastReportTime + minReportIntervalSeconds;
+            if (block.timestamp < earliest) {
+                revert ReportTooFrequent(earliest, block.timestamp);
+            }
         }
 
         // 1. Staleness check.
@@ -88,7 +111,7 @@ contract OracleAdapter is AccessControl {
             uint256 prevAvg = lastBeaconBalance / lastBeaconValidators;
             uint256 newAvg = beaconBalance / beaconValidators;
 
-            if (newAvg > prevAvg) {
+            if (prevAvg > 0 && newAvg > prevAvg) {
                 uint256 gainBps = ((newAvg - prevAvg) * 10000) / prevAvg;
                 if (gainBps > maxDriftBps) revert BalanceDriftTooHigh(gainBps, maxDriftBps);
             }
@@ -100,10 +123,11 @@ contract OracleAdapter is AccessControl {
             if (lossBps > maxSlashBps) revert SlashTooLarge(lossBps, maxSlashBps);
         }
 
-        // All checks pass — update state and forward to StakingCore.
+        // All checks pass — update state and forward to report target.
         lastBeaconBalance = beaconBalance;
         lastBeaconValidators = beaconValidators;
         lastReportTime = block.timestamp;
+        lastReportTimestamp = reportTimestamp;
 
         REPORT_TARGET.reportBeacon(beaconValidators, beaconBalance);
 
@@ -125,6 +149,12 @@ contract OracleAdapter is AccessControl {
     function setMaxSlashBps(uint256 bps) external onlyRole(GOV) {
         maxSlashBps = bps;
         emit MaxSlashSet(bps);
+    }
+
+    /// @notice Set minimum interval between accepted reports. 0 disables cadence gating.
+    function setMinReportInterval(uint256 seconds_) external onlyRole(GOV) {
+        minReportIntervalSeconds = seconds_;
+        emit MinReportIntervalSet(seconds_);
     }
 
     function addSubmitter(address submitter) external onlyRole(GOV) {

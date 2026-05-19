@@ -1,14 +1,15 @@
 import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../../utils/ship";
 import {FeeController__factory} from "../../types";
+import {resolveGovernanceAddress, resolveOperatorAddress} from "../helpers/governance";
 
 const func: DeployFunction = async hre => {
-  const {deploy, accounts} = await Ship.init(hre);
+  const ship = await Ship.init(hre);
+  const {deploy, accounts} = ship;
 
-  const govSigner = accounts.multiSig ?? accounts.deployer;
-  const gov = govSigner.address;
+  const gov = await resolveGovernanceAddress(hre, ship);
   const treasury = gov; // governance recipient (multisig when configured)
-  const operator = accounts.deployer.address;
+  const operator = resolveOperatorAddress(hre, gov);
   const referralRegistry = hre.ethers.ZeroAddress; // no referral registry on local
   const feeBps = 1000;         // 10% total protocol fee
   const treasurySplitBps = 5000; // 50% to treasury

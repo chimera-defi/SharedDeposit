@@ -33,6 +33,7 @@ import {ethers} from "ethers";
 const VALIDATOR_MODULE_ABI = [
   "function bufferedEther() view returns (uint256)",
   "function DEPOSIT_AMOUNT() view returns (uint256)",
+  "function expectedWithdrawalCredentials() view returns (bytes32)",
   "function depositToBeaconChain(bytes pubkey, bytes withdrawal_credentials, bytes signature, bytes32 deposit_data_root)",
   "function NODE_OPERATOR() view returns (bytes32)",
   "function hasRole(bytes32 role, address account) view returns (bool)",
@@ -107,6 +108,16 @@ export async function sweepOnce(cfg: Config) {
 
   const buffered: bigint = await module.bufferedEther();
   const depositAmount: bigint = await module.DEPOSIT_AMOUNT();
+  const expectedCreds: string = await module.expectedWithdrawalCredentials();
+
+  if (expectedCreds === ethers.ZeroHash) {
+    throw new Error("Module expectedWithdrawalCredentials is unset");
+  }
+  if (expectedCreds.toLowerCase() !== cfg.creds.toLowerCase()) {
+    throw new Error(
+      `Configured WITHDRAWAL_CREDS_HEX does not match module expectedWithdrawalCredentials (${expectedCreds})`,
+    );
+  }
 
   console.log(`[sweep] bufferedEther=${ethers.formatEther(buffered)} ETH (threshold=${ethers.formatEther(depositAmount)} ETH)`);
 

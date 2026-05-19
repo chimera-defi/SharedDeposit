@@ -1,6 +1,7 @@
 import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../../utils/ship";
-import {QuorumOracleAdapter__factory, ValidatorModule__factory} from "../../types";
+import {DVTModule__factory, QuorumOracleAdapter__factory, ValidatorModule__factory} from "../../types";
+import {resolveGovernanceAddress, resolveOracleSubmitterAddresses} from "../helpers/governance";
 
 /**
  * Deploys QuorumOracleAdapter as an ALTERNATIVE oracle path (not replacing
@@ -11,37 +12,86 @@ import {QuorumOracleAdapter__factory, ValidatorModule__factory} from "../../type
  * For mainnet: set quorum >= 2 and add >= 3 independent submitters.
  */
 const func: DeployFunction = async hre => {
-  const {deploy, connect, accounts, address} = await Ship.init(hre);
+  const ship = await Ship.init(hre);
+  const {deploy, connect, accounts, address} = ship;
+  const isLocal = hre.network.tags.hardhat || hre.network.name === "localhost";
 
   const validatorModuleAddress = await address(ValidatorModule__factory);
   if (!validatorModuleAddress) throw new Error("ValidatorModule not deployed");
 
+  const gov = await resolveGovernanceAddress(hre, ship);
   const govSigner = accounts.multiSig ?? accounts.deployer;
-  const gov = govSigner.address;
+  if (govSigner.address.toLowerCase() !== gov.toLowerCase()) {
+    throw new Error(
+      `Governance signer mismatch: signer=${govSigner.address} resolvedGov=${gov}. ` +
+      "Set governance env/config so the current GOV signer executes oracle wiring.",
+    );
+  }
+
+  const submitters = resolveOracleSubmitterAddresses(hre, ship);
+  const configuredQuorumRaw = process.env.V2_QUORUM_ORACLE_QUORUM;
+  const configuredQuorum = configuredQuorumRaw ? Number(configuredQuorumRaw) : 2;
+  if (!Number.isInteger(configuredQuorum) || configuredQuorum <= 0) {
+    throw new Error(`Invalid quorum value: ${configuredQuorumRaw}`);
+  }
+  if (submitters.length < configuredQuorum) {
+    if (!isLocal) {
+      throw new Error(
+        `Quorum ${configuredQuorum} exceeds configured submitters (${submitters.length}). ` +
+        "Provide enough V2_ORACLE_SUBMITTERS before non-local deployment.",
+      );
+    }
+    console.warn(
+      `  Quorum ${configuredQuorum} exceeds local submitter set (${submitters.length}); lowering to ${submitters.length}.`,
+    );
+  }
+  const initialQuorum = Math.max(1, Math.min(configuredQuorum, submitters.length));
 
   const {contract: adapter} = await deploy(QuorumOracleAdapter__factory, {
     from: accounts.deployer,
-    args: [validatorModuleAddress, gov, 2], // quorum = 2
+    args: [validatorModuleAddress, gov, initialQuorum],
     log: true,
     aliasName: "QuorumOracleAdapter",
   });
 
-  // Grant QuorumOracleAdapter the ORACLE role on ValidatorModule.
+  // Grant ORACLE role on each deployed validator-style module.
+  const grantOracleRole = async (moduleContract: any, moduleName: string) => {
+    const ORACLE = await moduleContract.ORACLE();
+    const hasRole = await moduleContract.hasRole(ORACLE, adapter.target);
+    if (!hasRole) {
+      console.log(`  Granting ORACLE role to QuorumOracleAdapter on ${moduleName}...`);
+      await moduleContract.connect(govSigner).grantRole(ORACLE, adapter.target as string);
+    }
+    if (gov.toLowerCase() !== (adapter.target as string).toLowerCase() && await moduleContract.hasRole(ORACLE, gov)) {
+      console.log(`  Revoking direct ORACLE role from gov on ${moduleName}...`);
+      await moduleContract.connect(govSigner).revokeRole(ORACLE, gov);
+    }
+  };
+
   const validatorModule = await connect(ValidatorModule__factory);
-  const ORACLE = await validatorModule.ORACLE();
-  const hasRole = await validatorModule.hasRole(ORACLE, adapter.target);
-  if (!hasRole) {
-    console.log("  Granting ORACLE role to QuorumOracleAdapter on ValidatorModule...");
-    await validatorModule.connect(govSigner).grantRole(ORACLE, adapter.target as string);
+  await grantOracleRole(validatorModule, "ValidatorModule");
+
+  const dvtAddress = await address(DVTModule__factory);
+  if (dvtAddress) {
+    const dvtModule = await connect(DVTModule__factory);
+    await grantOracleRole(dvtModule, "DVTModule");
   }
 
-  // Testnet convenience: add deployer as initial submitter.
-  if (hre.network.name !== "mainnet") {
-    const SUBMITTER = await adapter.SUBMITTER();
-    if (!(await adapter.hasRole(SUBMITTER, accounts.deployer.address))) {
-      console.log("  Adding deployer as SUBMITTER (testnet convenience)...");
-      await adapter.connect(govSigner).addSubmitter(accounts.deployer.address);
+  const SUBMITTER = await adapter.SUBMITTER();
+  for (const submitter of submitters) {
+    if (!(await adapter.hasRole(SUBMITTER, submitter))) {
+      console.log(`  Adding SUBMITTER on QuorumOracleAdapter: ${submitter}`);
+      await adapter.connect(govSigner).addSubmitter(submitter);
     }
+  }
+
+  const quorum = Number(await adapter.quorum());
+  const submitterCount = Number(await adapter.submitterCount());
+  if (submitterCount < quorum) {
+    throw new Error(
+      `QuorumOracleAdapter is not live-safe: submitters=${submitterCount}, quorum=${quorum}. ` +
+      "Configure enough submitters before use.",
+    );
   }
 };
 

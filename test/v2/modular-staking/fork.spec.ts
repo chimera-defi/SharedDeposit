@@ -42,6 +42,8 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
   let validatorModule: any;
   let dvtModule: any;
   let queue: any;
+  let validatorExpectedCreds: string;
+  let dvtExpectedCreds: string;
 
   before(async () => {
     [deployer, gov, alice, nodeOp] = await ethers.getSigners();
@@ -90,13 +92,17 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
 
     await validatorModule.connect(gov).grantRole(NODE_OPERATOR_ROLE, gov.address);
     await dvtModule.connect(gov).grantRole(NODE_OPERATOR_ROLE, nodeOp.address);
+    validatorExpectedCreds = ethers.hexlify(ethers.randomBytes(32));
+    dvtExpectedCreds = ethers.hexlify(ethers.randomBytes(32));
+    await validatorModule.connect(gov).setExpectedWithdrawalCredentials(validatorExpectedCreds);
+    await dvtModule.connect(gov).setExpectedWithdrawalCredentials(dvtExpectedCreds);
   });
 
   // ── helpers ───────────────────────────────────────────────────────────
-  function randDeposit() {
+  function randDeposit(withdrawalCreds?: string) {
     return {
       pubkey:            ethers.hexlify(ethers.randomBytes(48)),
-      withdrawalCreds:   ethers.hexlify(ethers.randomBytes(32)),
+      withdrawalCreds:   withdrawalCreds ?? ethers.hexlify(ethers.randomBytes(32)),
       signature:         ethers.hexlify(ethers.randomBytes(96)),
       depositDataRoot:   ethers.hexlify(ethers.randomBytes(32)),
     };
@@ -109,7 +115,7 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
     expect(await validatorModule.bufferedEther()).to.equal(parseEther("32"));
 
     const beaconBefore = await ethers.provider.getBalance(BEACON_DEPOSIT_CONTRACT);
-    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit();
+    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit(validatorExpectedCreds);
 
     await validatorModule.connect(gov).depositToBeaconChain(
       pubkey, withdrawalCreds, signature, depositDataRoot,
@@ -153,7 +159,7 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
     await router.connect(alice).submitToModule(DVT_M, ZeroAddress, {value: parseEther("32")});
 
     const CLUSTER_ID = ethers.keccak256(ethers.toUtf8Bytes("cluster-1"));
-    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit();
+    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit(dvtExpectedCreds);
 
     await expect(
       dvtModule.connect(nodeOp).depositToBeaconChainInCluster(
@@ -167,7 +173,7 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
     const operators = [nodeOp.address, gov.address];
     await dvtModule.connect(gov).registerCluster(CLUSTER_ID, operators, 1);
 
-    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit();
+    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit(dvtExpectedCreds);
     const beaconBefore = await ethers.provider.getBalance(BEACON_DEPOSIT_CONTRACT);
 
     await dvtModule.connect(nodeOp).depositToBeaconChainInCluster(
@@ -184,7 +190,7 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
     const CLUSTER_ID = ethers.keccak256(ethers.toUtf8Bytes("cluster-1"));
     await dvtModule.connect(gov).deactivateCluster(CLUSTER_ID);
 
-    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit();
+    const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit(dvtExpectedCreds);
     await expect(
       dvtModule.connect(nodeOp).depositToBeaconChainInCluster(
         CLUSTER_ID, pubkey, withdrawalCreds, signature, depositDataRoot,
@@ -222,8 +228,8 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
       const ORACLE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ORACLE"));
       await validatorModule.connect(gov).grantRole(ORACLE_ROLE, gov.address);
 
-      // Clear any expected withdrawal credentials so the deposit in this test succeeds.
-      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(ethers.ZeroHash);
+      // Ensure test keeps using configured protocol withdrawal credentials.
+      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(validatorExpectedCreds);
     });
 
     it("mints treasury shares on beacon reward report", async () => {
@@ -232,7 +238,7 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
 
       // Step 2: do a beacon deposit — this calls notifyBeaconDeposit internally,
       // which bumps moduleBeaconBalance[SOLO] (the required non-zero baseline).
-      const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit();
+      const {pubkey, withdrawalCreds, signature, depositDataRoot} = randDeposit(validatorExpectedCreds);
       await validatorModule.connect(gov).depositToBeaconChain(
         pubkey, withdrawalCreds, signature, depositDataRoot,
       );
@@ -369,7 +375,7 @@ describeFork("SharedStake V2 Fork (mainnet beacon deposit)", () => {
       ).to.not.be.reverted;
 
       // Clean up: clear credentials so later tests aren't affected.
-      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(ethers.ZeroHash);
+      await validatorModule.connect(gov).setExpectedWithdrawalCredentials(validatorExpectedCreds);
     });
   });
 });

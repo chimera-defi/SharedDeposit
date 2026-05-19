@@ -117,6 +117,9 @@ describe("modular-staking role/access sweep", () => {
     });
 
     it("enforces role checks for privileged selectors", async () => {
+      const moduleType = await module1.moduleType();
+      const moduleCodeHash = ethers.keccak256(await ethers.provider.getCode(module1.target));
+
       await expect(router.connect(outsider).registerModule(
         ethers.keccak256(ethers.toUtf8Bytes("ROLE_SWEEP_EXTRA")),
         module1.target,
@@ -130,6 +133,8 @@ describe("modular-staking role/access sweep", () => {
       await expect(router.connect(outsider).emergencyPauseAll([SOLO])).to.be.reverted;
       await expect(router.connect(outsider).setFeeController(feeController.target)).to.be.reverted;
       await expect(router.connect(outsider).setMaxDeltaBps(500)).to.be.reverted;
+      await expect(router.connect(outsider).setModuleCodeHashAllowed(moduleType, moduleCodeHash, true)).to.be.reverted;
+      await expect(router.connect(outsider).setEnforceModuleCodeHashAllowlist(true)).to.be.reverted;
       await expect(router.connect(outsider).pause(0)).to.be.reverted;
       await expect(router.connect(outsider).unpause(0)).to.be.reverted;
 
@@ -141,6 +146,8 @@ describe("modular-staking role/access sweep", () => {
       await expect(router.connect(guardian).emergencyPauseAll([SOLO])).to.not.be.reverted;
       await expect(router.connect(gov).setFeeController(feeController.target)).to.not.be.reverted;
       await expect(router.connect(gov).setMaxDeltaBps(500)).to.not.be.reverted;
+      await expect(router.connect(gov).setModuleCodeHashAllowed(moduleType, moduleCodeHash, true)).to.not.be.reverted;
+      await expect(router.connect(gov).setEnforceModuleCodeHashAllowlist(true)).to.not.be.reverted;
       await expect(router.connect(guardian).pause(0)).to.not.be.reverted;
       await expect(router.connect(gov).unpause(0)).to.not.be.reverted;
     });

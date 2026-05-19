@@ -31,6 +31,7 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
     rpcUrl: "http://localhost:8545",
     routerAddress: "0x0000000000000000000000000000000000000001",
     guardianKey: "0x" + "1".repeat(64),
+    oracleAddress: null,
     moduleIds: [ethers.keccak256(ethers.toUtf8Bytes("MODULE_A"))],
     alertThresholdBps: 500,
     pollIntervalSec: 60,
@@ -131,6 +132,22 @@ describe("keepers/balanceMonitor", () => {
       expect(state.paused).to.equal(false);
       expect(state.lastPooledEther).to.equal(newPooled);
       expect(router.__calls.emergencyPauseAll.length).to.equal(0);
+    });
+
+    it("triggers pause when oracle report is stale beyond threshold", async () => {
+      const router = makeFakeContract({
+        totalPooledEther: async () => ethers.parseEther("1000"),
+        emergencyPauseAll: async () => makeFakeTx(),
+      });
+      const staleOracle = makeFakeContract({
+        lastReportTime: async () => BigInt(Math.floor(Date.now() / 1000) - 7200),
+      });
+      const state: State = {lastPooledEther: ethers.parseEther("1000"), paused: false};
+
+      await checkOnce(router, makeConfig({maxOracleAgeSec: 3600}), state, staleOracle);
+
+      expect(router.__calls.emergencyPauseAll.length).to.equal(1);
+      expect(state.paused).to.equal(true);
     });
   });
 

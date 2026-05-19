@@ -158,8 +158,13 @@ export async function reportOnce(cfg: Config) {
   const wallet = new ethers.Wallet(cfg.privateKey, provider);
   const adapter = new ethers.Contract(cfg.oracleAddress, ORACLE_ADAPTER_ABI, wallet);
 
+  const latestBlock = await provider.getBlock("latest");
+  if (!latestBlock) {
+    throw new Error("Could not fetch latest block for report timestamp");
+  }
+
   const lastReport: bigint = await adapter.lastReportTime();
-  const now = Math.floor(Date.now() / 1000);
+  const now = Number(latestBlock.timestamp);
   if (lastReport > 0n && now - Number(lastReport) < cfg.minReportIntervalSec) {
     console.log(
       `[oracle] last report ${now - Number(lastReport)}s ago (< ${cfg.minReportIntervalSec}s); skipping`

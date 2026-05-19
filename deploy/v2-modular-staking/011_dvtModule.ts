@@ -1,41 +1,47 @@
 import {DeployFunction} from "hardhat-deploy/types";
 import Ship from "../../utils/ship";
-import {DVTModule__factory, StakingRouter__factory} from "../../types";
-import {ZeroAddress} from "ethers";
+import {
+  DVTModule__factory,
+  StakingRouter__factory,
+  WithdrawalQueueV2__factory,
+} from "../../types";
+import {
+  allowlistModuleCodeHash,
+  assertGovernanceSigner,
+  getGovernanceSigner,
+  grantNodeOperatorRole,
+  readMintCapWei,
+  registerOrUpdateModule,
+  resolveBeaconDeposit,
+  wireWithdrawalCredentials,
+} from "../helpers/moduleDeployment";
+import {resolveGovernanceAddress, resolveNodeOperatorAddress} from "../helpers/governance";
+
+const DVT_MINT_CAP_ENV_KEYS = ["V2_DVT_MINT_CAP_ETH"];
 
 /**
  * Deploys the DVTModule (Distributed Validator Technology variant).
  * Mirrors the ValidatorModule deploy but uses DVTModule contract and
  * DVT_VALIDATOR_1 moduleId. Does NOT set as default (solo validator remains default).
  *
- * Cluster-coordinator hooks (operator whitelist, threshold-sig pre-flight)
- * are deferred to Phase 2; this script deploys the minimal skeleton.
+ * Clustered deposits are supported by current module logic; higher threshold
+ * multi-operator execution remains intentionally guarded by module-level checks.
  */
-const DVT_VALIDATOR_1 = "0x" + Buffer.from("DVT_VALIDATOR_1").toString("hex").padEnd(64, "0");
-
-function beaconDepositAddressFor(networkName: string): string {
-  switch (networkName) {
-    case "mainnet":
-      return "0x00000000219ab540356cBB839Cbe05303d7705Fa";
-    case "holesky":
-      return "0x4242424242424242424242424242424242424242";
-    case "hoodi":
-      return "0x00000000219ab540356cBB839Cbe05303d7705Fa";
-    default:
-      return ZeroAddress;
-  }
-}
-
 const func: DeployFunction = async hre => {
-  const {deploy, connect, accounts, address, hre: hardhat} = await Ship.init(hre);
+  const ship = await Ship.init(hre);
+  const {deploy, connect, accounts, address, hre: hardhat} = ship;
   const networkName = hardhat.network.name;
+  const isLocal = hardhat.network.tags.hardhat || networkName === "localhost";
 
   const routerAddress = await address(StakingRouter__factory);
   if (!routerAddress) throw new Error("StakingRouter not deployed");
 
-  const govSigner = accounts.multiSig ?? accounts.deployer;
-  const gov = govSigner.address;
-  const beaconDeposit = beaconDepositAddressFor(networkName);
+  const gov = await resolveGovernanceAddress(hre, ship);
+  const govSigner = getGovernanceSigner(ship);
+  assertGovernanceSigner(ship, gov);
+  const nodeOperator = resolveNodeOperatorAddress(gov);
+  const mintCapWei = readMintCapWei(hre, DVT_MINT_CAP_ENV_KEYS, isLocal, "DVT");
+  const beaconDeposit = await resolveBeaconDeposit(hre, ship);
 
   const moduleId = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("DVT_VALIDATOR_1"));
 
@@ -45,22 +51,27 @@ const func: DeployFunction = async hre => {
     log: true,
   });
 
-  const router = await connect(StakingRouter__factory);
-  const existing = await router.modules(moduleId);
-  if (existing.addr === "0x0000000000000000000000000000000000000000") {
-    console.log(`  Registering DVTModule (${moduleId}) with router...`);
-    // mintCapEth = 0 means unlimited for now; production should set a cap.
-    await router.connect(govSigner).registerModule(moduleId, dvtModule.target as string, 0);
-  }
+  await grantNodeOperatorRole(dvtModule, govSigner, nodeOperator, "DVTModule");
 
-  // Grant ORACLE role placeholder (QuorumOracleAdapter deploy will re-grant).
-  const ORACLE = await dvtModule.ORACLE();
-  if (!(await dvtModule.hasRole(ORACLE, gov))) {
-    console.log("  Granting ORACLE role to gov (placeholder)...");
-    await dvtModule.connect(govSigner).grantRole(ORACLE, gov);
-  }
+  const router = await connect(StakingRouter__factory);
+  const moduleType = await dvtModule.moduleType();
+  const moduleRuntimeCode = await hre.ethers.provider.getCode(dvtModule.target as string);
+  const moduleCodeHash = hre.ethers.keccak256(moduleRuntimeCode);
+  await allowlistModuleCodeHash(router, moduleType, moduleCodeHash, govSigner, "DVTModule");
+  await registerOrUpdateModule(
+    router,
+    govSigner,
+    moduleId,
+    dvtModule.target as string,
+    mintCapWei,
+    "DVTModule",
+  );
+
+  const withdrawalQueueAddress = await address(WithdrawalQueueV2__factory);
+  if (!withdrawalQueueAddress) throw new Error("WithdrawalQueueV2 not deployed");
+  await wireWithdrawalCredentials(dvtModule, govSigner, withdrawalQueueAddress);
 };
 
 export default func;
 func.tags = ["modular-staking", "dvt-module"];
-func.dependencies = ["staking-router"];
+func.dependencies = ["staking-router", "withdrawalQueue"];

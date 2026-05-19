@@ -99,6 +99,8 @@ class Ship {
       from: fromAddr,
       args: option?.args,
       log,
+      waitConfirmations: option?.waitConfirmations ?? (this.hre.network.name === "mainnet" ? 5 : 1),
+      verify: option?.verify ?? false,
     });
 
     const contract = (await ethers.getContractAt(contractName, deployResult.address, from)) as ContractInstance<T>;

@@ -37,6 +37,7 @@ contract DVTModule is ValidatorModule {
     error ClusterNotFound(bytes32 clusterId);
     error ClusterNotActive(bytes32 clusterId);
     error InvalidThreshold(uint8 threshold, uint256 operatorCount);
+    error UnsupportedThreshold(uint8 threshold);
     error EmptyOperators();
     error InvalidOperator(address operator);
     error DuplicateOperator(address operator);
@@ -68,12 +69,15 @@ contract DVTModule is ValidatorModule {
     // ── Cluster registry (GOV only) ──────────────────────────────────────────
 
     /// @notice Register a new DVT cluster. `threshold` must be ≥ 1 and ≤ operators.length.
+    /// @dev Current implementation supports single-operator execution only.
+    ///      Multi-operator threshold approvals must be implemented before allowing threshold > 1.
     function registerCluster(bytes32 clusterId, address[] calldata operators, uint8 threshold)
         external
         onlyRole(GOV)
     {
         if (operators.length == 0) revert EmptyOperators();
         if (threshold == 0 || threshold > operators.length) revert InvalidThreshold(threshold, operators.length);
+        if (threshold != 1) revert UnsupportedThreshold(threshold);
         if (_clusterIdToIndex[clusterId] != 0) revert ClusterAlreadyRegistered(clusterId);
 
         for (uint256 i = 0; i < operators.length; ++i) {

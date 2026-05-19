@@ -54,8 +54,10 @@ GUARDIAN_PRIVATE_KEY=0x...guardianKey
 
 # balanceMonitor
 ROUTER_ADDRESS=0x...StakingRouter
+ORACLE_ADAPTER_ADDRESS=0x...OracleAdapter   # optional but recommended
 # GUARDIAN_PRIVATE_KEY same as above
 ALERT_THRESHOLD_BPS=500     # 5% drop triggers pause
+MAX_ORACLE_AGE_SEC=3600     # stale oracle reports also trigger pause
 WEBHOOK_URL=https://...      # optional: Slack/PagerDuty webhook
 ```
 
@@ -139,4 +141,4 @@ Wire this to a Slack incoming webhook or PagerDuty Events API v2 endpoint.
 | depositSweep | 60s | Check buffer before next slot |
 | oracleReporter | 900s | Beacon state settles every ~15min |
 | withdrawalFinalizer | 120s | Finalize promptly; users waiting |
-| balanceMonitor | 60s | Catch anomalies within 1 block time |
+| balanceMonitor | 60s | Catch anomalies or stale oracle reports quickly |

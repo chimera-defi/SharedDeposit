@@ -8,6 +8,7 @@ describe("DVTModule", () => {
   let router: any, dvtModule: any, mockDeposit: any, stToken: any;
 
   const DVT_ID = ethers.keccak256(ethers.toUtf8Bytes("DVT_CLUSTER_1"));
+  const EXPECTED_CREDS = "0x01" + "00".repeat(31);
 
   async function deployFresh() {
     [deployer, gov, oracle, nodeOp, outsider] = await ethers.getSigners();
@@ -32,6 +33,7 @@ describe("DVTModule", () => {
     await dvtModule.connect(gov).grantRole(ORACLE_ROLE, oracle.address);
     await dvtModule.connect(gov).grantRole(NODE_OPERATOR_ROLE, nodeOp.address);
     await dvtModule.connect(gov).grantRole(GUARDIAN_ROLE, gov.address);
+    await dvtModule.connect(gov).setExpectedWithdrawalCredentials(EXPECTED_CREDS);
 
     // Register module with router so reportBeacon / notifyBeaconDeposit work
     await router.connect(gov).registerModule(DVT_ID, dvtModule.target, 0);
@@ -68,11 +70,17 @@ describe("DVTModule", () => {
     await router.submitToModule(DVT_ID, ZeroAddress, {value: parseEther("32")});
     await dvtModule.connect(nodeOp).depositToBeaconChainInCluster(
       CLUSTER_ID,
-      "0x" + "00".repeat(48), "0x" + "00".repeat(32), "0x" + "00".repeat(96), "0x" + "00".repeat(32)
+      "0x" + "00".repeat(48), EXPECTED_CREDS, "0x" + "00".repeat(96), "0x" + "00".repeat(32)
     );
     await dvtModule.connect(oracle).reportBeacon(1, parseEther("32"));
     expect(await dvtModule.beaconBalance()).to.equal(parseEther("32"));
     expect(await dvtModule.beaconValidators()).to.equal(1);
+  });
+
+  it("rejects impossible report tuple (0 validators with non-zero balance)", async () => {
+    await expect(
+      dvtModule.connect(oracle).reportBeacon(0, parseEther("1")),
+    ).to.be.revertedWithCustomError(dvtModule, "InvalidBeaconReportTuple");
   });
 
   it("depositToBeaconChain reverts with UseClusteredDeposit (DVTM-01)", async () => {
@@ -80,7 +88,7 @@ describe("DVTModule", () => {
     await expect(
       dvtModule.connect(nodeOp).depositToBeaconChain(
         "0x" + "00".repeat(48),
-        "0x" + "00".repeat(32),
+        EXPECTED_CREDS,
         "0x" + "00".repeat(96),
         "0x" + "00".repeat(32)
       )
@@ -99,11 +107,18 @@ describe("DVTModule", () => {
       dvtModule.connect(outsider).depositToBeaconChainInCluster(
         CLUSTER_ID,
         "0x" + "00".repeat(48),
-        "0x" + "00".repeat(32),
+        EXPECTED_CREDS,
         "0x" + "00".repeat(96),
         "0x" + "00".repeat(32),
       ),
     ).to.be.revertedWithCustomError(dvtModule, "OperatorNotInCluster");
+  });
+
+  it("rejects threshold > 1 until multi-operator approvals are implemented", async () => {
+    const CLUSTER_ID = ethers.keccak256(ethers.toUtf8Bytes("CLUSTER_THRESHOLD"));
+    await expect(
+      dvtModule.connect(gov).registerCluster(CLUSTER_ID, [nodeOp.address, outsider.address], 2),
+    ).to.be.revertedWithCustomError(dvtModule, "UnsupportedThreshold");
   });
 
   it("has granular pause on router submit", async () => {
@@ -120,5 +135,50 @@ describe("DVTModule", () => {
     await expect(
       dvtModule.receiveDeposit({value: parseEther("1")})
     ).to.be.revertedWithCustomError(dvtModule, "NotRouter");
+  });
+
+  it("rejects zero expected withdrawal credentials", async () => {
+    await expect(
+      dvtModule.connect(gov).setExpectedWithdrawalCredentials(ethers.ZeroHash),
+    ).to.be.revertedWithCustomError(dvtModule, "InvalidWithdrawalCredentials");
+  });
+
+  it("reverts clustered deposit when expected withdrawal credentials are not configured", async () => {
+    const UNCONFIGURED_ID = ethers.keccak256(ethers.toUtf8Bytes("DVT_UNCONFIGURED"));
+    const DVTModule = await ethers.getContractFactory("DVTModule");
+    const unconfigured = await DVTModule.deploy(router.target, UNCONFIGURED_ID, gov.address, mockDeposit.target);
+    await unconfigured.connect(gov).grantRole(await unconfigured.NODE_OPERATOR(), nodeOp.address);
+    await unconfigured.connect(gov).registerCluster(UNCONFIGURED_ID, [nodeOp.address], 1);
+    await router.connect(gov).registerModule(UNCONFIGURED_ID, unconfigured.target, 0);
+    await router.submitToModule(UNCONFIGURED_ID, ZeroAddress, {value: parseEther("32")});
+
+    await expect(
+      unconfigured.connect(nodeOp).depositToBeaconChainInCluster(
+        UNCONFIGURED_ID,
+        "0x" + "00".repeat(48),
+        EXPECTED_CREDS,
+        "0x" + "00".repeat(96),
+        "0x" + "00".repeat(32),
+      ),
+    ).to.be.revertedWithCustomError(unconfigured, "WithdrawalCredentialsNotConfigured");
+  });
+
+  it("reverts deposit when beacon deposit contract has no runtime code", async () => {
+    const MODULE_ID = ethers.keccak256(ethers.toUtf8Bytes("SOLO_NO_CODE"));
+    const ValidatorModule = await ethers.getContractFactory("ValidatorModule");
+    const solo = await ValidatorModule.deploy(router.target, MODULE_ID, gov.address, ZeroAddress);
+    await solo.connect(gov).grantRole(await solo.NODE_OPERATOR(), gov.address);
+    await solo.connect(gov).setExpectedWithdrawalCredentials(EXPECTED_CREDS);
+    await router.connect(gov).registerModule(MODULE_ID, solo.target, 0);
+    await router.submitToModule(MODULE_ID, ZeroAddress, {value: parseEther("32")});
+
+    await expect(
+      solo.connect(gov).depositToBeaconChain(
+        "0x" + "00".repeat(48),
+        EXPECTED_CREDS,
+        "0x" + "00".repeat(96),
+        "0x" + "00".repeat(32),
+      ),
+    ).to.be.revertedWithCustomError(solo, "BeaconDepositContractUnavailable");
   });
 });

@@ -82,10 +82,14 @@ export function patchEthers(overrides: Record<string, unknown>): RestoreFn {
   };
 }
 
-/** A fake JsonRpcProvider whose getBalance returns a configurable bigint. */
-export function makeFakeProvider(balanceWei: bigint = 0n): any {
+/** A fake JsonRpcProvider with configurable balance and latest-block timestamp. */
+export function makeFakeProvider(
+  balanceWei: bigint = 0n,
+  latestBlockTimestamp: number = Math.floor(Date.now() / 1000),
+): any {
   return {
     getBalance: async () => balanceWei,
+    getBlock: async () => ({timestamp: latestBlockTimestamp}),
   };
 }
 

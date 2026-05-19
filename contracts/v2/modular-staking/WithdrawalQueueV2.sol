@@ -89,6 +89,7 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
     error RequestTooYoung(uint256 requestId, uint256 requestTimestamp, uint256 minFinalizableTimestamp);
     error InvalidBunkerParam();
     error InvalidReportTimestamp(uint256 reportTimestamp, uint256 currentTimestamp);
+    error StaleReportTimestamp(uint256 reportTimestamp, uint256 lastReportTimestamp);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -212,6 +213,9 @@ contract WithdrawalQueueV2 is AccessControl, ReentrancyGuard {
     {
         if (reportTimestamp > block.timestamp) {
             revert InvalidReportTimestamp(reportTimestamp, block.timestamp);
+        }
+        if (reportTimestamp <= lastOracleReportTimestamp) {
+            revert StaleReportTimestamp(reportTimestamp, lastOracleReportTimestamp);
         }
         withdrawalMode = isBunkerMode ? WithdrawalMode.BUNKER : WithdrawalMode.TURBO;
         lastOracleReportTimestamp = reportTimestamp;

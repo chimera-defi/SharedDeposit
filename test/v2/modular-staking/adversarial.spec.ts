@@ -14,6 +14,10 @@
  *  10. Unauthorized module registration (no GOV role)
  *  11. Slash followed by withdrawal yields reduced ETH
  *  12. LST oracle inflation cannot bypass the mint cap
+ *  13. Post-insolvency bootstrap is blocked when legacy shares exist
+ *  14. OracleAdapter rejects non-monotonic report timestamps
+ *  15. OracleAdapter cadence gate blocks rapid successive reports
+ *  16. ValidatorModule rejects report validator counts above deposited validators
  */
 import {ethers} from "hardhat";
 import {expect} from "chai";
@@ -43,6 +47,7 @@ describe("SharedStake V2 adversarial", () => {
     queue: any,
     mockBeaconDeposit: any,
     oracleAdapter: any;
+  let expectedWithdrawalCreds: string;
 
   async function deployStack() {
     [deployer, gov, alice, bob, oracle, impostor] = await ethers.getSigners();
@@ -86,6 +91,8 @@ describe("SharedStake V2 adversarial", () => {
     await mod1.connect(gov).grantRole(ORACLE_ROLE, oracle.address);
     await mod1.connect(gov).grantRole(NODE_OPERATOR_ROLE, gov.address);
     await oracleAdapter.connect(gov).addSubmitter(oracle.address);
+    expectedWithdrawalCreds = ethers.hexlify(ethers.randomBytes(32));
+    await mod1.connect(gov).setExpectedWithdrawalCredentials(expectedWithdrawalCreds);
   }
 
   beforeEach(deployStack);
@@ -221,7 +228,7 @@ describe("SharedStake V2 adversarial", () => {
       // Set baseline by depositing 32 ETH and pushing to beacon.
       await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
       const pubkey = ethers.hexlify(ethers.randomBytes(48));
-      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const creds = expectedWithdrawalCreds;
       const sig = ethers.hexlify(ethers.randomBytes(96));
       const root = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
@@ -233,6 +240,24 @@ describe("SharedStake V2 adversarial", () => {
       await expect(
         mod1.connect(oracle).reportBeacon(1, parseEther("65"))
       ).to.be.revertedWithCustomError(mod1, "BeaconBalanceSanityFailed");
+    });
+
+    it("rejects validator-count inflation beyond deposited validators", async () => {
+      // Set baseline by depositing 32 ETH and pushing to beacon.
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
+      // Keep reported balance equal to baseline so router delta checks would not
+      // catch this by themselves; validator-count guard must catch it.
+      await expect(
+        mod1.connect(oracle).reportBeacon(1_000, parseEther("32"))
+      )
+        .to.be.revertedWithCustomError(mod1, "BeaconValidatorCountSanityFailed")
+        .withArgs(1000, 1);
     });
   });
 
@@ -262,7 +287,7 @@ describe("SharedStake V2 adversarial", () => {
       await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
       // Push to beacon to set baseline = 32.
       const pubkey = ethers.hexlify(ethers.randomBytes(48));
-      const creds = ethers.hexlify(ethers.randomBytes(32));
+      const creds = expectedWithdrawalCreds;
       const sig = ethers.hexlify(ethers.randomBytes(96));
       const root = ethers.hexlify(ethers.randomBytes(32));
       await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
@@ -316,6 +341,71 @@ describe("SharedStake V2 adversarial", () => {
       await expect(
         lstMod.connect(alice).wrapLST(parseEther("1"), alice.address)
       ).to.be.revertedWithCustomError(router, "MintCapExceeded");
+    });
+  });
+
+  // ── 13. Insolvency recovery path safety ─────────────────────────────────
+  describe("13. Post-insolvency bootstrap", () => {
+    it("blocks new deposits when pooled ETH is zero but legacy shares remain", async () => {
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+      await mod1.connect(oracle).reportBeacon(1, parseEther("32"));
+
+      // Full loss: force pooled ETH clamp to zero while shares are still outstanding.
+      await mod1.connect(oracle).reportBeacon(1, 0);
+      expect(await stToken.totalPooledEther()).to.equal(0n);
+      expect(await stToken.getTotalShares()).to.be.gt(0n);
+
+      await expect(
+        router.connect(bob).submit(ZeroAddress, {value: parseEther("1")}),
+      ).to.be.reverted;
+    });
+  });
+
+  // ── 14. Oracle timestamp monotonicity ───────────────────────────────────
+  describe("14. Oracle timestamp monotonicity", () => {
+    it("rejects reports that reuse the same timestamp after a successful report", async () => {
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
+      const blk = await ethers.provider.getBlock("latest");
+      const ts = blk!.timestamp;
+      await oracleAdapter.connect(oracle).submitReport(1, parseEther("32"), ts);
+
+      await expect(
+        oracleAdapter.connect(oracle).submitReport(1, parseEther("32"), ts),
+      ).to.be.revertedWithCustomError(oracleAdapter, "NonMonotonicReportTimestamp");
+    });
+  });
+
+  // ── 15. Oracle cadence gating ────────────────────────────────────────────
+  describe("15. Oracle cadence gating", () => {
+    it("rejects rapid consecutive reports when min report interval is enabled", async () => {
+      await router.connect(alice).submit(ZeroAddress, {value: parseEther("32")});
+
+      const pubkey = ethers.hexlify(ethers.randomBytes(48));
+      const creds = expectedWithdrawalCreds;
+      const sig = ethers.hexlify(ethers.randomBytes(96));
+      const root = ethers.hexlify(ethers.randomBytes(32));
+      await mod1.connect(gov).depositToBeaconChain(pubkey, creds, sig, root);
+
+      const firstBlk = await ethers.provider.getBlock("latest");
+      const firstTs = firstBlk!.timestamp;
+      await oracleAdapter.connect(oracle).submitReport(1, parseEther("32"), firstTs);
+
+      await expect(
+        oracleAdapter.connect(oracle).submitReport(1, parseEther("32"), firstTs + 1),
+      ).to.be.revertedWithCustomError(oracleAdapter, "ReportTooFrequent");
     });
   });
 });

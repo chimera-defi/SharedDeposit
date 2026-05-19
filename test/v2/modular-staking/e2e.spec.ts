@@ -221,8 +221,12 @@ describe("SharedStake V2 E2E", () => {
   });
 
   it("Final: oracle staleness guard rejects old reports", async () => {
+    // Move time forward so a 7h-old timestamp is still strictly newer than the
+    // last accepted oracle report timestamp, exercising staleness (not monotonicity).
+    await ethers.provider.send("evm_increaseTime", [8 * 3600]);
+    await ethers.provider.send("evm_mine", []);
     const blk = await ethers.provider.getBlock("latest");
-    const staleTimestamp = BigInt(blk!.timestamp) - BigInt(7 * 3600); // 7 hours ago
+    const staleTimestamp = BigInt(blk!.timestamp) - BigInt(7 * 3600); // 7 hours old
     await expect(
       oracleAdapter.connect(oracleSigner).submitReport(1, parseEther("10"), staleTimestamp)
     ).to.be.revertedWithCustomError(oracleAdapter, "StaleReport");
