@@ -24,7 +24,9 @@ describe("StakingCore", () => {
   const GOV_ROLE = ethers.keccak256(ethers.toUtf8Bytes("GOV"));
   const ORACLE_ROLE = ethers.keccak256(ethers.toUtf8Bytes("ORACLE"));
   const GUARDIAN_ROLE = ethers.keccak256(ethers.toUtf8Bytes("GUARDIAN"));
-  const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER"));
+const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER"));
+const REFERRAL_CODE_A = ethers.keccak256(ethers.toUtf8Bytes("CORE_REFERRAL_CODE_A"));
+const REFERRAL_CODE_MISSING = ethers.keccak256(ethers.toUtf8Bytes("CORE_REFERRAL_CODE_MISSING"));
 
   async function deployFresh() {
     [deployer, gov, alice, bob, oracle] = await ethers.getSigners();
@@ -61,6 +63,24 @@ describe("StakingCore", () => {
   // ── Deposits ────────────────────────────────────────────────────────────────
 
   describe("submit()", () => {
+    async function wireReferralCodePath(referrerAddress: string) {
+      const ReferralRegistry = await ethers.getContractFactory("ReferralRegistry");
+      const referralRegistry = await ReferralRegistry.deploy(gov.address, stToken.target);
+      await referralRegistry.connect(gov).grantRole(await referralRegistry.ROUTER(), stakingCore.target);
+      await feeController.connect(gov).setRecipients(gov.address, deployer.address, referralRegistry.target);
+
+      const ReferralCodeRegistry = await ethers.getContractFactory("ReferralCodeRegistry");
+      const referralCodeRegistry = await ReferralCodeRegistry.deploy(gov.address);
+      await referralCodeRegistry.connect(gov).registerReferralCode(
+        REFERRAL_CODE_A,
+        referrerAddress,
+        ethers.keccak256(ethers.toUtf8Bytes("campaign:core-test")),
+      );
+      await stakingCore.connect(gov).setReferralCodeRegistry(referralCodeRegistry.target);
+
+      return {referralRegistry, referralCodeRegistry};
+    }
+
     it("submitWithAttribution mints shares and emits attribution telemetry", async () => {
       const amount = parseEther("1");
       const sourceId = ethers.encodeBytes32String("homepage-banner-v2");
@@ -73,6 +93,53 @@ describe("StakingCore", () => {
 
       expect(await stToken.sharesOf(alice.address)).to.equal(amount);
       expect(await stToken.totalPooledEther()).to.equal(amount);
+    });
+
+    it("submitWithReferralCode resolves code on-chain and records canonical referrer", async () => {
+      const amount = parseEther("1");
+      const {referralRegistry} = await wireReferralCodePath(bob.address);
+
+      await expect(stakingCore.connect(alice).submitWithReferralCode(REFERRAL_CODE_A, {value: amount}))
+        .to.emit(stakingCore, "Submitted")
+        .withArgs(alice.address, amount, bob.address, amount);
+
+      expect(await referralRegistry.referrerOf(alice.address)).to.equal(bob.address);
+    });
+
+    it("submitWithReferralCode falls back to zero referral when resolver is unset", async () => {
+      const amount = parseEther("1");
+      await expect(stakingCore.connect(alice).submitWithReferralCode(REFERRAL_CODE_A, {value: amount}))
+        .to.emit(stakingCore, "Submitted")
+        .withArgs(alice.address, amount, ZeroAddress, amount);
+    });
+
+    it("submitWithReferralCode falls back to zero referral when code is not registered", async () => {
+      const amount = parseEther("1");
+      await wireReferralCodePath(bob.address);
+      await expect(stakingCore.connect(alice).submitWithReferralCode(REFERRAL_CODE_MISSING, {value: amount}))
+        .to.emit(stakingCore, "Submitted")
+        .withArgs(alice.address, amount, ZeroAddress, amount);
+    });
+
+    it("submitWithReferralCode falls back to zero referral when resolver reverts", async () => {
+      const amount = parseEther("1");
+      const RevertingResolver = await ethers.getContractFactory("RevertingReferralCodeRegistry");
+      const revertingResolver = await RevertingResolver.deploy();
+      await stakingCore.connect(gov).setReferralCodeRegistry(revertingResolver.target);
+
+      await expect(stakingCore.connect(alice).submitWithReferralCode(REFERRAL_CODE_A, {value: amount}))
+        .to.emit(stakingCore, "Submitted")
+        .withArgs(alice.address, amount, ZeroAddress, amount);
+    });
+
+    it("submitWithCodeAttribution emits attribution with resolved referral", async () => {
+      const amount = parseEther("1");
+      const sourceId = ethers.encodeBytes32String("core-ref-code-src");
+      await wireReferralCodePath(bob.address);
+
+      await expect(stakingCore.connect(alice).submitWithCodeAttribution(REFERRAL_CODE_A, sourceId, {value: amount}))
+        .to.emit(stakingCore, "SubmittedWithAttribution")
+        .withArgs(alice.address, bob.address, sourceId, amount, amount);
     });
 
     it("mints 1:1 shares on first deposit (bootstrap)", async () => {
@@ -313,6 +380,14 @@ describe("StakingCore", () => {
     it("random address cannot call grantRole", async () => {
       await expect(
         stakingCore.connect(alice).grantRole(ORACLE_ROLE, alice.address)
+      ).to.be.reverted;
+    });
+
+    it("random address cannot call setReferralCodeRegistry", async () => {
+      const ReferralCodeRegistry = await ethers.getContractFactory("ReferralCodeRegistry");
+      const referralCodeRegistry = await ReferralCodeRegistry.deploy(gov.address);
+      await expect(
+        stakingCore.connect(alice).setReferralCodeRegistry(referralCodeRegistry.target),
       ).to.be.reverted;
     });
   });

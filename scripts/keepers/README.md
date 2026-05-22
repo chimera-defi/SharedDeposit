@@ -2,6 +2,13 @@
 
 Four keepers maintain the SharedStake V2 protocol in production. Run all four concurrently on a dedicated server or via systemd/Docker.
 
+Committed runtime artifacts:
+
+- Compose stack: `docker-compose.keepers.yml`
+- Env template: `.env.keeper.example`
+- systemd units: `ops/systemd/*.service`
+- systemd installer: `ops/systemd/install-keepers.sh`
+
 ## Required Roles
 
 | Keeper | Role | Notes |
@@ -17,18 +24,22 @@ Four keepers maintain the SharedStake V2 protocol in production. Run all four co
 
 ```bash
 # Install dependencies (from SharedDeposit root)
-npm install
+yarn install --frozen-lockfile
+
+# Create runtime env file
+cp .env.keeper.example .env.keeper
+# fill in addresses and private keys before running
 
 # Run each keeper in a separate terminal (or use systemd/Docker below)
-npx ts-node scripts/keepers/depositSweep.ts --watch
-npx ts-node scripts/keepers/oracleReporter.ts --watch
-npx ts-node scripts/keepers/withdrawalFinalizer.ts --watch
-npx ts-node scripts/keepers/balanceMonitor.ts --watch
+npx ts-node scripts/keepers/depositSweep.ts --watch --interval=60
+npx ts-node scripts/keepers/oracleReporter.ts --watch --interval=900
+npx ts-node scripts/keepers/withdrawalFinalizer.ts --watch --interval=120
+npx ts-node scripts/keepers/balanceMonitor.ts --watch --interval=60
 ```
 
 ## Environment Variables
 
-Create `.env.keeper` (never commit this file):
+Create `.env.keeper` from `.env.keeper.example` (never commit `.env.keeper`):
 
 ```bash
 # Shared
@@ -76,47 +87,26 @@ RPC_URL=http://localhost:8545 \
 
 ## Docker Compose
 
-```yaml
-# docker-compose.keepers.yml
-version: "3.9"
-services:
-  deposit-sweep:
-    image: node:20-alpine
-    working_dir: /app
-    volumes: [.:/app]
-    env_file: .env.keeper
-    command: npx ts-node scripts/keepers/depositSweep.ts --watch --interval=60
-    restart: unless-stopped
+```bash
+# Validate compose file
+docker-compose -f docker-compose.keepers.yml config -q
 
-  oracle-reporter:
-    image: node:20-alpine
-    working_dir: /app
-    volumes: [.:/app]
-    env_file: .env.keeper
-    command: npx ts-node scripts/keepers/oracleReporter.ts --watch --interval=900
-    restart: unless-stopped
-
-  withdrawal-finalizer:
-    image: node:20-alpine
-    working_dir: /app
-    volumes: [.:/app]
-    env_file: .env.keeper
-    command: npx ts-node scripts/keepers/withdrawalFinalizer.ts --watch --interval=120
-    restart: unless-stopped
-
-  balance-monitor:
-    image: node:20-alpine
-    working_dir: /app
-    volumes: [.:/app]
-    env_file: .env.keeper
-    command: npx ts-node scripts/keepers/balanceMonitor.ts --watch --interval=60
-    restart: unless-stopped
+# Start keepers
+docker-compose -f docker-compose.keepers.yml up -d
+docker-compose -f docker-compose.keepers.yml logs -f
 ```
+
+If your host uses the v2 CLI plugin, replace `docker-compose` with `docker compose`.
+
+## systemd
+
+Install and enable production units:
 
 ```bash
-docker compose -f docker-compose.keepers.yml up -d
-docker compose -f docker-compose.keepers.yml logs -f
+sudo bash ops/systemd/install-keepers.sh
 ```
+
+Detailed host setup is in `ops/systemd/README.md`.
 
 ## Alert Integration
 

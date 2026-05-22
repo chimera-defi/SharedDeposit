@@ -10,6 +10,7 @@ import {IStakingModule} from "./interfaces/IStakingModule.sol";
 import {IStakingRouter} from "./interfaces/IStakingRouter.sol";
 import {IInstitutionalPolicyRegistry} from "./interfaces/IInstitutionalPolicyRegistry.sol";
 import {IReferralRegistry} from "./interfaces/IReferralRegistry.sol";
+import {IReferralCodeRegistry} from "./interfaces/IReferralCodeRegistry.sol";
 import {GranularPause} from "../lib/GranularPause.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -100,6 +101,10 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     /// @notice Optional registry for institutional policy checks. Zero address disables checks.
     IInstitutionalPolicyRegistry public policyRegistry;
 
+    /// @notice Optional resolver for referral code hashes. Zero address disables
+    ///         code resolution and preserves legacy address-only referral flow.
+    IReferralCodeRegistry public referralCodeRegistry;
+
     /// @notice Optional per-module policy id. Zero value disables policy checks for that module.
     mapping(bytes32 => bytes32) public modulePolicyId;
 
@@ -171,6 +176,7 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     event ModulePolicySet(bytes32 indexed moduleId, bytes32 indexed policyId);
     event ModuleCodeHashAllowedSet(bytes32 indexed moduleType, bytes32 indexed codeHash, bool allowed);
     event ModuleCodeHashAllowlistEnforcementSet(bool enabled);
+    event ReferralCodeRegistrySet(address indexed registry);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error ModuleNotRegistered(bytes32 moduleId);
@@ -192,6 +198,8 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
     error PolicyDenied(bytes32 moduleId, bytes32 policyId, address account);
     error ModuleTypeActionMismatch(bytes32 moduleId, bytes32 moduleType, bytes4 action);
     error ModuleCodeHashNotAllowed(bytes32 moduleId, address moduleAddr, bytes32 moduleType, bytes32 codeHash);
+    error ReferralCodeRegistryNotContract(address registry);
+    error ReferralCodeRegistryInvalid(address registry);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -239,6 +247,64 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (msg.value == 0) revert Errors.InvalidAmount();
         if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
         sharesAmount = _deposit(defaultModuleId, msg.sender, msg.value, referral, true, sourceId);
+    }
+
+    /// @notice Deposit ETH and resolve referral from a short-code hash.
+    /// @dev Falls back to no referral when the resolver is unset or code is missing.
+    function submitWithReferralCode(bytes32 referralCode)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
+        address referral = _resolveReferralCode(referralCode);
+        sharesAmount = _deposit(defaultModuleId, msg.sender, msg.value, referral, false, bytes32(0));
+    }
+
+    /// @notice Deposit ETH into a specific module and resolve referral from a short-code hash.
+    /// @dev Falls back to no referral when the resolver is unset or code is missing.
+    function submitToModuleWithReferralCode(bytes32 moduleId, bytes32 referralCode)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        address referral = _resolveReferralCode(referralCode);
+        sharesAmount = _deposit(moduleId, msg.sender, msg.value, referral, false, bytes32(0));
+    }
+
+    /// @notice Deposit ETH with source attribution and referral short-code hash.
+    /// @dev Falls back to no referral when the resolver is unset or code is missing.
+    function submitWithSourceAndReferralCode(bytes32 referralCode, bytes32 sourceId)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        if (defaultModuleId == bytes32(0)) revert DefaultModuleNotSet();
+        address referral = _resolveReferralCode(referralCode);
+        sharesAmount = _deposit(defaultModuleId, msg.sender, msg.value, referral, true, sourceId);
+    }
+
+    /// @notice Deposit ETH into a specific module with source attribution and a referral short-code hash.
+    /// @dev Falls back to no referral when the resolver is unset or code is missing.
+    function submitToModuleWithSourceAndReferralCode(bytes32 moduleId, bytes32 referralCode, bytes32 sourceId)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        address referral = _resolveReferralCode(referralCode);
+        sharesAmount = _deposit(moduleId, msg.sender, msg.value, referral, true, sourceId);
     }
 
     /// @notice Deposit ETH into a specific module and include source attribution metadata for indexers.
@@ -461,6 +527,18 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         (, , , , , address referralRegistry) = feeController.getFeeConfig();
         if (referralRegistry == address(0)) return;
         IReferralRegistry(referralRegistry).recordDeposit(referral, user, amount, sharesAmount);
+    }
+
+    function _resolveReferralCode(bytes32 referralCode) internal view returns (address referral) {
+        IReferralCodeRegistry registry = referralCodeRegistry;
+        if (referralCode == bytes32(0) || address(registry) == address(0)) {
+            return address(0);
+        }
+        try registry.resolveReferralCode(referralCode) returns (address resolved) {
+            return resolved;
+        } catch {
+            return address(0);
+        }
     }
 
     function _emitFeeRoutingTelemetry(bytes32 moduleId, FeeRoutingData memory routing) internal {
@@ -748,6 +826,20 @@ contract StakingRouter is AccessControl, ReentrancyGuard, GranularPause, IStakin
         if (fc == address(0)) revert Errors.ZeroAddress();
         feeController = FeeController(fc);
         emit FeeControllerSet(fc);
+    }
+
+    /// @notice Set or clear the referral short-code resolver.
+    /// @dev Zero address disables code resolution. Non-zero must implement
+    ///      `resolveReferralCode(bytes32)`.
+    function setReferralCodeRegistry(address registry) external onlyRole(GOV) {
+        if (registry != address(0)) {
+            if (registry.code.length == 0) revert ReferralCodeRegistryNotContract(registry);
+            try IReferralCodeRegistry(registry).resolveReferralCode(bytes32(0)) returns (address) {} catch {
+                revert ReferralCodeRegistryInvalid(registry);
+            }
+        }
+        referralCodeRegistry = IReferralCodeRegistry(registry);
+        emit ReferralCodeRegistrySet(registry);
     }
 
     /// @notice Update the per-report sanity bound on beacon-balance gains.

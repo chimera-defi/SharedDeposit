@@ -35,6 +35,15 @@ const func: DeployFunction = async hre => {
     // setFeeController requires GOV role; constructor grants GOV to `gov`.
     await stakingCore.connect(govSigner).setFeeController(feeControllerAddress);
   }
+
+  const referralCodeRegistryDeployment = await hre.deployments.getOrNull("ReferralCodeRegistry");
+  if (referralCodeRegistryDeployment) {
+    const currentRegistry = await stakingCore.referralCodeRegistry();
+    if (currentRegistry.toLowerCase() !== referralCodeRegistryDeployment.address.toLowerCase()) {
+      console.log("  Setting ReferralCodeRegistry on StakingCore...");
+      await stakingCore.connect(govSigner).setReferralCodeRegistry(referralCodeRegistryDeployment.address);
+    }
+  }
 };
 
 export default func;

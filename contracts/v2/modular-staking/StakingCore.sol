@@ -7,6 +7,7 @@ import {StToken} from "./StToken.sol";
 import {FeeController} from "./FeeController.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IReferralRegistry} from "./interfaces/IReferralRegistry.sol";
+import {IReferralCodeRegistry} from "./interfaces/IReferralCodeRegistry.sol";
 import {GranularPause} from "../lib/GranularPause.sol";
 import {Errors} from "../lib/Errors.sol";
 
@@ -37,6 +38,7 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
 
     // ── State ─────────────────────────────────────────────────────────────────
     FeeController public feeController;
+    IReferralCodeRegistry public referralCodeRegistry;
 
     uint256 private _bufferedEther;   // ETH held in this contract (pending validator assignment)
     uint256 private _beaconBalance;   // last reported sum of all validator balances
@@ -64,6 +66,7 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         uint256 operatorShares
     );
     event FeeControllerSet(address indexed feeController);
+    event ReferralCodeRegistrySet(address indexed registry);
     event BufferedEtherUpdated(uint256 bufferedEther);
     event BeaconDepositNotified(uint256 amount, uint256 bufferedEther, uint256 beaconBalance);
 
@@ -72,6 +75,8 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
     error BeaconBaselineNotInitialized(uint256 reportedBalance);
     error BeaconDepositExceedsBuffered(uint256 amount, uint256 bufferedEther);
     error InvalidBeaconReportTuple(uint256 beaconValidators, uint256 beaconBalance);
+    error ReferralCodeRegistryNotContract(address registry);
+    error ReferralCodeRegistryInvalid(address registry);
 
     constructor(address stToken, address gov) {
         if (stToken == address(0) || gov == address(0)) revert Errors.ZeroAddress();
@@ -110,6 +115,35 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         returns (uint256 sharesAmount)
     {
         if (msg.value == 0) revert Errors.InvalidAmount();
+        sharesAmount = _submit(msg.sender, msg.value, referral);
+        emit SubmittedWithAttribution(msg.sender, referral, sourceId, msg.value, sharesAmount);
+    }
+
+    /// @notice Deposit ETH and resolve referral from a short-code hash.
+    /// @dev Falls back to no referral when the resolver is unset or code is missing.
+    function submitWithReferralCode(bytes32 referralCode)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        address referral = _resolveReferralCode(referralCode);
+        sharesAmount = _submit(msg.sender, msg.value, referral);
+    }
+
+    /// @notice Deposit ETH with source attribution and referral short-code hash.
+    /// @dev Falls back to no referral when the resolver is unset or code is missing.
+    function submitWithCodeAttribution(bytes32 referralCode, bytes32 sourceId)
+        external
+        payable
+        nonReentrant
+        whenNotPaused(PAUSE_SUBMIT)
+        returns (uint256 sharesAmount)
+    {
+        if (msg.value == 0) revert Errors.InvalidAmount();
+        address referral = _resolveReferralCode(referralCode);
         sharesAmount = _submit(msg.sender, msg.value, referral);
         emit SubmittedWithAttribution(msg.sender, referral, sourceId, msg.value, sharesAmount);
     }
@@ -254,12 +288,38 @@ contract StakingCore is AccessControl, ReentrancyGuard, GranularPause {
         IReferralRegistry(referralRegistry).recordDeposit(referral, sender, amount, sharesAmount);
     }
 
+    function _resolveReferralCode(bytes32 referralCode) internal view returns (address referral) {
+        IReferralCodeRegistry registry = referralCodeRegistry;
+        if (referralCode == bytes32(0) || address(registry) == address(0)) {
+            return address(0);
+        }
+        try registry.resolveReferralCode(referralCode) returns (address resolved) {
+            return resolved;
+        } catch {
+            return address(0);
+        }
+    }
+
     // ── Admin ─────────────────────────────────────────────────────────────────
 
     function setFeeController(address fc) external onlyRole(GOV) {
         if (fc == address(0)) revert Errors.ZeroAddress();
         feeController = FeeController(fc);
         emit FeeControllerSet(fc);
+    }
+
+    /// @notice Set or clear the referral short-code resolver.
+    /// @dev Zero address disables code resolution. Non-zero must implement
+    ///      `resolveReferralCode(bytes32)`.
+    function setReferralCodeRegistry(address registry) external onlyRole(GOV) {
+        if (registry != address(0)) {
+            if (registry.code.length == 0) revert ReferralCodeRegistryNotContract(registry);
+            try IReferralCodeRegistry(registry).resolveReferralCode(bytes32(0)) returns (address) {} catch {
+                revert ReferralCodeRegistryInvalid(registry);
+            }
+        }
+        referralCodeRegistry = IReferralCodeRegistry(registry);
+        emit ReferralCodeRegistrySet(registry);
     }
 
     function pause(uint16 fnId) external onlyRole(GUARDIAN) {

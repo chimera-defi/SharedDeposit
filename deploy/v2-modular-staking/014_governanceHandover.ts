@@ -22,6 +22,7 @@ const GOVERNED_DEPLOYMENTS = [
   "QuorumOracleAdapter",
   "InstitutionalPolicyRegistry",
   "ReferralRegistry",
+  "ReferralCodeRegistry",
 ];
 
 async function grantRoleIfNeeded(contract: any, role: string, holder: string, label: string) {
@@ -131,5 +132,6 @@ func.dependencies = [
   "dvt-module",
   "lst-wrap",
   "quorum-oracle",
+  "referral-code-registry",
   "governance",
 ];

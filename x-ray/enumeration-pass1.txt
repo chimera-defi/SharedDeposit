@@ -1,0 +1,213 @@
+=== Toolchain ===
+foundry
+=== Source (with line counts) ===
+    64 contracts/v2/core/RewardsReceiver.sol
+    39 contracts/v2/core/Rollover.sol
+    38 contracts/v2/core/SgETH.sol
+   310 contracts/v2/core/SharedDepositMinterV2.sol
+    76 contracts/v2/core/WSGEth.sol
+   224 contracts/v2/core/WithdrawalQueue.sol
+    28 contracts/v2/core/Withdrawals.sol
+    30 contracts/v2/governance/GovernanceTimelock.sol
+   126 contracts/v2/governance/SharedStakeGovernor.sol
+   336 contracts/v2/governance/VoteEscrowV2.sol
+    41 contracts/v2/interfaces/IDepositContract.sol
+    78 contracts/v2/interfaces/IERC20MintableBurnable.sol
+     8 contracts/v2/interfaces/IFeeCalc.sol
+    11 contracts/v2/interfaces/ISGEth.sol
+    12 contracts/v2/interfaces/ISharedDeposit.sol
+    16 contracts/v2/interfaces/IWSGEth.sol
+    58 contracts/v2/interfaces/IxERC4626.sol
+   113 contracts/v2/modular-staking/FeeController.sol
+   126 contracts/v2/modular-staking/InstitutionalPolicyRegistry.sol
+   141 contracts/v2/modular-staking/MigrationHelper.sol
+   168 contracts/v2/modular-staking/OracleAdapter.sol
+   222 contracts/v2/modular-staking/QuorumOracleAdapter.sol
+   136 contracts/v2/modular-staking/ReferralCodeRegistry.sol
+   246 contracts/v2/modular-staking/ReferralRegistry.sol
+    48 contracts/v2/modular-staking/ShareMath.sol
+    53 contracts/v2/modular-staking/StEthPriceOracle.sol
+   193 contracts/v2/modular-staking/StToken.sol
+   119 contracts/v2/modular-staking/StTokenERC4626Wrapper.sol
+   346 contracts/v2/modular-staking/StakingCore.sol
+   902 contracts/v2/modular-staking/StakingRouter.sol
+   314 contracts/v2/modular-staking/WithdrawalQueueV2.sol
+    88 contracts/v2/modular-staking/WstToken.sol
+    17 contracts/v2/modular-staking/interfaces/IDepositContract.sol
+     8 contracts/v2/modular-staking/interfaces/IInstitutionalPolicyRegistry.sol
+    24 contracts/v2/modular-staking/interfaces/ILSTPriceOracle.sol
+     6 contracts/v2/modular-staking/interfaces/IReferralCodeRegistry.sol
+     8 contracts/v2/modular-staking/interfaces/IReferralRegistry.sol
+    10 contracts/v2/modular-staking/interfaces/IReportable.sol
+    35 contracts/v2/modular-staking/interfaces/IStakingModule.sol
+    43 contracts/v2/modular-staking/interfaces/IStakingRouter.sol
+   158 contracts/v2/modular-staking/modules/DVTModule.sol
+   186 contracts/v2/modular-staking/modules/LSTWrapModule.sol
+   252 contracts/v2/modular-staking/modules/ValidatorModule.sol
+   280 contracts/v2/modular/StakingRouterLite.sol
+    13 contracts/v2/modular/interfaces/IStakingModuleLite.sol
+    23 contracts/v2/modular/interfaces/IStakingRouterLite.sol
+    19 contracts/v2/modular/mocks/MockDepositContractLite.sol
+   107 contracts/v2/modular/modules/CuratedNorModuleLite.sol
+    11 contracts/v2/periphery/ETHDepositGaurd.sol
+    73 contracts/v2/periphery/FeeCalc.sol
+    59 contracts/v2/periphery/UserDepositHelper.sol
+    34 contracts/v2/periphery/Zap.sol
+  6076 total
+=== nSLOC ===
+contracts/v2/core/RewardsReceiver.sol: 43
+contracts/v2/core/Rollover.sol: 26
+contracts/v2/core/SgETH.sol: 25
+contracts/v2/core/SharedDepositMinterV2.sol: 203
+contracts/v2/core/WSGEth.sol: 55
+contracts/v2/core/WithdrawalQueue.sol: 135
+contracts/v2/core/Withdrawals.sol: 17
+contracts/v2/governance/GovernanceTimelock.sol: 10
+contracts/v2/governance/SharedStakeGovernor.sol: 94
+contracts/v2/governance/VoteEscrowV2.sol: 243
+contracts/v2/interfaces/IDepositContract.sol: 12
+contracts/v2/interfaces/IERC20MintableBurnable.sol: 21
+contracts/v2/interfaces/IFeeCalc.sol: 5
+contracts/v2/interfaces/ISGEth.sol: 6
+contracts/v2/interfaces/ISharedDeposit.sol: 8
+contracts/v2/interfaces/IWSGEth.sol: 5
+contracts/v2/interfaces/IxERC4626.sol: 20
+contracts/v2/modular-staking/FeeController.sol: 76
+contracts/v2/modular-staking/InstitutionalPolicyRegistry.sol: 98
+contracts/v2/modular-staking/MigrationHelper.sol: 59
+contracts/v2/modular-staking/OracleAdapter.sol: 107
+contracts/v2/modular-staking/QuorumOracleAdapter.sol: 168
+contracts/v2/modular-staking/ReferralCodeRegistry.sol: 101
+contracts/v2/modular-staking/ReferralRegistry.sol: 155
+contracts/v2/modular-staking/ShareMath.sol: 31
+contracts/v2/modular-staking/StEthPriceOracle.sol: 25
+contracts/v2/modular-staking/StToken.sol: 134
+contracts/v2/modular-staking/StTokenERC4626Wrapper.sol: 70
+contracts/v2/modular-staking/StakingCore.sol: 240
+contracts/v2/modular-staking/StakingRouter.sol: 660
+contracts/v2/modular-staking/WithdrawalQueueV2.sol: 213
+contracts/v2/modular-staking/WstToken.sol: 47
+contracts/v2/modular-staking/interfaces/IDepositContract.sol: 11
+contracts/v2/modular-staking/interfaces/IInstitutionalPolicyRegistry.sol: 4
+contracts/v2/modular-staking/interfaces/ILSTPriceOracle.sol: 6
+contracts/v2/modular-staking/interfaces/IReferralCodeRegistry.sol: 4
+contracts/v2/modular-staking/interfaces/IReferralRegistry.sol: 6
+contracts/v2/modular-staking/interfaces/IReportable.sol: 4
+contracts/v2/modular-staking/interfaces/IStakingModule.sol: 9
+contracts/v2/modular-staking/interfaces/IStakingRouter.sol: 20
+contracts/v2/modular-staking/modules/DVTModule.sol: 110
+contracts/v2/modular-staking/modules/LSTWrapModule.sol: 108
+contracts/v2/modular-staking/modules/ValidatorModule.sol: 158
+contracts/v2/modular/StakingRouterLite.sol: 234
+contracts/v2/modular/interfaces/IStakingModuleLite.sol: 8
+contracts/v2/modular/interfaces/IStakingRouterLite.sol: 19
+contracts/v2/modular/mocks/MockDepositContractLite.sol: 14
+contracts/v2/modular/modules/CuratedNorModuleLite.sol: 85
+contracts/v2/periphery/ETHDepositGaurd.sol: 3
+contracts/v2/periphery/FeeCalc.sol: 57
+contracts/v2/periphery/UserDepositHelper.sol: 43
+contracts/v2/periphery/Zap.sol: 26
+TOTAL: 4041
+=== NatSpec ===
+67
+=== test_files ===
+69
+=== test_functions ===
+406
+=== stateless_fuzz ===
+0
+=== foundry_invariant ===
+7
+=== echidna ===
+0:0
+=== medusa ===
+0:0
+=== hardhat_fuzz ===
+0
+0
+=== fork ===
+1
+=== certora ===
+0:0
+=== halmos ===
+0:0
+=== hevm ===
+0
+=== docs ===
+README.md
+README.md
+=== commit ===
+9d91084
+=== git_unique_authors ===
+8
+=== git_contributors ===
+    167 Chimera Defi
+     68 Chimera
+     44 devlancer412
+     29 Codex GPT-5
+      8 Cihmera Defi
+      6 Claudy Won
+      2 Val
+      1 Cursor Agent
+=== git_source_contributors ===
+3339	72	Claudy Won
+2023	1348	Chimera Defi
+1812	247	Codex GPT-5
+1378	304	Chimera
+449	443	Cihmera Defi
+329	172	devlancer412
+=== git_repo_age ===
+2021-05-10T15:21:42-05:00
+2026-05-19T07:36:39+02:00
+=== git_total_commits ===
+325
+=== git_merge_count ===
+30
+=== git_hotspots ===
+     23 contracts/v2/core/SharedDepositMinterV2.sol
+     19 contracts/v2/core/WithdrawalQueue.sol
+     13 contracts/v2/core/Withdrawals.sol
+     12 contracts/v2/core/WSGEth.sol
+     12 contracts/v2/core/RewardsReceiver.sol
+     10 contracts/v2/periphery/FeeCalc.sol
+     10 contracts/v2/core/SgETH.sol
+      9 contracts/v2/modular-staking/StakingRouter.sol
+      7 contracts/v2/periphery/UserDepositHelper.sol
+      7 contracts/v2/modular-staking/modules/ValidatorModule.sol
+      7 contracts/v2/core/Rollover.sol
+      6 contracts/v2/core/WithdrawQueue.sol
+      6 contracts/v2/core/FeeSplitter.sol
+      5 contracts/v2/modular-staking/modules/DVTModule.sol
+      5 contracts/v2/modular-staking/WithdrawalQueueV2.sol
+=== git_recent_30d ===
+9d91084 feat(modular-staking): finalize parity hardening and deployment flow [Agent: GPT-5]
+d82c508 fix(security): harden referral accounting, dvt membership, and 4626 zero-share deposits [Agent: GPT-5]
+e346666 feat(erc4626): fix wrapper correctness + add 13-test coverage [Agent: Claude Sonnet 4.6]
+3feda56 fix(contracts): remove unused var + add ERC-4626 wrapper deploy script [Agent: Claude Sonnet 4.6]
+5bc55ec feat(security+infra): mainnet key guard, ERC-4626 wrapper, balance monitor keeper [Agent: Claude Sonnet 4.6]
+2487fa9 refactor(security): StakingRouter LOC reduction + LSTWrapModule oracle staleness fixes [Agent: Claude Sonnet 4.6]
+beb9ca6 fix(security): MigrationHelper — block timer-reset griefing + terminal activated state [Agent: Claude Sonnet 4.6]
+4cef1be refactor(security): audit fixes, fork tests, migration contract, LOC cleanup [Agent: Claude Sonnet 4.6]
+15286ea fix(security): DVTModule audit fixes — DVTM-01/02/03 [Agent: Claude Sonnet 4.6]
+3cf6d24 feat(dvt): production DVTModule cluster registry + fork tests against mainnet [Agent: Claude Sonnet 4.6]
+ff81642 fix(audit-third-pass): address LOW findings from Claude security audit
+672a942 fix(ValidatorModule): prevent unbacked ETH from inflating totalEth()
+983686d fix(ReferralRegistry): constructor requires feeToken, add recoverEth
+23caf7c fix(security): lower maxDeltaBps default to 100 (1%), hard ceiling at 1000
+4926071 feat(v2): governance, referral, audit fixes, x-ray report
+45b4078 fix(security): address audit findings LOW-01, LOW-02, LOW-11, INFO-02
+721a055 feat(modular-staking): advance contracts, tests, and deployments for V2
+acc8801 refactor(modular-staking): complete lido-parity → modular-staking rename, add tests, security review, cleanup
+e239a55 fix(lido-parity): reconcile fee model across StakingCore and StakingRouter
+4445689 feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Codex GPT-5]
+=== git_large_diffs ===
+1224 COMMIT:4445689 Claudy Won feat(v1-readiness): reconcile lido-parity hardening + modular delta [Agent: Codex GPT-5]
+1133 COMMIT:05dc8d9 Claudy Won feat(staking-router): modular StakingRouter — ValidatorModule, DVTModule, LSTWrapModule, adversarial tests, keeper scripts [Agent: Claude Sonnet 4.6]
+964 COMMIT:58b117b Claudy Won feat(lido-parity): add Lido-parity staking core MVP contracts, tests, and deploy scripts [Agent: Claude Sonnet 4.6]
+866 COMMIT:1f2ad8e Chimera refactor repo
+825 COMMIT:4926071 Codex GPT-5 feat(v2): governance, referral, audit fixes, x-ray report
+792 COMMIT:a954a9a Cihmera Defi chore: cleanup build and run process
+542 COMMIT:e38d520 Chimera Defi cleanup core contracts dir
+373 COMMIT:b745a49 Chimera Defi refactor minter
+363 COMMIT:9d91084 Codex GPT-5 feat(modular-staking): finalize parity hardening and deployment flow [Agent: GPT-5]
+243 COMMIT:6f53290 Chimera Defi v2 system core goerli preview

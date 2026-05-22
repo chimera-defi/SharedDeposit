@@ -2,6 +2,7 @@
   "name": "SharedDeposit",
   "license": "BUSL-1.1",
   "devDependencies": {
+    "@metamask/foundryup": "^1.0.1",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.2",
     "@nomicfoundation/hardhat-ethers": "^3.0.5",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
@@ -37,7 +38,8 @@
     "solidity-coverage": "^0.8.5",
     "ts-node": "^10.9.1",
     "typechain": "^8.3.2",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "yaml": "^2.9.0"
   },
   "dependencies": {
     "@fei-protocol/erc4626": "^0.0.0",
@@ -72,7 +74,10 @@
     "lint:ts": "eslint --config ./.eslintrc.yaml --ignore-path ./.eslintignore --ext .js,.ts .",
     "prettier": "prettier --config ./.prettierrc.yaml --write \"**/*.{js,json,md,sol,ts}\"",
     "prettier:check": "prettier --check --config ./.prettierrc.yaml \"**/*.{js,json,md,sol,ts}\"",
+    "setup:foundry": "mm-foundryup --version v1.7.1",
     "test": "hardhat test",
+    "test:invariants": "./scripts/run-forge.sh test --match-path test/foundry/ModularStakingInvariants.t.sol",
+    "test:invariants:gas": "./scripts/run-forge.sh test --match-path test/foundry/ModularStakingInvariants.t.sol --gas-report",
     "loc:sol:setup": "brew install cloc",
     "loc:sol": "cloc contracts/v2/",
     "deploy:sepolia": "npx hardhat deploy --network sepolia",

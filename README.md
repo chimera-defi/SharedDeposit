@@ -20,8 +20,23 @@ See deploy_log.md for new deployed contract addresses
 
 ```
 yarn install
+npm run setup:foundry
 yarn sol
 yarn test
+npm run test:invariants
+```
+
+- Tooling dependency: Foundry (`forge`, `cast`, `anvil`, `chisel`) is required for invariant/fuzz suites under `test/foundry`.
+- Bootstrap Foundry from repo scripts:
+
+```bash
+npm run setup:foundry
+```
+
+- Run modular staking invariant suite:
+
+```bash
+npm run test:invariants
 ```
 
 - Deployments and hardhat

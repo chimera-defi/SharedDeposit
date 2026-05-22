@@ -4,6 +4,79 @@ import {parseEther, ZeroAddress} from "ethers";
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("Governance + Referral hardening", () => {
+  describe("ReferralCodeRegistry", () => {
+    let gov: SignerWithAddress;
+    let codeAdmin: SignerWithAddress;
+    let referrer: SignerWithAddress;
+    let outsider: SignerWithAddress;
+    let registry: any;
+
+    beforeEach(async () => {
+      [, gov, codeAdmin, referrer, outsider] = await ethers.getSigners();
+      const ReferralCodeRegistry = await ethers.getContractFactory("ReferralCodeRegistry");
+      registry = await ReferralCodeRegistry.deploy(gov.address);
+    });
+
+    it("registers and resolves referral codes with metadata", async () => {
+      const codeHash = ethers.keccak256(ethers.toUtf8Bytes("ALICE_PARTNER_CODE"));
+      const metadata = ethers.keccak256(ethers.toUtf8Bytes("campaign:homepage-v2"));
+
+      await expect(
+        registry.connect(gov).registerReferralCode(codeHash, referrer.address, metadata),
+      )
+        .to.emit(registry, "ReferralCodeRegistered")
+        .withArgs(codeHash, referrer.address, metadata);
+
+      expect(await registry.resolveReferralCode(codeHash)).to.equal(referrer.address);
+      const rec = await registry.getReferralCode(codeHash);
+      expect(rec.referrer).to.equal(referrer.address);
+      expect(rec.metadataHash).to.equal(metadata);
+      expect(rec.exists).to.equal(true);
+    });
+
+    it("supports update and revoke with CODE_ADMIN role", async () => {
+      const codeHash = ethers.keccak256(ethers.toUtf8Bytes("REF_CODE_UPDATE_TEST"));
+      const metadataA = ethers.keccak256(ethers.toUtf8Bytes("campaign:a"));
+      const metadataB = ethers.keccak256(ethers.toUtf8Bytes("campaign:b"));
+
+      const codeAdminRole = await registry.CODE_ADMIN();
+      await registry.connect(gov).grantRole(codeAdminRole, codeAdmin.address);
+
+      await registry.connect(codeAdmin).registerReferralCode(codeHash, referrer.address, metadataA);
+
+      await expect(
+        registry.connect(codeAdmin).updateReferralCode(codeHash, outsider.address, metadataB),
+      )
+        .to.emit(registry, "ReferralCodeUpdated")
+        .withArgs(codeHash, referrer.address, outsider.address, metadataB);
+
+      expect(await registry.resolveReferralCode(codeHash)).to.equal(outsider.address);
+
+      await expect(registry.connect(codeAdmin).revokeReferralCode(codeHash))
+        .to.emit(registry, "ReferralCodeRevoked")
+        .withArgs(codeHash, outsider.address, metadataB);
+      expect(await registry.resolveReferralCode(codeHash)).to.equal(ZeroAddress);
+    });
+
+    it("enforces CODE_ADMIN role and revoke behavior", async () => {
+      const codeHash = ethers.keccak256(ethers.toUtf8Bytes("ROLE_TEST_CODE"));
+      const metadata = ethers.keccak256(ethers.toUtf8Bytes("campaign:role-test"));
+      const codeAdminRole = await registry.CODE_ADMIN();
+
+      await registry.connect(gov).grantRole(codeAdminRole, codeAdmin.address);
+      await registry.connect(codeAdmin).registerReferralCode(codeHash, referrer.address, metadata);
+
+      await registry.connect(gov).revokeRole(codeAdminRole, codeAdmin.address);
+      await expect(
+        registry.connect(codeAdmin).updateReferralCode(codeHash, outsider.address, metadata),
+      ).to.be.reverted;
+
+      await expect(
+        registry.connect(outsider).registerReferralCode(codeHash, outsider.address, metadata),
+      ).to.be.reverted;
+    });
+  });
+
   describe("ReferralRegistry", () => {
     let deployer: SignerWithAddress;
     let gov: SignerWithAddress;

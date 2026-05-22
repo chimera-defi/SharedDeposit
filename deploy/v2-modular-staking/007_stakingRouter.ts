@@ -38,6 +38,15 @@ const func: DeployFunction = async hre => {
     console.log("  Setting FeeController on StakingRouter...");
     await router.connect(govSigner).setFeeController(feeControllerAddress);
   }
+
+  const referralCodeRegistryDeployment = await hre.deployments.getOrNull("ReferralCodeRegistry");
+  if (referralCodeRegistryDeployment) {
+    const currentRegistry = await router.referralCodeRegistry();
+    if (currentRegistry.toLowerCase() !== referralCodeRegistryDeployment.address.toLowerCase()) {
+      console.log("  Setting ReferralCodeRegistry on StakingRouter...");
+      await router.connect(govSigner).setReferralCodeRegistry(referralCodeRegistryDeployment.address);
+    }
+  }
 };
 
 export default func;
