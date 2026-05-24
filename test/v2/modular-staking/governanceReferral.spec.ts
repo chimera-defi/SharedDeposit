@@ -103,6 +103,30 @@ describe("Governance + Referral hardening", () => {
       await registry.connect(gov).grantRole(await registry.FEE_CTRL(), feeCtl.address);
     });
 
+    it("guards fee token updates to deployed token contracts", async () => {
+      const StToken = await ethers.getContractFactory("StToken");
+      const ReferralRegistry = await ethers.getContractFactory("ReferralRegistry");
+      const replacementToken = await StToken.deploy();
+
+      await expect(ReferralRegistry.deploy(gov.address, outsider.address))
+        .to.be.revertedWithCustomError(registry, "InvalidFeeToken")
+        .withArgs(outsider.address);
+
+      await expect(registry.connect(gov).setFeeToken(ZeroAddress)).to.be.revertedWithCustomError(
+        registry,
+        "ZeroAddress",
+      );
+      await expect(registry.connect(gov).setFeeToken(outsider.address))
+        .to.be.revertedWithCustomError(registry, "InvalidFeeToken")
+        .withArgs(outsider.address);
+      await expect(registry.connect(outsider).setFeeToken(replacementToken.target)).to.be.reverted;
+
+      await expect(registry.connect(gov).setFeeToken(replacementToken.target))
+        .to.emit(registry, "FeeTokenSet")
+        .withArgs(stToken.target, replacementToken.target);
+      expect(await registry.feeToken()).to.equal(replacementToken.target);
+    });
+
     it("records referral deposits and updates per-referrer stats", async () => {
       const amount = parseEther("5");
       const shares = parseEther("5");

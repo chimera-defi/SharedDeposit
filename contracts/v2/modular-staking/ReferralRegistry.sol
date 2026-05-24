@@ -79,6 +79,7 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
     event FeesClaimed(address indexed referrer, uint256 shares);
     event ReferralFeeBpsSet(uint256 oldBps, uint256 newBps);
     event MinReferralStakeSet(uint256 oldMin, uint256 newMin);
+    event FeeTokenSet(address indexed oldToken, address indexed newToken);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error SelfReferral();
@@ -87,10 +88,12 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
     error NoFeesToClaim();
     error FeeTooHigh();
     error NoReferees();
+    error InvalidFeeToken(address token);
 
     constructor(address _gov, address _feeToken) {
         if (_gov == address(0)) revert Errors.ZeroAddress();
         if (_feeToken == address(0)) revert Errors.ZeroAddress();
+        if (_feeToken.code.length == 0) revert InvalidFeeToken(_feeToken);
         _grantRole(DEFAULT_ADMIN_ROLE, _gov);
         _grantRole(GOV, _gov);
         feeToken = _feeToken;
@@ -195,7 +198,12 @@ contract ReferralRegistry is AccessControl, ReentrancyGuard {
     }
 
     function setFeeToken(address _token) external onlyRole(GOV) {
+        if (_token == address(0)) revert Errors.ZeroAddress();
+        if (_token.code.length == 0) revert InvalidFeeToken(_token);
+
+        address oldToken = feeToken;
         feeToken = _token;
+        emit FeeTokenSet(oldToken, _token);
     }
 
     /// @notice Recover accidentally sent ERC20 tokens (not feeToken).

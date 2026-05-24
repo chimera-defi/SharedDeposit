@@ -239,7 +239,7 @@ contract ModularStakingInvariants is Test {
     /**
      * @notice Invariant 1: totalSupply == totalPooledEther
      */
-    function invariant_totalSupplyEqualsTotalPooled() public view {
+    function invariant_totalSupplyEqualsTotalPooled() public {
         assertEq(stToken.totalSupply(), stToken.totalPooledEther());
     }
 
@@ -247,7 +247,7 @@ contract ModularStakingInvariants is Test {
      * @notice Invariant 2: Sum of all user balances <= totalPooledEther
      *         (may be < due to unclaimed withdrawal requests)
      */
-    function invariant_userBalancesSumToTotalPooled() public view {
+    function invariant_userBalancesSumToTotalPooled() public {
         uint256 sum = 0;
         for (uint256 i = 0; i < users.length; i++) {
             sum += stToken.balanceOf(users[i]);
@@ -282,7 +282,7 @@ contract ModularStakingInvariants is Test {
     /**
      * @notice Invariant 4: Router is the only address with MINTER role
      */
-    function invariant_routerIsOnlyMinter() public view {
+    function invariant_routerIsOnlyMinter() public {
         bytes32 MINTER = keccak256("MINTER");
         assertTrue(stToken.hasRole(MINTER, address(router)));
         // Queue is also a minter
@@ -292,14 +292,14 @@ contract ModularStakingInvariants is Test {
     /**
      * @notice Invariant 5: Withdrawal queue lockedEther <= contract balance
      */
-    function invariant_queueBalanceCoversLocked() public view {
+    function invariant_queueBalanceCoversLocked() public {
         assertLe(queue.lockedEther(), address(queue).balance);
     }
 
     /**
      * @notice Invariant 6: Module totalEth == buffered + beaconBalance
      */
-    function invariant_moduleAccounting() public view {
+    function invariant_moduleAccounting() public {
         uint256 moduleSum = validatorModule.bufferedEther() + validatorModule.beaconBalance();
         assertEq(moduleSum, validatorModule.totalEth());
     }
@@ -307,7 +307,7 @@ contract ModularStakingInvariants is Test {
     /**
      * @notice Invariant 7: No shares exist without pooled ETH backing
      */
-    function invariant_noSharesWithoutBacking() public view {
+    function invariant_noSharesWithoutBacking() public {
         if (stToken.getTotalShares() > 0) {
             assertGt(stToken.totalPooledEther(), 0);
         }
