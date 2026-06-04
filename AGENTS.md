@@ -1,6 +1,7 @@
 # Agent Instructions
 
 <!-- devin-delegate:begin -->
+
 ## Devin Delegate Routing — MANDATORY
 
 All Devin calls MUST route through the skill wrapper. Direct `devin --print` and `devin --task` calls are **prohibited** — they bypass envelope checks, fallback routing, clarification handling, and telemetry.
@@ -10,6 +11,7 @@ All Devin calls MUST route through the skill wrapper. Direct `devin --print` and
 - **Long path (fallback):** `./skills/devin-delegate/scripts/delegate.py --task "..."`
 
 **Why this matters:**
+
 - Structured envelopes prevent vague handoffs
 - Codex then Claude guidance resolves many clarification loops before human escalation
 - Provider fallback keeps execution moving when Devin fails
@@ -21,4 +23,5 @@ All Devin calls MUST route through the skill wrapper. Direct `devin --print` and
 - Keep delegation scoped and include acceptance criteria.
 - If Devin asks for clarification, use Codex guidance first and Claude second before asking a human.
 - Inspect telemetry regularly (`./skills/devin-delegate/scripts/devin_delegate_telemetry.py summary --days 14`).
+
 <!-- devin-delegate:end -->
