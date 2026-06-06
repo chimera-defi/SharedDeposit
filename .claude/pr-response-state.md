@@ -1,5 +1,5 @@
 # PR Response State
-last_run: 2026-06-05T18:15
+last_run: 2026-06-06T15:15
 
 prs:
   - number: 55
@@ -32,3 +32,14 @@ prs:
       blocked (awaiting required review). State-file-only PR (maintenance
       state tracking blocked Typechain env). No CHANGES_REQUESTED.
       Awaiting human review/merge.
+
+  - number: 54
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2025-11-18T18:20:13Z"
+    attempt_count: 0
+    status: needs_human
+    notes: >
+      Slither static analysis CI job failing (security findings in contracts).
+      unit_tests and lint_and_build pass. PR is 7 months old. Fixing Slither
+      findings requires smart contract expertise — skipped as > 5 min complexity.
+      Awaiting human review.
