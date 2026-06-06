@@ -8,10 +8,8 @@ prs:
     attempt_count: 2
     status: fixed
     notes: >
-      CI verified green as of 2026-06-05T15:15: build (20.x) passed at
-      2026-06-04T03:22Z. Prior fix (commit 59eab2b) added .claude/ to
-      .prettierignore. mergeable_state: blocked — awaiting human review
-      approval (no required reviews granted yet). No new activity since fix.
+      Previously fixed by prior agent run. No longer in open PRs — likely merged.
+      Archived for history.
 
   - number: 56
     repo: chimera-defi/SharedDeposit
@@ -19,8 +17,8 @@ prs:
     attempt_count: 0
     status: skipped
     notes: >
-      CI build (20.x) passes. No CHANGES_REQUESTED. Nightly dep-update PR
-      from 2026-06-01. Awaiting human review/merge.
+      Previously skipped (CI green, awaiting human review). No longer in open PRs
+      — likely merged. Archived for history.
 
   - number: 57
     repo: chimera-defi/SharedDeposit
@@ -28,10 +26,8 @@ prs:
     attempt_count: 0
     status: skipped
     notes: >
-      New PR 2026-06-04. CI green: build (20.x) success. mergeable_state:
-      blocked (awaiting required review). State-file-only PR (maintenance
-      state tracking blocked Typechain env). No CHANGES_REQUESTED.
-      Awaiting human review/merge.
+      Previously skipped (CI green, awaiting human review). No longer in open PRs
+      — likely merged. Archived for history.
 
   - number: 54
     repo: chimera-defi/SharedDeposit
@@ -39,7 +35,31 @@ prs:
     attempt_count: 0
     status: needs_human
     notes: >
-      Slither static analysis CI job failing (security findings in contracts).
-      unit_tests and lint_and_build pass. PR is 7 months old. Fixing Slither
-      findings requires smart contract expertise — skipped as > 5 min complexity.
-      Awaiting human review.
+      PR "Add ci tests and fuzzing" introduces slither static-analysis CI job.
+      Slither finds security issues in existing Solidity contracts and fails.
+      Job logs expired (410 Gone, 7+ months old). Smart contract security fixes
+      are > 5 min complexity and high-risk. Needs human to review slither output
+      and decide which findings to fix vs suppress. No new activity since Nov 2025.
+
+  - number: 53
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2025-11-18T18:20:03Z"
+    attempt_count: 0
+    status: skipped
+    notes: >
+      Duplicate of #54 (parallel "Add ci tests and fuzzing" attempt). No reviews,
+      no CI failure for code checks visible. No action.
+
+  - number: 47
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2025-10-31T16:37:04Z"
+    attempt_count: 0
+    status: skipped
+    notes: No CI failures, no CHANGES_REQUESTED.
+
+  - number: 46
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2025-10-31T16:33:08Z"
+    attempt_count: 0
+    status: skipped
+    notes: No CI failures, no CHANGES_REQUESTED.
