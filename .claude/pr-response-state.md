@@ -1,5 +1,5 @@
 # PR Response State
-last_run: 2026-06-06T15:15
+last_run: 2026-06-07T16:15
 
 prs:
   - number: 55
@@ -63,3 +63,13 @@ prs:
     attempt_count: 0
     status: skipped
     notes: No CI failures, no CHANGES_REQUESTED.
+
+  - number: 58
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2026-06-06T14:50:01Z"
+    attempt_count: 0
+    status: skipped
+    notes: >
+      docs(dream) consolidation PR 2026-06-06. CI green (build 20.x: success).
+      mergeable_state: blocked (branch protection requires review). No
+      CHANGES_REQUESTED. Awaiting human review/merge.
