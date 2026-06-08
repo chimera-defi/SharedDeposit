@@ -1,34 +1,7 @@
 # PR Response State
-last_run: 2026-06-08T19:15
+last_run: 2026-06-08T20:15
 
 prs:
-  - number: 55
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-04T03:20:37Z"
-    attempt_count: 2
-    status: fixed
-    notes: >
-      Previously fixed by prior agent run. No longer in open PRs — likely merged.
-      Archived for history.
-
-  - number: 56
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-01T00:18:08Z"
-    attempt_count: 0
-    status: skipped
-    notes: >
-      Previously skipped (CI green, awaiting human review). No longer in open PRs
-      — likely merged. Archived for history.
-
-  - number: 57
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-04T17:12:24Z"
-    attempt_count: 0
-    status: skipped
-    notes: >
-      Previously skipped (CI green, awaiting human review). No longer in open PRs
-      — likely merged. Archived for history.
-
   - number: 54
     repo: chimera-defi/SharedDeposit
     last_activity: "2025-11-18T18:20:13Z"
@@ -63,6 +36,33 @@ prs:
     attempt_count: 0
     status: skipped
     notes: No CI failures, no CHANGES_REQUESTED.
+
+  - number: 55
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2026-06-04T03:20:37Z"
+    attempt_count: 2
+    status: fixed
+    notes: >
+      Previously fixed by prior agent run. No longer in open PRs — likely merged.
+      Archived for history.
+
+  - number: 56
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2026-06-01T00:18:08Z"
+    attempt_count: 0
+    status: skipped
+    notes: >
+      Previously skipped (CI green, awaiting human review). No longer in open PRs
+      — likely merged. Archived for history.
+
+  - number: 57
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2026-06-04T17:12:24Z"
+    attempt_count: 0
+    status: skipped
+    notes: >
+      Previously skipped (CI green, awaiting human review). No longer in open PRs
+      — likely merged. Archived for history.
 
   - number: 58
     repo: chimera-defi/SharedDeposit
