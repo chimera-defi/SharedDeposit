@@ -1,5 +1,5 @@
 # PR Response State
-last_run: 2026-06-09T14:15
+last_run: 2026-06-09T19:15
 
 prs:
   - number: 54
@@ -12,7 +12,7 @@ prs:
       Slither finds security issues in existing Solidity contracts and fails.
       Job logs expired (410 Gone, 7+ months old). Smart contract security fixes
       are > 5 min complexity and high-risk. Needs human to review slither output
-      and decide which findings to fix vs suppress. No new activity since Nov 2025.
+      and decide which findings to fix vs suppress.
 
   - number: 53
     repo: chimera-defi/SharedDeposit
@@ -20,8 +20,7 @@ prs:
     attempt_count: 0
     status: skipped
     notes: >
-      Duplicate of #54 (parallel "Add ci tests and fuzzing" attempt). No reviews,
-      no CI failure for code checks visible. No action.
+      Duplicate of #54. No reviews, no CI failure for code checks visible.
 
   - number: 47
     repo: chimera-defi/SharedDeposit
@@ -52,8 +51,7 @@ prs:
     attempt_count: 0
     status: skipped
     notes: >
-      Previously skipped (CI green, awaiting human review). No longer in open PRs
-      — likely merged. Archived for history.
+      Previously skipped (CI green). No longer in open PRs — likely merged.
 
   - number: 57
     repo: chimera-defi/SharedDeposit
@@ -61,8 +59,7 @@ prs:
     attempt_count: 0
     status: skipped
     notes: >
-      Previously skipped (CI green, awaiting human review). No longer in open PRs
-      — likely merged. Archived for history.
+      Previously skipped (CI green). No longer in open PRs — likely merged.
 
   - number: 58
     repo: chimera-defi/SharedDeposit
@@ -81,5 +78,4 @@ prs:
     status: skipped
     notes: >
       docs(dream): 2026-06-07 consolidation pass. CI green (build 20.x: success).
-      Confirmed green on 2026-06-09T14:15 re-check. No CHANGES_REQUESTED.
-      Awaiting human review/merge.
+      No CHANGES_REQUESTED. Awaiting human review/merge.
