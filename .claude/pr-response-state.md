@@ -1,5 +1,5 @@
 # PR Response State
-last_run: 2026-06-12T14:19
+last_run: 2026-06-12T15:33
 
 prs:
   - number: 54
@@ -34,31 +34,6 @@ prs:
     attempt_count: 0
     status: skipped
     notes: No CI failures, no CHANGES_REQUESTED.
-
-  - number: 55
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-04T03:20:37Z"
-    attempt_count: 2
-    status: fixed
-    notes: >
-      Previously fixed by prior agent run. No longer in open PRs - likely merged.
-      Archived for history.
-
-  - number: 56
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-01T00:18:08Z"
-    attempt_count: 0
-    status: skipped
-    notes: >
-      Previously skipped (CI green). No longer in open PRs - likely merged.
-
-  - number: 57
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-04T17:12:24Z"
-    attempt_count: 0
-    status: skipped
-    notes: >
-      Previously skipped (CI green). No longer in open PRs - likely merged.
 
   - number: 58
     repo: chimera-defi/SharedDeposit
