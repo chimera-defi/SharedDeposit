@@ -1,58 +1,38 @@
 # PR Response State
-last_run: 2026-06-13T06:00
+last_run: 2026-06-13T15:16
 
 prs:
-  - number: 54
+  - number: 49
     repo: chimera-defi/SharedDeposit
-    last_activity: "2025-11-18T18:20:13Z"
+    last_activity: "2025-11-02T03:46:44Z"
     attempt_count: 0
-    status: needs_human
-    notes: >
-      PR "Add ci tests and fuzzing" introduces slither static-analysis CI job.
-      Slither finds security issues in existing Solidity contracts and fails.
-      Job logs expired (410 Gone, 7+ months old). Smart contract security fixes
-      are > 5 min complexity and high-risk. Needs human to review slither output
-      and decide which findings to fix vs suppress.
+    status: skipped
+    notes: Draft PR — research smart contract improvements (Cursor agent). Skip per isDraft=true rule.
+
+  - number: 52
+    repo: chimera-defi/SharedDeposit
+    last_activity: "2025-11-09T18:17:24Z"
+    attempt_count: 0
+    status: skipped
+    notes: Draft PR — audit withdrawal queue contract (Cursor agent). Skip per isDraft=true rule.
 
   - number: 53
     repo: chimera-defi/SharedDeposit
     last_activity: "2025-11-18T18:20:03Z"
     attempt_count: 0
     status: skipped
-    notes: No CI failures, no CHANGES_REQUESTED.
+    notes: >
+      Add ci tests and fuzzing (Cursor agent). No CHANGES_REQUESTED. No CI run
+      on this PR. Awaiting human review/merge.
 
-  - number: 47
+  - number: 54
     repo: chimera-defi/SharedDeposit
-    last_activity: "2025-10-31T16:37:04Z"
-    attempt_count: 0
-    status: skipped
-    notes: No CI failures, no CHANGES_REQUESTED.
-
-  - number: 46
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2025-10-31T16:33:08Z"
-    attempt_count: 0
-    status: skipped
-    notes: No CI failures, no CHANGES_REQUESTED.
-
-  - number: 58
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-06T14:50:01Z"
+    last_activity: "2025-11-18T18:20:13Z"
     attempt_count: 0
     status: skipped
     notes: >
-      docs(dream) consolidation PR 2026-06-06. CI green (build 20.x: success).
-      mergeable_state: blocked (branch protection requires review). No
-      CHANGES_REQUESTED. Awaiting human review/merge.
-
-  - number: 59
-    repo: chimera-defi/SharedDeposit
-    last_activity: "2026-06-08T17:12:36Z"
-    attempt_count: 0
-    status: skipped
-    notes: >
-      docs(dream): 2026-06-07 consolidation pass. CI green (build 20.x: success).
-      No CHANGES_REQUESTED. Awaiting human review/merge.
+      Add ci tests and fuzzing v2 (Cursor agent). No CHANGES_REQUESTED.
+      No CI run on this PR. Awaiting human review/merge.
 
   - number: 61
     repo: chimera-defi/SharedDeposit
@@ -60,6 +40,6 @@ prs:
     attempt_count: 0
     status: skipped
     notes: >
-      chore(maintenance): 2026-06-10 - security pass. CI green (build 20.x: success).
-      mergeable_state: blocked (branch protection requires review). No CHANGES_REQUESTED.
-      Security finding: tx.origin usage filed as Issue #60. Awaiting human review/merge.
+      chore(maintenance): 2026-06-10 - security pass. tx.origin usage filed
+      as Issue #60 for human review. CI green (build (20.x): success).
+      No CHANGES_REQUESTED. Awaiting human review/merge.
