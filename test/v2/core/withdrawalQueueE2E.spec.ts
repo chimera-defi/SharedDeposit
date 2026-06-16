@@ -30,7 +30,8 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
   let deployer: SignerWithAddress;
   let alice: SignerWithAddress;
   let bob: SignerWithAddress;
-  let vEth2: any; // vETH2 contract on mainnet
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let vEth2: any; // vETH2 contract on mainnet — no Typechain types available
 
   const EPOCH_LENGTH = 100; // 100 blocks for realistic testing
 

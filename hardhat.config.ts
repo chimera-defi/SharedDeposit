@@ -217,6 +217,7 @@ function getSortedFiles(dependenciesGraph: Record<string, unknown[]>) {
   return sortedNames.map((n: string) => filesMap[n]);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getFileWithoutImports(resolvedFile: any) {
   const IMPORT_SOLIDITY_REGEX = /^\s*import(\s+)[\s\S]*?;\s*$/gm;
 
@@ -228,6 +229,7 @@ subtask("flat:get-flattened-sources", "Returns all contracts and their dependenc
   .addOptionalParam("output", undefined, undefined, types.string)
   .setAction(async ({files, output}, {run}) => {
     const dependencyGraph = await run("flat:get-dependency-graph", {files});
+    // eslint-disable-next-line no-console
     console.log(dependencyGraph);
 
     let flattened = "";
@@ -259,6 +261,7 @@ subtask("flat:get-flattened-sources", "Returns all contracts and their dependenc
 
     flattened = flattened.trim();
     if (output) {
+      // eslint-disable-next-line no-console
       console.log("Writing to", output);
       fs.writeFileSync(output, flattened);
       return "";
@@ -328,6 +331,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
 
   for (const account of accounts) {
+    // eslint-disable-next-line no-console
     console.log(account.address);
   }
 });
