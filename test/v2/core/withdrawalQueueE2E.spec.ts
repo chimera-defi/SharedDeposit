@@ -165,7 +165,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       const wsgEthBalanceBefore = await wsgEth.balanceOf(alice.address);
 
       // Request redemption
-      await expect(withdrawalQueueERC4626.connect(alice).requestRedeem(shares, alice.address, alice.address)).to.emit(
+      await expect(withdrawalQueueERC4626.connect(alice).requestRedeem(shares)).to.emit(
         withdrawalQueueERC4626,
         "RedeemRequest",
       );
@@ -177,7 +177,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
 
       // Redeem
       const assets = await wsgEth.previewRedeem(shares);
-      await expect(withdrawalQueueERC4626.connect(alice).redeem(shares, alice.address, alice.address)).to.emit(
+      await expect(withdrawalQueueERC4626.connect(alice).redeem(shares, alice.address)).to.emit(
         withdrawalQueueERC4626,
         "Redeem",
       );
@@ -198,9 +198,9 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       }
 
       // Alice requests first
-      await withdrawalQueueERC4626.connect(alice).requestRedeem(parseEther("5"), alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).requestRedeem(parseEther("5"));
       // Bob requests second
-      await withdrawalQueueERC4626.connect(bob).requestRedeem(parseEther("5"), bob.address, bob.address);
+      await withdrawalQueueERC4626.connect(bob).requestRedeem(parseEther("5"));
 
       expect(await withdrawalQueueERC4626.pendingRedeemRequest(alice.address)).to.be.gt(0);
       expect(await withdrawalQueueERC4626.pendingRedeemRequest(bob.address)).to.be.gt(0);
@@ -212,9 +212,9 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       expect(await withdrawalQueueERC4626.claimableRedeemRequest(bob.address)).to.be.gt(0);
 
       // Alice redeems first
-      await withdrawalQueueERC4626.connect(alice).redeem(parseEther("5"), alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).redeem(parseEther("5"), alice.address);
       // Bob redeems second
-      await withdrawalQueueERC4626.connect(bob).redeem(parseEther("5"), bob.address, bob.address);
+      await withdrawalQueueERC4626.connect(bob).redeem(parseEther("5"), bob.address);
 
       expect(await withdrawalQueueERC4626.pendingRedeemRequest(alice.address)).to.eq(0);
       expect(await withdrawalQueueERC4626.pendingRedeemRequest(bob.address)).to.eq(0);
@@ -229,10 +229,10 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       const shares = parseEther("5");
       const wsgEthBalanceBefore = await wsgEth.balanceOf(alice.address);
 
-      await withdrawalQueueERC4626.connect(alice).requestRedeem(shares, alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).requestRedeem(shares);
       await advanceTimeAndBlock(EPOCH_LENGTH);
 
-      await withdrawalQueueERC4626.connect(alice).cancelRedeem(alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).cancelRedeem(alice.address);
 
       const wsgEthBalanceAfter = await wsgEth.balanceOf(alice.address);
       expect(wsgEthBalanceAfter - wsgEthBalanceBefore).to.eq(shares);
@@ -258,7 +258,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       const aliceBalanceBefore = await hreEthers.provider.getBalance(alice.address);
 
       // Request redemption
-      await expect(withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address)).to.emit(
+      await expect(withdrawalQueueFixed.connect(alice).requestRedeem(shares)).to.emit(
         withdrawalQueueFixed,
         "RedeemRequest",
       );
@@ -271,7 +271,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       // Redeem
       // With fixed price 1:1, assets should equal shares
       const expectedAssets = shares; // 1:1 conversion with VIRTUAL_PRICE_FIXED = 1e18
-      await expect(withdrawalQueueFixed.connect(alice).redeem(shares, alice.address, alice.address)).to.emit(
+      await expect(withdrawalQueueFixed.connect(alice).redeem(shares, alice.address)).to.emit(
         withdrawalQueueFixed,
         "Redeem",
       );
@@ -297,7 +297,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       const shares = aliceVeth2Balance > parseEther("5") ? parseEther("5") : aliceVeth2Balance / 2n;
       const VIRTUAL_PRICE_FIXED = parseEther("1"); // 1:1 conversion
 
-      await withdrawalQueueFixed.connect(alice).requestRedeem(shares, alice.address, alice.address);
+      await withdrawalQueueFixed.connect(alice).requestRedeem(shares);
 
       const pendingAssets = await withdrawalQueueFixed.pendingRedeemRequest(alice.address);
       const expectedAssets = (shares * VIRTUAL_PRICE_FIXED) / parseEther("1"); // Should be 1:1
@@ -315,12 +315,12 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       }
 
       // Request in ERC4626 mode
-      await withdrawalQueueERC4626.connect(alice).requestRedeem(parseEther("3"), alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).requestRedeem(parseEther("3"));
 
       // Request in Fixed Price mode (if tokens available)
       const aliceVeth2Balance = await vEth2.balanceOf(alice.address);
       if (aliceVeth2Balance > parseEther("3")) {
-        await withdrawalQueueFixed.connect(bob).requestRedeem(parseEther("3"), bob.address, bob.address);
+        await withdrawalQueueFixed.connect(bob).requestRedeem(parseEther("3"));
       }
 
       await advanceTimeAndBlock(EPOCH_LENGTH);
@@ -342,9 +342,9 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       const initialFixedOut = await withdrawalQueueFixed.totalAssetsOut();
 
       // Redeem in ERC4626 mode
-      await withdrawalQueueERC4626.connect(alice).requestRedeem(parseEther("2"), alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).requestRedeem(parseEther("2"));
       await advanceTimeAndBlock(EPOCH_LENGTH);
-      await withdrawalQueueERC4626.connect(alice).redeem(parseEther("2"), alice.address, alice.address);
+      await withdrawalQueueERC4626.connect(alice).redeem(parseEther("2"), alice.address);
 
       const afterERC4626Out = await withdrawalQueueERC4626.totalAssetsOut();
       expect(afterERC4626Out).to.be.gt(initialERC4626Out);
