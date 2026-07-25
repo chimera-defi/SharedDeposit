@@ -12,6 +12,7 @@ let {
     _postRun,
     _printOverrides,
     _wait,
+    advanceTimeAndBlock,
     log,
 } = require("./deploy_utils.js");
 
@@ -111,14 +112,14 @@ class DeployHelper extends OnchainActions {
     }
     async transferOwnershipToMultisigMultiple(arrOfNames) {
         for (let name of arrOfNames) {
-            await transferOwnershipToMultisig(name);
+            await this.transferOwnershipToMultisig(name);
         }
     }
     async verify() {
         await _verifyAll(this.contracts, this.launchNetwork);
     }
     async mine() {
-        advanceTimeAndBlock(20, hre.ethers);
+        await advanceTimeAndBlock(20, hre.ethers);
     }
 
     async postRun() {
