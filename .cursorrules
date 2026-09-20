@@ -17,8 +17,6 @@
 4. Fix the issues in code
 5. Commit again (hook runs automatically)
 
-**Documentation**: See [`llm/PRE_COMMIT_HOOK.md`](./llm/PRE_COMMIT_HOOK.md) for complete details.
-
 ### Development Workflow
 - **Package Manager**: Use `npm` (NOT yarn for scripts, though yarn.lock exists)
 - **Installation**: `npm install` (automatically installs pre-commit hook)
@@ -30,10 +28,6 @@
 - **Always** ensure prettier, lint, and compile pass before committing
 - The pre-commit hook enforces this automatically
 - Run `npm run pre-commit` to test manually before committing
-
-### Documentation
-- All AI documentation is in the `llm/` folder
-- See [`llm/PRE_COMMIT_HOOK.md`](./llm/PRE_COMMIT_HOOK.md) for pre-commit hook details
 
 ---
 
