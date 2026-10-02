@@ -109,53 +109,6 @@ class Ship {
     };
   };
 
-  // deployDiamond = async (
-  //   name: string,
-  //   facets: (new () => ContractFactory)[],
-  //   initializer: new () => ContractFactory,
-  //   initializeFunction: string,
-  //   args?: (string | number | bigint | boolean)[],
-  //   option?: Modify<
-  //     DiamondOptions,
-  //     {
-  //       from?: SignerWithAddress;
-  //       log?: boolean;
-  //     }
-  //   >,
-  // ) => {
-  //   const facetNames = facets.map(facet => facet.name.split("__")[0]);
-  //   const initializerName = initializer.name.split("__")[0];
-
-  //   const from = option?.from || this.accounts.deployer;
-  //   const fromAddr = from.address;
-
-  //   let log = option?.log || this.log;
-  //   if (log === undefined) {
-  //     if (this.hre.network.name !== "hardhat") {
-  //       log = true;
-  //     } else {
-  //       log = false;
-  //     }
-  //   }
-
-  //   const deployResult = await this.hre.deployments.diamond.deploy(name, {
-  //     ...option,
-  //     facets: facetNames,
-  //     execute: {
-  //       contract: initializerName,
-  //       methodName: initializeFunction,
-  //       args: args ?? [],
-  //     },
-  //     from: fromAddr,
-  //     log,
-  //     waitConfirmations: 1,
-  //   });
-
-  //   return {
-  //     ...deployResult,
-  //   };
-  // };
-
   connect = async <T extends ContractFactory>(
     contractFactory: (new () => T) | string,
     newAddress?: string,
