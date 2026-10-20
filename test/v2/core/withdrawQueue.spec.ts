@@ -517,7 +517,8 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     // Note: ERC20MintableBurnableByMinter doesn't grant DEFAULT_ADMIN_ROLE automatically
     // We'll use SgETH instead which properly grants DEFAULT_ADMIN_ROLE to deployer
     const SgETHFactory = await hreEthers.getContractFactory("SgETH");
-    const tempSgEth = await SgETHFactory.connect(deployer).deploy();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tempSgEth = (await SgETHFactory.connect(deployer).deploy()) as any;
     await tempSgEth.waitForDeployment();
     // Grant MINTER role to deployer so we can mint
     await tempSgEth.connect(deployer).addMinter(deployer.address);
@@ -619,12 +620,14 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     // Deploy with 1.05:1 virtual price (5% premium)
     const premiumPrice = (parseEther("1") * 105n) / 100n;
     const WithdrawalQueueFactory = await hreEthers.getContractFactory("WithdrawalQueue");
-    const withdrawalQueuePremium = await WithdrawalQueueFactory.deploy(
+    const withdrawalQueuePremiumDeployed = await WithdrawalQueueFactory.deploy(
       hreEthers.ZeroAddress,
       await mockToken.getAddress(),
       EPOCH_LENGTH,
       premiumPrice,
     );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const withdrawalQueuePremium = withdrawalQueuePremiumDeployed as any;
 
     await mockToken.connect(alice).approve(await withdrawalQueuePremium.getAddress(), parseEther("1000"));
     await deployer.sendTransaction({
@@ -681,12 +684,14 @@ describe("WithdrawalQueue - Fixed Price Mode", () => {
     // Deploy with very high virtual price
     const highPrice = parseEther("2"); // 2:1 conversion
     const WithdrawalQueueFactory = await hreEthers.getContractFactory("WithdrawalQueue");
-    const withdrawalQueueHigh = await WithdrawalQueueFactory.deploy(
+    const withdrawalQueueHighDeployed = await WithdrawalQueueFactory.deploy(
       hreEthers.ZeroAddress,
       await mockToken.getAddress(),
       EPOCH_LENGTH,
       highPrice,
     );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const withdrawalQueueHigh = withdrawalQueueHighDeployed as any;
 
     await mockToken.connect(alice).approve(await withdrawalQueueHigh.getAddress(), parseEther("1000"));
     await deployer.sendTransaction({

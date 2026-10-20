@@ -155,7 +155,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
   });
 
   describe("ERC4626 Mode (WSGETH) - E2E", () => {
-    it("should complete full redemption flow with real WSGETH", async function () {
+    it("should complete full redemption flow with real WSGETH", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
@@ -192,7 +192,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       expect(aliceBalanceAfter - aliceBalanceBefore).to.be.closeTo(assets, parseEther("0.1"));
     });
 
-    it("should handle multiple users in FIFO queue", async function () {
+    it("should handle multiple users in FIFO queue", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
@@ -221,7 +221,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       expect(await withdrawalQueueERC4626.pendingRedeemRequest(bob.address)).to.eq(0);
     });
 
-    it("should cancel redemption and return WSGETH", async function () {
+    it("should cancel redemption and return WSGETH", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
@@ -242,7 +242,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
   });
 
   describe("Fixed Price Mode (vETH2) - E2E", () => {
-    it("should complete full redemption flow with real vETH2", async function () {
+    it("should complete full redemption flow with real vETH2", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
@@ -283,7 +283,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       expect(aliceBalanceAfter - aliceBalanceBefore).to.be.closeTo(expectedAssets, parseEther("0.1"));
     });
 
-    it("should handle fixed price conversion correctly", async function () {
+    it("should handle fixed price conversion correctly", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
@@ -309,7 +309,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
   });
 
   describe("Cross-Mode Scenarios", () => {
-    it("should handle concurrent requests in both modes", async function () {
+    it("should handle concurrent requests in both modes", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
@@ -333,7 +333,7 @@ describe("WithdrawalQueue E2E - Mainnet Fork", () => {
       }
     });
 
-    it("should track totalAssetsOut correctly across modes", async function () {
+    it("should track totalAssetsOut correctly across modes", async function (this: Mocha.Context) {
       if (!process.env.ALCHEMY_KEY) {
         this.skip();
         return;
