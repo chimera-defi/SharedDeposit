@@ -190,12 +190,14 @@ if (ETHERSCAN_API) {
   console.log("No Etherscan API key found. Skipping Etherscan verification.");
 }
 
-function getSortedFiles(dependenciesGraph: Record<string, unknown[]>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSortedFiles(dependenciesGraph: any) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const tsort = require("tsort");
   const graph = tsort();
 
-  const filesMap: Record<string, unknown> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const filesMap: Record<string, any> = {};
   const resolvedFiles = dependenciesGraph.getResolvedFiles();
   resolvedFiles.forEach((f: {sourceName: string}) => (filesMap[f.sourceName] = f));
 
